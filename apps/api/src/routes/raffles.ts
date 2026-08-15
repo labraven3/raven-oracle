@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import type { Prisma } from "@prisma/client";
 import { requireAuth } from "../middleware/auth.js";
+import { drawRaffle } from "../services/raffle-draw.service.js";
 
 const router = Router();
 
@@ -338,6 +339,39 @@ router.patch("/:id", requireAuth, async (req, res, next) => {
     return res.json({
       success: true,
       raffle: updated,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+
+/**
+ * POST /api/raffles/:id/draw
+ *
+ * Executes the deterministic/auditable raffle draw.
+ * Only the raffle creator can trigger the draw.
+ */
+router.post("/:id/draw", requireAuth, async (req, res, next) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
+
+    const raffleId = getRaffleId(req, res);
+    if (!raffleId) return;
+
+    const result = await drawRaffle(
+      raffleId,
+      req.userId,
+    );
+
+    return res.json({
+      success: true,
+      ...result,
     });
   } catch (error) {
     next(error);
