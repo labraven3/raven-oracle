@@ -272,7 +272,7 @@ router.post(
 );
 
 
-router.patch("/:id", async (req, res, next) => {
+router.patch("/:id", requireAuth, async (req, res, next) => {
   try {
     const raffleId = req.params.id;
 
