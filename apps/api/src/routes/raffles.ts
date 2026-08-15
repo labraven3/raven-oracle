@@ -4,7 +4,7 @@ import { prisma } from "../lib/prisma.js";
 import type { Prisma } from "@prisma/client";
 import { requireAuth } from "../middleware/auth.js";
 import { drawRaffle } from "../services/raffle-draw.service.js";
-import { notifyWinner, claimWinner } from "../services/raffle-winner.service.js";
+import { notifyWinner, claimWinner, expireAndReplaceWinner } from "../services/raffle-winner.service.js";
 
 const router = Router();
 
@@ -420,10 +420,24 @@ router.post(
         });
       }
 
-      if (winner.userId !== req.userId) {
+      const raffle = await prisma.raffle.findUnique({
+        where: { id: raffleId },
+        select: {
+          createdByUserId: true,
+        },
+      });
+
+      if (!raffle) {
+        return res.status(404).json({
+          success: false,
+          message: "Raffle not found",
+        });
+      }
+
+      if (raffle.createdByUserId !== req.userId) {
         return res.status(403).json({
           success: false,
-          message: "Only the winner can receive this notification",
+          message: "Only the raffle creator can notify winners",
         });
       }
 
@@ -438,6 +452,89 @@ router.post(
       });
     } catch (error) {
       next(error);
+    }
+  },
+);
+
+/**
+ * POST /api/raffles/:id/winners/:winnerId/expire
+ *
+ * Expires a winner whose claim window has passed and
+ * selects the next eligible replacement when available.
+ */
+router.post(
+  "/:id/winners/:winnerId/expire",
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      if (!req.userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Authentication required",
+        });
+      }
+
+      const raffleId = getRaffleId(req, res);
+      if (!raffleId) return;
+
+      const winnerId = Array.isArray(req.params.winnerId)
+        ? req.params.winnerId[0]
+        : req.params.winnerId;
+
+      if (!winnerId) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid winner ID",
+        });
+      }
+
+      const raffle = await prisma.raffle.findUnique({
+        where: { id: raffleId },
+        select: {
+          createdByUserId: true,
+        },
+      });
+
+      if (!raffle) {
+        return res.status(404).json({
+          success: false,
+          message: "Raffle not found",
+        });
+      }
+
+      if (raffle.createdByUserId !== req.userId) {
+        return res.status(403).json({
+          success: false,
+          message: "Only the raffle creator can expire winners",
+        });
+      }
+
+      const result = await expireAndReplaceWinner(
+        raffleId,
+        winnerId,
+      );
+
+      return res.json({
+        success: true,
+        ...result,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to expire raffle winner";
+
+      if (message === "Winner not found") {
+        return res.status(404).json({
+          success: false,
+          message,
+        });
+      }
+
+      return res.status(400).json({
+        success: false,
+        message,
+      });
     }
   },
 );
