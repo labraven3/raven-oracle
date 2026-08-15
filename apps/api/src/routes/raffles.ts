@@ -4,6 +4,7 @@ import { prisma } from "../lib/prisma.js";
 import type { Prisma } from "@prisma/client";
 import { requireAuth } from "../middleware/auth.js";
 import { drawRaffle } from "../services/raffle-draw.service.js";
+import { notifyRaffleWinner, claimRaffleWinner } from "../services/raffle-winner.service.js";
 
 const router = Router();
 
@@ -377,5 +378,139 @@ router.post("/:id/draw", requireAuth, async (req, res, next) => {
     next(error);
   }
 });
+
+
+/**
+ * POST /api/raffles/:id/winners/:winnerId/notify
+ *
+ * Marks a selected winner as notified.
+ */
+router.post(
+  "/:id/winners/:winnerId/notify",
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      if (!req.userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Authentication required",
+        });
+      }
+
+      const raffleId = getRaffleId(req, res);
+      if (!raffleId) return;
+
+      const winnerId = Array.isArray(req.params.winnerId) ? req.params.winnerId[0] : req.params.winnerId;
+
+      if (!winnerId) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid winner ID",
+        });
+      }
+
+      const winner = await prisma.raffleWinner.findUnique({
+        where: { id: winnerId },
+      });
+
+      if (!winner || winner.raffleId !== raffleId) {
+        return res.status(404).json({
+          success: false,
+          message: "Raffle winner not found",
+        });
+      }
+
+      if (winner.userId !== req.userId) {
+        return res.status(403).json({
+          success: false,
+          message: "Only the winner can receive this notification",
+        });
+      }
+
+      const updated = await notifyRaffleWinner(
+        raffleId,
+        winnerId,
+      );
+
+      return res.json({
+        success: true,
+        winner: updated,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+/**
+ * POST /api/raffles/:id/winners/:winnerId/claim
+ *
+ * Claims a raffle prize for the selected winner.
+ */
+router.post(
+  "/:id/winners/:winnerId/claim",
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      if (!req.userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Authentication required",
+        });
+      }
+
+      const raffleId = getRaffleId(req, res);
+      if (!raffleId) return;
+
+      const winnerId = Array.isArray(req.params.winnerId) ? req.params.winnerId[0] : req.params.winnerId;
+
+      if (!winnerId) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid winner ID",
+        });
+      }
+
+      try {
+        const winner = await claimRaffleWinner(
+          raffleId,
+          winnerId,
+          req.userId,
+        );
+
+        return res.json({
+          success: true,
+          winner,
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Unable to claim raffle prize";
+
+        if (message === "Raffle winner not found") {
+          return res.status(404).json({
+            success: false,
+            message,
+          });
+        }
+
+        if (message === "Only the selected winner can claim this prize") {
+          return res.status(403).json({
+            success: false,
+            message,
+          });
+        }
+
+        return res.status(400).json({
+          success: false,
+          message,
+        });
+      }
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 export default router;
