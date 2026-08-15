@@ -163,7 +163,9 @@ export async function expireAndReplaceWinner(
 
     if (!replacementEntry) {
       const expiredWinner = await tx.raffleWinner.update({
-        where: { id: winner.id },
+        where: {
+          id: winner.id,
+        },
         data: {
           status: "EXPIRED",
         },
@@ -174,6 +176,22 @@ export async function expireAndReplaceWinner(
         replacementWinner: null,
       };
     }
+
+    /*
+     * The (raffleId, selectionRank) pair is unique.
+     *
+     * Therefore the existing winner must release selectionRank
+     * before the replacement winner can be created with the same
+     * rank.
+     */
+    const expiredWinner = await tx.raffleWinner.update({
+      where: {
+        id: winner.id,
+      },
+      data: {
+        status: "EXPIRED",
+      },
+    });
 
     const replacementWinner = await tx.raffleWinner.create({
       data: {
@@ -197,7 +215,7 @@ export async function expireAndReplaceWinner(
       },
     });
 
-    await tx.raffleWinner.update({
+    const replacedWinner = await tx.raffleWinner.update({
       where: {
         id: winner.id,
       },
@@ -209,9 +227,7 @@ export async function expireAndReplaceWinner(
     });
 
     return {
-      expiredWinner: await tx.raffleWinner.findUnique({
-        where: { id: winner.id },
-      }),
+      expiredWinner: replacedWinner,
       replacementWinner,
     };
   });
