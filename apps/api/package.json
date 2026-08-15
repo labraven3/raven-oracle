@@ -1,0 +1,13 @@
+{
+  "name": "raven-oracle-api",
+  "version": "1.0.0",
+  "description": "Raven Oracle backend API",
+  "main": "src/server.ts",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
