@@ -146,7 +146,7 @@ export async function expireAndReplaceWinner(
     const replacementEntry = await tx.raffleEntry.findFirst({
       where: {
         raffleId,
-        status: "ELIGIBLE",
+        status: "NOT_SELECTED",
         id: {
           notIn: [
             ...(await tx.raffleWinner.findMany({
@@ -161,14 +161,14 @@ export async function expireAndReplaceWinner(
       },
     });
 
-    const expiredWinner = await tx.raffleWinner.update({
-      where: { id: winner.id },
-      data: {
-        status: "EXPIRED",
-      },
-    });
-
     if (!replacementEntry) {
+      const expiredWinner = await tx.raffleWinner.update({
+        where: { id: winner.id },
+        data: {
+          status: "EXPIRED",
+        },
+      });
+
       return {
         expiredWinner,
         replacementWinner: null,
@@ -202,6 +202,7 @@ export async function expireAndReplaceWinner(
         id: winner.id,
       },
       data: {
+        status: "REPLACED",
         replacedByWinnerId: replacementWinner.id,
         replacementReason: "Claim window expired",
       },
