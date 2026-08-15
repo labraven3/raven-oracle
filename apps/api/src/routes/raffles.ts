@@ -271,4 +271,77 @@ router.post(
   })
 );
 
+
+router.patch("/:id", async (req, res, next) => {
+  try {
+    const raffleId = req.params.id;
+
+    if (!raffleId || Array.isArray(raffleId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid raffle ID",
+      });
+    }
+
+    if (!req.userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+    }
+
+    const parsed = z.object({
+      status: z.enum([
+        "DRAFT",
+        "SCHEDULED",
+        "ACTIVE",
+        "CLOSED",
+        "DRAWING",
+        "COMPLETED",
+        "CANCELLED",
+      ]),
+    }).safeParse(req.body);
+
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid raffle status",
+        errors: z.treeifyError(parsed.error),
+      });
+    }
+
+    const raffle = await prisma.raffle.findUnique({
+      where: { id: raffleId },
+    });
+
+    if (!raffle) {
+      return res.status(404).json({
+        success: false,
+        message: "Raffle not found",
+      });
+    }
+
+    if (raffle.createdByUserId !== req.userId) {
+      return res.status(403).json({
+        success: false,
+        message: "Only the raffle creator can update this raffle",
+      });
+    }
+
+    const updated = await prisma.raffle.update({
+      where: { id: raffleId },
+      data: {
+        status: parsed.data.status,
+      },
+    });
+
+    return res.json({
+      success: true,
+      raffle: updated,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;
