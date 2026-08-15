@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
+import { evaluateRaffleEntry } from "../services/eligibility.service.js";
 
 const router = Router();
 
@@ -254,5 +255,62 @@ router.get("/:raffleId/entries", requireAuth, async (req, res, next) => {
     next(error);
   }
 });
+
+
+/**
+ * POST /api/raffles/:raffleId/entries/:entryId/evaluate
+ */
+router.post(
+  "/:raffleId/entries/:entryId/evaluate",
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      const raffleId = getIdParam(req.params.raffleId);
+      const entryId = getIdParam(req.params.entryId);
+
+      if (!raffleId || !entryId || !req.userId) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid raffle, entry, or authentication",
+        });
+      }
+
+      const entry = await prisma.raffleEntry.findUnique({
+        where: { id: entryId },
+        include: {
+          raffle: true,
+        },
+      });
+
+      if (!entry || entry.raffleId !== raffleId) {
+        return res.status(404).json({
+          success: false,
+          message: "Raffle entry not found",
+        });
+      }
+
+      if (entry.raffle.createdByUserId !== req.userId) {
+        return res.status(403).json({
+          success: false,
+          message: "Only the raffle creator can evaluate entries",
+        });
+      }
+
+      const result = await evaluateRaffleEntry(entryId);
+
+      const updatedEntry = await prisma.raffleEntry.findUnique({
+        where: { id: entryId },
+      });
+
+      return res.json({
+        success: true,
+        result,
+        entry: updatedEntry,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 export default router;
