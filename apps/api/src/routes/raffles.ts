@@ -4,7 +4,7 @@ import { prisma } from "../lib/prisma.js";
 import type { Prisma } from "@prisma/client";
 import { requireAuth } from "../middleware/auth.js";
 import { drawRaffle } from "../services/raffle-draw.service.js";
-import { notifyRaffleWinner, claimRaffleWinner } from "../services/raffle-winner.service.js";
+import { notifyWinner, claimWinner } from "../services/raffle-winner.service.js";
 
 const router = Router();
 
@@ -427,7 +427,7 @@ router.post(
         });
       }
 
-      const updated = await notifyRaffleWinner(
+      const updated = await notifyWinner(
         raffleId,
         winnerId,
       );
@@ -472,7 +472,7 @@ router.post(
       }
 
       try {
-        const winner = await claimRaffleWinner(
+        const winner = await claimWinner(
           raffleId,
           winnerId,
           req.userId,
