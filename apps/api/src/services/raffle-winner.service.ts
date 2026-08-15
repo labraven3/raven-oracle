@@ -193,6 +193,15 @@ export async function expireAndReplaceWinner(
       },
     });
 
+    await tx.raffleEntry.update({
+      where: {
+        id: winner.entryId,
+      },
+      data: {
+        status: "NOT_SELECTED",
+      },
+    });
+
     const replacementWinner = await tx.raffleWinner.create({
       data: {
         raffleId,
