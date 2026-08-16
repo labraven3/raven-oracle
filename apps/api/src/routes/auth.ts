@@ -5,13 +5,14 @@ import { z } from "zod";
 import { createAuthToken } from "../services/auth.service.js";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
-import { createEmailVerificationToken, sendEmailVerification, verifyEmailVerificationToken } from "../services/email.service.js";
+import { createEmailVerificationToken, sendEmailVerification, verifyEmailVerificationToken, createOtpChallenge, sendEmailOtp, verifyOtpChallenge } from "../services/email.service.js";
 import { env } from "../config/env.js";
 
 const router = Router();
 const scrypt = promisify(scryptCallback);
 const credentials = z.object({ email: z.string().trim().toLowerCase().email(), password: z.string().min(8).max(128) });
 const emailInput = z.object({ email: z.string().trim().toLowerCase().email() });
+const otpInput = z.object({ email: z.string().trim().toLowerCase().email(), challenge: z.string().min(20), code: z.string().regex(/^\d{6}$/) });
 
 async function hashPassword(password: string) {
   const salt = randomBytes(16);
@@ -38,11 +39,8 @@ router.post("/register", async (req, res, next) => {
     const user = await prisma.user.create({ data: { email, passwordHash: await hashPassword(parsed.data.password), status: "PENDING", emailVerifiedAt: null, displayName } });
     const token = await createAuthToken(user.id);
     const verificationToken = createEmailVerificationToken(user.id, email, null);
-    try {
-      await sendEmailVerification(email, `${env.WEB_ORIGIN}/account?verifyEmail=${encodeURIComponent(verificationToken)}`);
-    } catch (error) {
-      console.error("Initial email verification delivery failed:", error);
-    }
+    try { await sendEmailVerification(email, `${env.WEB_ORIGIN}/account?verifyEmail=${encodeURIComponent(verificationToken)}`); }
+    catch (error) { console.error("Initial email verification delivery failed:", error); }
     return res.status(201).json({ success: true, token, user, emailVerificationRequired: true });
   } catch (e) { next(e); }
 });
@@ -52,9 +50,7 @@ router.post("/login", async (req, res, next) => {
     const parsed = credentials.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ success: false, message: "Email and password are required." });
     const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
-    if (!user || !user.passwordHash || ["BANNED", "DELETED", "SUSPENDED"].includes(user.status) || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
-      return res.status(401).json({ success: false, message: "Invalid email or password." });
-    }
+    if (!user || !user.passwordHash || ["BANNED", "DELETED", "SUSPENDED"].includes(user.status) || !(await verifyPassword(parsed.data.password, user.passwordHash))) return res.status(401).json({ success: false, message: "Invalid email or password." });
     if (!user.emailVerifiedAt) return res.status(403).json({ success: false, message: "Verify your email before signing in.", emailVerificationRequired: true });
     const token = await createAuthToken(user.id);
     return res.json({ success: true, token, user });
@@ -81,11 +77,27 @@ router.post("/email/request-verification", requireAuth, async (req, res, next) =
     if (user.email === email && user.emailVerifiedAt) return res.json({ success: true, verified: true, message: "Email is already verified." });
     const conflict = await prisma.user.findUnique({ where: { email } });
     if (conflict && conflict.id !== user.id) return res.status(409).json({ success: false, message: "That email is already attached to another Raven Oracle account." });
-    await prisma.user.update({ where: { id: user.id }, data: { email, emailVerifiedAt: null, status: "PENDING" } });
-    const token = createEmailVerificationToken(user.id, email, user.email ?? null);
-    await sendEmailVerification(email, `${env.WEB_ORIGIN}/account?verifyEmail=${encodeURIComponent(token)}`);
-    return res.json({ success: true, verified: false, message: "Verification email sent." });
+    const { code, challenge } = createOtpChallenge(user.id, email);
+    await sendEmailOtp(email, code);
+    await prisma.user.update({ where: { id: user.id }, data: { email, emailVerifiedAt: null } });
+    return res.json({ success: true, verified: false, challenge, message: "A 6-digit OTP was sent from Raven Oracle to your email." });
   } catch (e) { next(e); }
+});
+
+router.post("/email/verify-otp", requireAuth, async (req, res, next) => {
+  try {
+    if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
+    const parsed = otpInput.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ success: false, message: "Enter the 6-digit OTP." });
+    const email = parsed.data.email;
+    verifyOtpChallenge(parsed.data.challenge, req.userId, email, parsed.data.code);
+    const user = await prisma.user.update({ where: { id: req.userId }, data: { email, emailVerifiedAt: new Date(), status: "ACTIVE" } });
+    const token = await createAuthToken(user.id);
+    return res.json({ success: true, token, user, message: "Email verified successfully." });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "OTP verification failed";
+    return res.status(400).json({ success: false, message });
+  }
 });
 
 router.post("/email/verify", async (req, res, next) => {
