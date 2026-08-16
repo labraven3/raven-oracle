@@ -109,6 +109,14 @@ router.post(
       }
     }
 
+    const now = new Date();
+
+    // New raffles are immediately publishable:
+    // - starts in the future -> SCHEDULED
+    // - starts now or in the past -> ACTIVE
+    const initialStatus =
+      startsAt > now ? "SCHEDULED" : "ACTIVE";
+
     const raffle = await prisma.raffle.create({
       data: {
         projectId: data.projectId ?? null,
@@ -121,6 +129,7 @@ router.post(
         startsAt,
         endsAt,
         entryRules: data.entryRules as Prisma.InputJsonValue,
+        status: initialStatus,
         maxEntriesPerUser: data.maxEntriesPerUser,
         winnerCount: data.winnerCount,
         fairnessAlgorithmVersion: data.fairnessAlgorithmVersion ?? null,
