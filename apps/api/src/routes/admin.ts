@@ -1,11 +1,11 @@
-import { Router } from "express";
+import { Router, type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
 
-async function requireAdmin(req: Parameters<Parameters<typeof router.get>[1]>[0], res: any, next: any) {
+async function requireAdmin(req: Request, res: Response, next: NextFunction) {
   if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
   const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { role: true, status: true } });
   if (!user || user.status === "BANNED" || !["ADMIN", "MODERATOR"].includes(user.role)) {
@@ -32,7 +32,10 @@ router.get("/overview", async (_req, res, next) => {
 router.get("/projects", async (req, res, next) => {
   try {
     const status = typeof req.query.status === "string" ? req.query.status : undefined;
-    const where = status ? { status: status as "SUBMITTED" | "APPROVED" | "REJECTED" | "ARCHIVED", deletedAt: null } : { deletedAt: null };
+    const allowed = ["SUBMITTED", "APPROVED", "REJECTED", "ARCHIVED"] as const;
+    const where = status && (allowed as readonly string[]).includes(status)
+      ? { status: status as (typeof allowed)[number], deletedAt: null }
+      : { deletedAt: null };
     const projects = await prisma.project.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -65,7 +68,15 @@ router.patch("/projects/:id", async (req, res, next) => {
 
 router.get("/raffles", async (_req, res, next) => {
   try {
-    const raffles = await prisma.raffle.findMany({ orderBy: { createdAt: "desc" }, take: 200, include: { project: { select: { name: true, logoUrl: true } }, createdBy: { select: { email: true, username: true } }, _count: { select: { entries: true, winners: true, tasks: true } } } });
+    const raffles = await prisma.raffle.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 200,
+      include: {
+        project: { select: { name: true, logoUrl: true } },
+        createdBy: { select: { email: true, username: true } },
+        _count: { select: { entries: true, winners: true, tasks: true } },
+      },
+    });
     return res.json({ success: true, raffles });
   } catch (error) { next(error); }
 });
