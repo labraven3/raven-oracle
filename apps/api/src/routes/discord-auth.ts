@@ -16,18 +16,18 @@ router.get("/callback", async (req, res) => {
     const code = typeof req.query.code === "string" ? req.query.code : null;
     const state = typeof req.query.state === "string" ? req.query.state : null;
     const error = typeof req.query.error === "string" ? req.query.error : null;
-    if (error) return res.redirect(`${env.WEB_ORIGIN}/account?social=discord&status=error&message=${encodeURIComponent(typeof req.query.error_description === "string" ? req.query.error_description : error)}`);
-    if (!code || !state) return res.redirect(`${env.WEB_ORIGIN}/account?social=discord&status=error&message=${encodeURIComponent("Missing Discord OAuth code or state")}`);
+    if (error) return res.redirect(`${env.WEB_ORIGIN}/account#social=discord&status=error&message=${encodeURIComponent(typeof req.query.error_description === "string" ? req.query.error_description : error)}`);
+    if (!code || !state) return res.redirect(`${env.WEB_ORIGIN}/account#social=discord&status=error&message=${encodeURIComponent("Missing Discord OAuth code or state")}`);
 
     const result = await connectDiscordAccount(code, state);
     const secure = env.NODE_ENV === "production" ? "; Secure" : "";
     res.setHeader("Set-Cookie", `raven_token=${encodeURIComponent(result.authToken)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000${secure}`);
     const status = result.emailRequired ? "email-required" : "connected";
-    return res.redirect(`${env.WEB_ORIGIN}/account?social=discord&status=${status}`);
+    return res.redirect(`${env.WEB_ORIGIN}/account#token=${encodeURIComponent(result.authToken)}&social=discord&status=${status}`);
   } catch (error) {
     console.error("Discord OAuth callback failed:", error);
     const message = error instanceof Error ? error.message : "Discord connection failed";
-    return res.redirect(`${env.WEB_ORIGIN}/account?social=discord&status=error&message=${encodeURIComponent(message)}`);
+    return res.redirect(`${env.WEB_ORIGIN}/account#social=discord&status=error&message=${encodeURIComponent(message)}`);
   }
 });
 
