@@ -1,4 +1,3 @@
-
 import { prisma } from "../lib/prisma.js";
 import { verifyRaffleTask } from "./raffle-task-verification.service.js";
 
@@ -21,6 +20,24 @@ export async function verifyRaffleEligibility(
 
   if (!raffle) {
     throw new Error("Raffle not found");
+  }
+
+  const now = new Date();
+
+  if (raffle.status !== "ACTIVE") {
+    throw new Error(
+      raffle.status === "SCHEDULED"
+        ? "Raffle has not started yet"
+        : "Raffle is not accepting verification",
+    );
+  }
+
+  if (now < raffle.startsAt) {
+    throw new Error("Raffle has not started yet");
+  }
+
+  if (now > raffle.endsAt) {
+    throw new Error("Raffle has ended");
   }
 
   const entry = await prisma.raffleEntry.findUnique({
@@ -55,12 +72,8 @@ export async function verifyRaffleEligibility(
         title: task.title,
         required: task.isRequired,
         verified: result.verified,
-        ...(result.reason
-          ? { reason: result.reason }
-          : {}),
-        ...(result.evidence
-          ? { evidence: result.evidence }
-          : {}),
+        ...(result.reason ? { reason: result.reason } : {}),
+        ...(result.evidence ? { evidence: result.evidence } : {}),
       });
     } catch (error) {
       results.push({
@@ -77,20 +90,12 @@ export async function verifyRaffleEligibility(
     }
   }
 
-  const requiredTasks = results.filter(
-    (task) => task.required,
-  );
-
+  const requiredTasks = results.filter((task) => task.required);
   const failedRequiredTasks = requiredTasks.filter(
     (task) => !task.verified,
   );
-
-  const allRequiredTasksVerified =
-    failedRequiredTasks.length === 0;
-
-  const verifiedCount = results.filter(
-    (task) => task.verified,
-  ).length;
+  const allRequiredTasksVerified = failedRequiredTasks.length === 0;
+  const verifiedCount = results.filter((task) => task.verified).length;
 
   const eligibilityReasons = {
     checkedAt: new Date().toISOString(),
@@ -98,22 +103,14 @@ export async function verifyRaffleEligibility(
     verifiedCount,
     totalTasks: results.length,
     requiredTasks: requiredTasks.length,
-    failedRequiredTasks: failedRequiredTasks.map(
-      (task) => ({
-        taskId: task.taskId,
-        type: task.type,
-        title: task.title,
-        reason: task.reason ?? "Task not completed",
-      }),
-    ),
+    failedRequiredTasks: failedRequiredTasks.map((task) => ({
+      taskId: task.taskId,
+      type: task.type,
+      title: task.title,
+      reason: task.reason ?? "Task not completed",
+    })),
   };
 
-  /*
-   * Do not silently change unrelated raffle-entry state.
-   *
-   * socialVerifiedAtEntry means every required social task
-   * has successfully passed at the time of this evaluation.
-   */
   const updatedEntry = await prisma.raffleEntry.update({
     where: { id: entry.id },
     data: {
