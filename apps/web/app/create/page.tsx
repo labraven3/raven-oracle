@@ -117,9 +117,14 @@ export default function CreateRaffle() {
       });
 
       for (let i = 0; i < tasks.length; i += 1) {
+        const task = tasks[i];
         await api(`/raffles/${raffle.raffle.id}/tasks`, {
           method: "POST",
-          body: JSON.stringify({ ...tasks[i], sortOrder: i }),
+          body: JSON.stringify({
+            ...task,
+            targetUrl: task.targetUrl.trim() || null,
+            sortOrder: i,
+          }),
         });
       }
 
