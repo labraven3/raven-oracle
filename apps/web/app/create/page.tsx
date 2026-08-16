@@ -116,10 +116,9 @@ export default function CreateRaffle() {
         });
       }
 
-      setMessage(`Raffle created for ${selectedProject?.name ?? "the project"}.`);
-      setTimeout(() => {
-        window.location.href = `/dashboard?raffleId=${raffle.raffle.id}`;
-      }, 600);
+      // The API returns the real raffle UUID. Go straight to the participant
+      // page so nobody has to manually replace a placeholder ID in the URL.
+      window.location.href = `/raffles/${raffle.raffle.id}`;
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to create raffle");
     } finally {
