@@ -1,13 +1,22 @@
 import { Router } from "express";
+import { verifyAuthToken } from "../services/auth.service.js";
 import { connectDiscordAccount, createDiscordAuthorizationUrl } from "../services/discord-oauth.service.js";
 import { env } from "../config/env.js";
 
 const router = Router();
 
+function requestToken(req: Parameters<Router["get"]>[1] extends never ? never : any) {
+  const header = req.headers.authorization;
+  if (header?.startsWith("Bearer ")) return header.slice("Bearer ".length).trim();
+  const cookie = req.headers.cookie?.split(";").map((part) => part.trim()).find((part) => part.startsWith("raven_token="));
+  return cookie ? decodeURIComponent(cookie.slice("raven_token=".length)) : null;
+}
+
 router.get("/start", async (req, res, next) => {
   try {
-    const userId = req.userId ?? null;
-    return res.json({ success: true, authorizationUrl: createDiscordAuthorizationUrl(userId) });
+    const token = requestToken(req);
+    const session = token ? await verifyAuthToken(token) : null;
+    return res.json({ success: true, authorizationUrl: createDiscordAuthorizationUrl(session?.id ?? null) });
   } catch (error) { next(error); }
 });
 
