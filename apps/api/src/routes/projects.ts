@@ -5,13 +5,14 @@ import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
 
+// Keep API validation aligned with prisma/schema.prisma ProjectCategory.
 const category = z.enum([
   "NFT",
+  "TOKEN",
+  "GAME",
+  "TOOL",
   "DEFI",
-  "GAMING",
-  "AI",
-  "INFRASTRUCTURE",
-  "MEME",
+  "COMMUNITY",
   "OTHER",
 ]);
 
