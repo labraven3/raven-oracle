@@ -87,7 +87,10 @@ router.post("/:id/draw", requireAuth, async (req, res, next) => {
     if (raffle.createdByUserId !== req.userId) return res.status(403).json({ success: false, message: "Only the raffle creator can draw this raffle" });
     if (raffle.status !== "CLOSED") return res.status(400).json({ success: false, message: "Raffle entries must be closed before drawing winners" });
     if (new Date() < raffle.endsAt) return res.status(400).json({ success: false, message: "Raffle cannot be drawn before its end time" });
-    const result = await drawRaffle(raffleId, req.userId); return res.json({ success: true, ...result });
+    const result = await drawRaffle(raffleId, req.userId);
+    const notificationResults = await Promise.allSettled(result.winners.map((winner) => notifyWinner(raffleId, winner.id)));
+    const notifications = notificationResults.map((item, index) => ({ winnerId: result.winners[index]?.id, sent: item.status === "fulfilled", error: item.status === "rejected" ? (item.reason instanceof Error ? item.reason.message : "Notification failed") : null }));
+    return res.json({ success: true, ...result, notifications });
   } catch (error) { next(error); }
 });
 
