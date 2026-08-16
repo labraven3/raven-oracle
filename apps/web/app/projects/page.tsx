@@ -1,22 +1,64 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import ThemeToggle from "../../components/ThemeToggle";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
 type Project = { id: string; name: string; slug: string; description: string | null; websiteUrl: string | null; xUrl: string | null; discordUrl: string | null; logoUrl: string; category: string; status: string; createdAt: string };
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [query, setQuery] = useState(""); const [category, setCategory] = useState("ALL");
-  const [loading, setLoading] = useState(true); const [error, setError] = useState("");
-  useEffect(() => { fetch(`${API}/projects`, { cache: "no-store" }).then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.message ?? "Unable to load projects"); return d; }).then(d => setProjects((d.projects ?? []).filter((p: Project) => p.status === "APPROVED"))).catch(e => setError(e instanceof Error ? e.message : "Unable to load projects")).finally(() => setLoading(false)); }, []);
-  const filtered = useMemo(() => projects.filter(p => (category === "ALL" || p.category === category) && `${p.name} ${p.description ?? ""}`.toLowerCase().includes(query.trim().toLowerCase())), [projects, query, category]);
-  const categories = ["ALL", "NFT", "TOKEN", "GAME", "TOOL", "DEFI", "COMMUNITY", "OTHER"];
-  return <main className="min-h-screen bg-[#07070a] text-zinc-100">
-    <header className="sticky top-0 z-20 border-b border-white/10 bg-[#07070a]/90 px-5 py-5 backdrop-blur-xl"><div className="mx-auto flex max-w-6xl items-center justify-between"><a href="/" className="font-black tracking-[.18em]">RAVEN ORACLE</a><nav className="flex gap-5 text-xs text-zinc-500"><a href="/raffles" className="hover:text-white">Raffles</a><a href="/projects" className="text-white">Projects</a><a href="/dashboard" className="hover:text-white">Creator Studio</a></nav></div></header>
-    <section className="mx-auto max-w-6xl px-5 py-14"><span className="text-[9px] font-black tracking-[.2em] text-violet-300/60">DISCOVER</span><h1 className="mt-3 text-5xl font-medium tracking-tight">Explore projects.</h1><p className="mt-4 max-w-2xl text-sm leading-6 text-zinc-500">Discover approved communities and jump directly into their live or upcoming raffles.</p>
-      <div className="mt-9 flex flex-col gap-3 md:flex-row"><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search projects…" className="flex-1 rounded-xl border border-white/10 bg-[#0d0c11] px-4 py-3 text-sm outline-none focus:border-violet-400/40"/><div className="flex gap-2 overflow-x-auto">{categories.map(x => <button key={x} onClick={() => setCategory(x)} className={`whitespace-nowrap rounded-xl border px-3 py-2 text-[10px] font-bold ${category === x ? "border-violet-400/40 bg-violet-500/10 text-violet-200" : "border-white/10 text-zinc-500"}`}>{x}</button>)}</div></div>
-      {loading ? <div className="mt-10 rounded-2xl border border-dashed border-white/10 p-14 text-center text-sm text-zinc-600">Loading projects…</div> : error ? <div className="mt-10 rounded-xl border border-red-500/20 bg-red-500/5 p-5 text-sm text-red-300">{error}</div> : filtered.length === 0 ? <div className="mt-10 rounded-2xl border border-white/10 bg-[#0d0c11] p-14 text-center"><p className="text-sm text-zinc-300">No approved projects yet.</p><p className="mt-2 text-xs text-zinc-600">Check back when new communities are approved.</p></div> : <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">{filtered.map(p => <a key={p.id} href={`/projects/${p.id}`} className="group rounded-2xl border border-white/10 bg-[#0d0c11] p-5 transition hover:-translate-y-0.5 hover:border-violet-400/30"><div className="flex items-center gap-4"><div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl border border-white/10 bg-black text-xl font-black text-violet-200">{p.logoUrl ? <img src={p.logoUrl} alt="" className="h-full w-full object-cover" /> : p.name.slice(0,1)}</div><div className="min-w-0"><div className="truncate font-semibold">{p.name}</div><span className="mt-1 inline-block rounded-full border border-white/10 px-2 py-1 text-[9px] text-zinc-500">{p.category}</span></div></div><p className="mt-5 line-clamp-3 text-xs leading-5 text-zinc-500">{p.description || "No description yet."}</p><div className="mt-5 flex items-center justify-between border-t border-white/10 pt-4 text-[10px] text-zinc-600"><span>APPROVED</span><span className="text-violet-300 group-hover:text-violet-200">View project →</span></div></a>)}</div>}
-    </section>
-  </main>;
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("ALL");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch(`${API}/projects`, { cache: "no-store" })
+      .then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.message ?? "Unable to load projects"); return d; })
+      .then(d => setProjects((d.projects ?? []).filter((p: Project) => p.status === "APPROVED")))
+      .catch(e => setError(e instanceof Error ? e.message : "Unable to load projects"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = useMemo(() => projects.filter(p =>
+    (category === "ALL" || p.category === category) &&
+    `${p.name} ${p.description ?? ""}`.toLowerCase().includes(query.trim().toLowerCase())
+  ), [projects, query, category]);
+
+  return (
+    <main className="projects-page">
+      <header className="site-header">
+        <div className="site-header-inner">
+          <a href="/" className="site-brand"><span className="site-brand-mark">R</span><span><b>RAVEN ORACLE</b><small>COMMUNITY INTELLIGENCE</small></span></a>
+          <nav className="site-nav"><a href="/raffles">Raffles</a><a href="/projects" className="active">Projects</a><a href="/dashboard">Creator Studio</a></nav>
+          <ThemeToggle />
+        </div>
+      </header>
+
+      <section className="projects-hero">
+        <div className="eyebrow">DISCOVER · NFT</div>
+        <h1>Explore <span>NFT</span> projects.</h1>
+        <p>Discover approved NFT communities and jump directly into their live or upcoming raffles.</p>
+      </section>
+
+      <section className="projects-content">
+        <div className="project-toolbar">
+          <div className="search-wrap"><span>⌕</span><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search NFT projects…" /></div>
+          <div className="filter-pill"><button className={category === "ALL" ? "selected" : ""} onClick={() => setCategory("ALL")}>ALL</button><button className={category === "NFT" ? "selected" : ""} onClick={() => setCategory("NFT")}>NFT</button></div>
+        </div>
+
+        {loading ? <div className="empty-state">Loading projects…</div> : error ? <div className="error-state">{error}</div> : filtered.length === 0 ? (
+          <div className="empty-state"><div className="empty-icon">◈</div><h2>{category === "NFT" ? "No approved NFT projects yet." : "No approved projects yet."}</h2><p>New communities will appear here after they are approved.</p></div>
+        ) : (
+          <div className="projects-grid-modern">{filtered.map(p => (
+            <a key={p.id} href={`/projects/${p.id}`} className="project-card-modern">
+              <div className="project-cover"><div className="project-cover-glow" />{p.logoUrl ? <img src={p.logoUrl} alt="" /> : <span>{p.name.slice(0, 1)}</span>}<em>NFT</em></div>
+              <div className="project-body"><div className="project-title"><div><h2>{p.name}</h2><span>Verified community</span></div><span className="arrow">↗</span></div><p>{p.description || "An approved NFT community on Raven Oracle."}</p><div className="project-meta"><span>NFT</span><span>View project</span></div></div>
+            </a>
+          ))}</div>
+        )}
+      </section>
+    </main>
+  );
 }
