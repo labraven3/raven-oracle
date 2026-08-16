@@ -8,6 +8,7 @@ import socialAccountsRouter from "../routes/social-accounts.js";
 import xAuthRouter from "../routes/x-auth.js";
 import discordAuthRouter from "../routes/discord-auth.js";
 import walletsRouter from "../routes/wallets.js";
+import projectsRouter from "../routes/projects.js";
 import rafflesRouter from "../routes/raffles.js";
 import raffleEntriesRouter from "../routes/raffle-entries.js";
 import raffleTasksRouter from "../routes/raffle-tasks.js";
@@ -26,6 +27,7 @@ export function createApp() {
   app.use("/api/auth/x", xAuthRouter);
   app.use("/api/auth/discord", discordAuthRouter);
   app.use("/api/wallets", walletsRouter);
+  app.use("/api/projects", projectsRouter);
   app.use("/api/raffles", rafflesRouter);
   app.use("/api/raffles", raffleEntriesRouter);
   app.use("/api/raffles", raffleTasksRouter);
