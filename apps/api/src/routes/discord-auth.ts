@@ -1,11 +1,11 @@
-import { Router } from "express";
+import { Router, type Request } from "express";
 import { verifyAuthToken } from "../services/auth.service.js";
 import { connectDiscordAccount, createDiscordAuthorizationUrl } from "../services/discord-oauth.service.js";
 import { env } from "../config/env.js";
 
 const router = Router();
 
-function requestToken(req: Parameters<Router["get"]>[1] extends never ? never : any) {
+function requestToken(req: Request) {
   const header = req.headers.authorization;
   if (header?.startsWith("Bearer ")) return header.slice("Bearer ".length).trim();
   const cookie = req.headers.cookie?.split(";").map((part) => part.trim()).find((part) => part.startsWith("raven_token="));
