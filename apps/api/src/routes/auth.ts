@@ -5,45 +5,10 @@ import { z } from "zod";
 import { createAuthToken } from "../services/auth.service.js";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
-
-const router = Router();
-const scrypt = promisify(scryptCallback);
-const credentials = z.object({ email: z.string().trim().toLowerCase().email(), password: z.string().min(8).max(128) });
-
-async function hashPassword(password: string) { const salt = randomBytes(16); const derived = (await scrypt(password, salt, 64)) as Buffer; return `scrypt$${salt.toString("hex")}$${derived.toString("hex")}`; }
-async function verifyPassword(password: string, encoded: string) { const [scheme, saltHex, hashHex] = encoded.split("$"); if (scheme !== "scrypt" || !saltHex || !hashHex) return false; const derived = (await scrypt(password, Buffer.from(saltHex, "hex"), 64)) as Buffer; const expected = Buffer.from(hashHex, "hex"); return expected.length === derived.length && timingSafeEqual(expected, derived); }
-
-router.post("/register", async (req, res, next) => {
-  try {
-    const parsed = credentials.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ success: false, message: "Use a valid email and a password of at least 8 characters." });
-    const email = parsed.data.email;
-    const exists = await prisma.user.findUnique({ where: { email } });
-    if (exists) return res.status(409).json({ success: false, message: "An account with that email already exists." });
-    const user = await prisma.user.create({ data: { email, passwordHash: await hashPassword(parsed.data.password), status: "ACTIVE", emailVerifiedAt: new Date(), displayName: email.split("@")[0] } });
-    const token = await createAuthToken(user.id);
-    return res.status(201).json({ success: true, token, user });
-  } catch (error) { next(error); }
-});
-
-router.post("/login", async (req, res, next) => {
-  try {
-    const parsed = credentials.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ success: false, message: "Email and password are required." });
-    const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
-    if (!user || !user.passwordHash || ["BANNED", "DELETED", "SUSPENDED"].includes(user.status) || !(await verifyPassword(parsed.data.password, user.passwordHash))) return res.status(401).json({ success: false, message: "Invalid email or password." });
-    const token = await createAuthToken(user.id);
-    return res.json({ success: true, token, user });
-  } catch (error) { next(error); }
-});
-
-router.get("/me", requireAuth, async (req, res, next) => {
-  try {
-    if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
-    const user = await prisma.user.findUnique({ where: { id: req.userId } });
-    if (!user) return res.status(404).json({ success: false, message: "User not found" });
-    return res.json({ success: true, user });
-  } catch (error) { next(error); }
-});
-
+const router=Router();const scrypt=promisify(scryptCallback);const credentials=z.object({email:z.string().trim().toLowerCase().email(),password:z.string().min(8).max(128)});
+async function hashPassword(password:string){const salt=randomBytes(16);const derived=(await scrypt(password,salt,64)) as Buffer;return `scrypt$${salt.toString("hex")}$${derived.toString("hex")}`;}
+async function verifyPassword(password:string,encoded:string){const [scheme,saltHex,hashHex]=encoded.split("$");if(scheme!=="scrypt"||!saltHex||!hashHex)return false;const derived=(await scrypt(password,Buffer.from(saltHex,"hex"),64)) as Buffer;const expected=Buffer.from(hashHex,"hex");return expected.length===derived.length&&timingSafeEqual(expected,derived);}
+router.post("/register",async(req,res,next)=>{try{const parsed=credentials.safeParse(req.body);if(!parsed.success)return res.status(400).json({success:false,message:"Use a valid email and a password of at least 8 characters."});const email=parsed.data.email;const exists=await prisma.user.findUnique({where:{email}});if(exists)return res.status(409).json({success:false,message:"An account with that email already exists."});const displayName=email.split("@")[0]??null;const user=await prisma.user.create({data:{email,passwordHash:await hashPassword(parsed.data.password),status:"ACTIVE",emailVerifiedAt:new Date(),displayName}});const token=await createAuthToken(user.id);return res.status(201).json({success:true,token,user});}catch(e){next(e);}});
+router.post("/login",async(req,res,next)=>{try{const parsed=credentials.safeParse(req.body);if(!parsed.success)return res.status(400).json({success:false,message:"Email and password are required."});const user=await prisma.user.findUnique({where:{email:parsed.data.email}});if(!user||!user.passwordHash||["BANNED","DELETED","SUSPENDED"].includes(user.status)||!(await verifyPassword(parsed.data.password,user.passwordHash)))return res.status(401).json({success:false,message:"Invalid email or password."});const token=await createAuthToken(user.id);return res.json({success:true,token,user});}catch(e){next(e);}});
+router.get("/me",requireAuth,async(req,res,next)=>{try{if(!req.userId)return res.status(401).json({success:false,message:"Authentication required"});const user=await prisma.user.findUnique({where:{id:req.userId}});if(!user)return res.status(404).json({success:false,message:"User not found"});return res.json({success:true,user});}catch(e){next(e);}});
 export default router;
