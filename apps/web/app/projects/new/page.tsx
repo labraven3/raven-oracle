@@ -37,7 +37,7 @@ export default function NewProject() {
     <div className="mx-auto max-w-5xl px-5 py-14"><div className="max-w-2xl"><span className="text-[9px] font-black tracking-[.2em] text-violet-300/60">PROJECT ONBOARDING</span><h1 className="mt-3 text-5xl font-medium tracking-tight">Add a project.</h1><p className="mt-4 text-sm leading-6 text-zinc-500">Create the project first. Its website, X and Discord become the context for the raffles you publish.</p></div>
       <section className="mt-10 rounded-2xl border border-white/10 bg-[#0d0c11] p-6"><div className="grid gap-5 md:grid-cols-2">
         <label>Project name<input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="XYZ" /></label>
-        <label>Category<select value={form.category} onChange={(e) => set("category", e.target.value)}><option>OTHER</option><option>NFT</option><option>DEFI</option><option>GAMING</option><option>AI</option><option>INFRASTRUCTURE</option><option>MEME</option></select></label>
+        <label>Category<select value={form.category} onChange={(e) => set("category", e.target.value)}><option>OTHER</option><option>NFT</option><option>TOKEN</option><option>GAME</option><option>TOOL</option><option>DEFI</option><option>COMMUNITY</option></select></label>
         <label className="md:col-span-2">Description<textarea value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="Short description of the project" /></label>
         <label>Website<input value={form.websiteUrl} onChange={(e) => set("websiteUrl", e.target.value)} placeholder="https://xyz.com" /></label>
         <label>X profile<input value={form.xUrl} onChange={(e) => set("xUrl", e.target.value)} placeholder="https://x.com/xyz" /></label>
