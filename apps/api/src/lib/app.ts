@@ -12,6 +12,7 @@ import projectsRouter from "../routes/projects.js";
 import rafflesRouter from "../routes/raffles.js";
 import raffleEntriesRouter from "../routes/raffle-entries.js";
 import raffleTasksRouter from "../routes/raffle-tasks.js";
+import raffleWinnersRouter from "../routes/raffle-winners.js";
 
 export function createApp() {
   const app = express();
@@ -31,6 +32,7 @@ export function createApp() {
   app.use("/api/raffles", rafflesRouter);
   app.use("/api/raffles", raffleEntriesRouter);
   app.use("/api/raffles", raffleTasksRouter);
+  app.use("/api/raffles", raffleWinnersRouter);
 
   return app;
 }
