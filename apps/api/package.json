@@ -6,11 +6,11 @@
   "type": "module",
   "main": "src/server.ts",
   "scripts": {
-    "build": "tsc --noEmit",
+    "build": "npx --yes -p typescript@5.9.3 tsc --noEmit",
     "dev": "tsx watch src/server.ts",
-    "lint": "tsc --noEmit",
+    "lint": "npx --yes -p typescript@5.9.3 tsc --noEmit",
     "start": "tsx src/server.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "npx --yes -p typescript@5.9.3 tsc --noEmit"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",
