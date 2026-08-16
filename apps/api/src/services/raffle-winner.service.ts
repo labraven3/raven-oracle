@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { prisma } from "../lib/prisma.js";
 
 const CLAIM_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -42,16 +43,12 @@ export async function claimWinner(raffleId: string, winnerId: string, requesting
       throw new Error("Winner claim window has expired");
     }
 
-    const claimReference = `RAVEN-${cryptoReference()}`;
+    const claimReference = `RAVEN-${crypto.randomBytes(8).toString("hex").toUpperCase()}`;
     return tx.raffleWinner.update({
       where: { id: winner.id },
       data: { status: "CLAIMED", claimedAt: new Date(), claimReference },
     });
   });
-}
-
-function cryptoReference() {
-  return Math.random().toString(36).slice(2, 14).toUpperCase();
 }
 
 export async function expireAndReplaceWinner(raffleId: string, winnerId: string) {
@@ -82,12 +79,21 @@ export async function expireAndReplaceWinner(raffleId: string, winnerId: string)
       orderBy: [{ enteredAt: "asc" }, { id: "asc" }],
     });
 
-    const expiredWinner = await tx.raffleWinner.update({
-      where: { id: winner.id },
-      data: { status: "EXPIRED" },
-    });
+    if (!replacementEntry) {
+      const expiredWinner = await tx.raffleWinner.update({
+        where: { id: winner.id },
+        data: { status: "EXPIRED" },
+      });
+      return { expiredWinner, replacementWinner: null };
+    }
 
-    if (!replacementEntry) return { expiredWinner, replacementWinner: null };
+    // selectionRank is unique per raffle. Move the historical winner out of
+    // the rank before creating its replacement, while retaining the original
+    // rank in replacementWinner.selectionRank.
+    await tx.raffleWinner.update({
+      where: { id: winner.id },
+      data: { selectionRank: 0, status: "EXPIRED" },
+    });
 
     const replacementWinner = await tx.raffleWinner.create({
       data: {
