@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import styles from "./ThemeToggle.module.css";
 
 export default function ThemeToggle() {
   const [light, setLight] = useState(false);
@@ -20,10 +21,5 @@ export default function ThemeToggle() {
     document.documentElement.classList.toggle("light", next);
   };
 
-  return (
-    <button type="button" onClick={toggle} aria-label={`Switch to ${light ? "dark" : "light"} mode`} title={`Switch to ${light ? "dark" : "light"} mode`} className="theme-toggle">
-      <span className="theme-toggle-icon">{light ? "☀" : "☾"}</span>
-      <span className="theme-toggle-label">{light ? "Light" : "Dark"}</span>
-    </button>
-  );
+  return <button type="button" onClick={toggle} aria-label={`Switch to ${light ? "dark" : "light"} mode`} title={`Switch to ${light ? "dark" : "light"} mode`} className={styles.toggle}><span className={styles.icon}>{light ? "☀" : "☾"}</span><span className={styles.label}>{light ? "Light" : "Dark"}</span></button>;
 }
