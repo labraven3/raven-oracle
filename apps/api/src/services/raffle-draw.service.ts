@@ -1,6 +1,5 @@
 import crypto from "node:crypto";
 import { createHash } from "node:crypto";
-import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 
 const ALGORITHM_VERSION = "sha256-csprng-v1";
@@ -12,92 +11,51 @@ function hashEntryIds(entryIds: string[]) {
 }
 
 function randomIndex(randomBytes: Buffer, max: number) {
-  if (max <= 0) {
-    throw new Error("Cannot select from an empty set");
-  }
-
+  if (max <= 0) throw new Error("Cannot select from an empty set");
   const range = Math.floor(256 / max) * max;
-
   for (let i = 0; i < randomBytes.length; i++) {
     const value = randomBytes[i];
-
-    if (value !== undefined && value < range) {
-      return value % max;
-    }
+    if (value !== undefined && value < range) return value % max;
   }
-
   return randomIndex(crypto.randomBytes(32), max);
 }
 
-export async function drawRaffle(
-  raffleId: string,
-  requestingUserId: string,
-) {
+export async function drawRaffle(raffleId: string, requestingUserId: string) {
   return prisma.$transaction(async (tx) => {
-    const raffle = await tx.raffle.findUnique({
-      where: { id: raffleId },
-    });
-
-    if (!raffle) {
-      throw new Error("Raffle not found");
-    }
-
+    const raffle = await tx.raffle.findUnique({ where: { id: raffleId } });
+    if (!raffle) throw new Error("Raffle not found");
     if (raffle.createdByUserId !== requestingUserId) {
       throw new Error("Only the raffle creator can draw this raffle");
     }
-
-    if (raffle.status === "COMPLETED") {
-      throw new Error("Raffle has already been drawn");
+    if (raffle.status === "COMPLETED") throw new Error("Raffle has already been drawn");
+    if (raffle.status === "CANCELLED") throw new Error("Cancelled raffle cannot be drawn");
+    if (raffle.status !== "CLOSED") {
+      throw new Error("Raffle must be closed before drawing winners");
     }
-
-    if (raffle.status === "CANCELLED") {
-      throw new Error("Cancelled raffle cannot be drawn");
+    if (new Date() < raffle.endsAt) {
+      throw new Error("Raffle end time has not been reached");
     }
 
     const eligibleEntries = await tx.raffleEntry.findMany({
-      where: {
-        raffleId,
-        status: "ELIGIBLE",
-      },
-      orderBy: {
-        id: "asc",
-      },
-      select: {
-        id: true,
-        userId: true,
-        walletAddressSnapshot: true,
-      },
+      where: { raffleId, status: "ELIGIBLE" },
+      orderBy: { id: "asc" },
+      select: { id: true, userId: true, walletAddressSnapshot: true },
     });
+    if (eligibleEntries.length === 0) throw new Error("No eligible entries available");
 
-    if (eligibleEntries.length === 0) {
-      throw new Error("No eligible entries available");
-    }
-
-    const winnerCount = Math.min(
-      raffle.winnerCount,
-      eligibleEntries.length,
-    );
-
+    const winnerCount = Math.min(raffle.winnerCount, eligibleEntries.length);
     const entryIds = eligibleEntries.map((entry) => entry.id);
     const eligibleEntryIdsHash = hashEntryIds(entryIds);
-
     const randomness = crypto.randomBytes(32);
-    const randomnessValueHash = createHash("sha256")
-      .update(randomness)
-      .digest("hex");
-
+    const randomnessValueHash = createHash("sha256").update(randomness).digest("hex");
     const selectedIndexes: number[] = [];
     const remaining = [...eligibleEntries];
 
     for (let rank = 1; rank <= winnerCount; rank++) {
       const index = randomIndex(randomness, remaining.length);
       selectedIndexes.push(index);
-
       const selected = remaining.splice(index, 1)[0];
-
-      if (!selected) {
-        throw new Error("Winner selection failed");
-      }
+      if (!selected) throw new Error("Winner selection failed");
 
       await tx.raffleWinner.create({
         data: {
@@ -110,23 +68,12 @@ export async function drawRaffle(
           notificationStatus: "PENDING",
         },
       });
-
-      await tx.raffleEntry.update({
-        where: { id: selected.id },
-        data: {
-          status: "WINNER",
-        },
-      });
+      await tx.raffleEntry.update({ where: { id: selected.id }, data: { status: "WINNER" } });
     }
 
     await tx.raffleEntry.updateMany({
-      where: {
-        raffleId,
-        status: "ELIGIBLE",
-      },
-      data: {
-        status: "NOT_SELECTED",
-      },
+      where: { raffleId, status: "ELIGIBLE" },
+      data: { status: "NOT_SELECTED" },
     });
 
     const snapshot = await tx.raffleEligibilitySnapshot.create({
@@ -144,10 +91,7 @@ export async function drawRaffle(
 
     const updatedRaffle = await tx.raffle.update({
       where: { id: raffleId },
-      data: {
-        status: "COMPLETED",
-        fairnessAlgorithmVersion: ALGORITHM_VERSION,
-      },
+      data: { status: "COMPLETED", fairnessAlgorithmVersion: ALGORITHM_VERSION },
     });
 
     const winners = await tx.raffleWinner.findMany({
@@ -155,10 +99,6 @@ export async function drawRaffle(
       orderBy: { selectionRank: "asc" },
     });
 
-    return {
-      raffle: updatedRaffle,
-      snapshot,
-      winners,
-    };
+    return { raffle: updatedRaffle, snapshot, winners };
   });
 }
