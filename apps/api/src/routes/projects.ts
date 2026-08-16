@@ -16,13 +16,21 @@ const category = z.enum([
   "OTHER",
 ]);
 
+// The frontend uploads a PNG/JPG/WEBP and sends it as a data URL for the
+// current local build. This removes the need for users to paste logo URLs.
+const logoDataUrl = z
+  .string()
+  .regex(/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/)
+  .max(3_000_000, "Logo file is too large. Maximum size is 2 MB.");
+
 const createSchema = z.object({
   name: z.string().trim().min(1).max(120),
   description: z.string().trim().max(5000).optional(),
+  // Website is optional. Empty string is normalized to null below.
   websiteUrl: z.string().url().optional().or(z.literal("")),
   xUrl: z.string().url().optional().or(z.literal("")),
   discordUrl: z.string().url().optional().or(z.literal("")),
-  logoUrl: z.string().url().optional().or(z.literal("")),
+  logoUrl: logoDataUrl,
   category: category.default("OTHER"),
 });
 
@@ -81,7 +89,7 @@ router.post("/", requireAuth, async (req, res, next) => {
         websiteUrl: parsed.data.websiteUrl || null,
         xUrl: parsed.data.xUrl || null,
         discordUrl: parsed.data.discordUrl || null,
-        logoUrl: parsed.data.logoUrl || null,
+        logoUrl: parsed.data.logoUrl,
         category: parsed.data.category,
         status: "SUBMITTED",
         submittedByUserId: req.userId,
