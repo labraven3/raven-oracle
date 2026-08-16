@@ -14,14 +14,14 @@ import publicRafflesRouter from "../routes/public-raffles.js";
 import raffleEntriesRouter from "../routes/raffle-entries.js";
 import raffleTasksRouter from "../routes/raffle-tasks.js";
 import raffleWinnersRouter from "../routes/raffle-winners.js";
+import alphaRouter from "../routes/alpha.js";
+import chatRouter from "../routes/chat.js";
 import adminRouter from "../routes/admin.js";
 
 export function createApp() {
   const app = express();
-
   app.use(securityMiddleware);
   app.use(express.json({ limit: "4mb" }));
-
   app.use("/api/health", healthRouter);
   app.use("/api/users", usersRouter);
   app.use("/api/auth", authRouter);
@@ -36,7 +36,8 @@ export function createApp() {
   app.use("/api/raffles", raffleEntriesRouter);
   app.use("/api/raffles", raffleTasksRouter);
   app.use("/api/raffles", raffleWinnersRouter);
+  app.use("/api/alpha", alphaRouter);
+  app.use("/api/chat", chatRouter);
   app.use("/api/admin", adminRouter);
-
   return app;
 }
