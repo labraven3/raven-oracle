@@ -185,21 +185,22 @@ model User {
   updatedAt       DateTime   @updatedAt
   deletedAt       DateTime?
 
-  socialAccounts      SocialAccount[]
-  walletAddresses     WalletAddress[]
-  submittedProjects   Project[]          @relation("ProjectSubmitter")
-  approvedProjects    Project[]          @relation("ProjectApprover")
-  projectRatings      ProjectRating[]
-  raffleEntries       RaffleEntry[]
-  createdRaffles      Raffle[]           @relation("RaffleCreator")
-  raffleWinners       RaffleWinner[]
-  alphaSubmissions    AlphaSubmission[]  @relation("AlphaSubmitter")
-  reviewedSubmissions AlphaSubmission[]  @relation("AlphaReviewer")
-  pointTransactions   PointTransaction[] @relation("PointRecipient")
-  createdPointTxns    PointTransaction[] @relation("PointCreator")
-  chatMessages        ChatMessage[]      @relation("ChatAuthor")
-  moderatedMessages   ChatMessage[]      @relation("ChatModerator")
-  auditLogs           AuditLog[]         @relation("AuditActor")
+  socialAccounts          SocialAccount[]
+  walletAddresses         WalletAddress[]
+  submittedProjects       Project[]                @relation("ProjectSubmitter")
+  approvedProjects        Project[]                @relation("ProjectApprover")
+  projectRatings          ProjectRating[]
+  raffleEntries           RaffleEntry[]
+  createdRaffles          Raffle[]                 @relation("RaffleCreator")
+  raffleWinners           RaffleWinner[]
+  alphaSubmissions        AlphaSubmission[]        @relation("AlphaSubmitter")
+  reviewedSubmissions     AlphaSubmission[]        @relation("AlphaReviewer")
+  pointTransactions       PointTransaction[]       @relation("PointRecipient")
+  createdPointTxns        PointTransaction[]       @relation("PointCreator")
+  chatMessages            ChatMessage[]            @relation("ChatAuthor")
+  moderatedMessages       ChatMessage[]            @relation("ChatModerator")
+  auditLogs               AuditLog[]               @relation("AuditActor")
+  raffleTaskVerifications RaffleTaskVerification[]
 
   @@index([status])
   @@index([createdAt])
@@ -305,6 +306,19 @@ model ProjectRating {
   @@index([projectId, status])
 }
 
+enum RaffleTaskType {
+  X_FOLLOW
+  X_LIKE
+  X_REPOST
+  DISCORD_JOIN
+}
+
+enum RaffleTaskVerificationStatus {
+  PENDING
+  VERIFIED
+  FAILED
+}
+
 model Raffle {
   id                       String       @id @default(uuid()) @db.Uuid
   projectId                String?      @db.Uuid
@@ -332,12 +346,56 @@ model Raffle {
   snapshots    RaffleEligibilitySnapshot[]
   pointTxns    PointTransaction[]
   chatChannels ChatChannel[]
+  tasks        RaffleTask[]
 
   @@index([projectId])
   @@index([createdByUserId])
   @@index([status])
   @@index([startsAt])
   @@index([endsAt])
+}
+
+model RaffleTask {
+  id          String         @id @default(uuid()) @db.Uuid
+  raffleId    String         @db.Uuid
+  type        RaffleTaskType
+  title       String
+  description String?
+  target      String
+  targetUrl   String?
+  isRequired  Boolean        @default(true)
+  sortOrder   Int            @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  raffle        Raffle                   @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  verifications RaffleTaskVerification[]
+
+  @@index([raffleId])
+  @@index([raffleId, sortOrder])
+  @@index([type])
+}
+
+model RaffleTaskVerification {
+  id            String                       @id @default(uuid()) @db.Uuid
+  raffleTaskId  String                       @db.Uuid
+  entryId       String                       @db.Uuid
+  userId        String                       @db.Uuid
+  status        RaffleTaskVerificationStatus @default(PENDING)
+  verifiedAt    DateTime?
+  failureReason String?
+  evidence      Json?
+  createdAt     DateTime                     @default(now())
+  updatedAt     DateTime                     @updatedAt
+
+  raffleTask RaffleTask  @relation(fields: [raffleTaskId], references: [id], onDelete: Cascade)
+  entry      RaffleEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([raffleTaskId, entryId])
+  @@index([entryId])
+  @@index([userId])
+  @@index([status])
 }
 
 model RaffleEntry {
@@ -364,10 +422,11 @@ model RaffleEntry {
   createdAt              DateTime          @default(now())
   updatedAt              DateTime          @updatedAt
 
-  raffle        Raffle         @relation(fields: [raffleId], references: [id], onDelete: Cascade)
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  walletAddress WalletAddress  @relation(fields: [walletAddressId], references: [id], onDelete: Restrict)
-  winners       RaffleWinner[]
+  raffle            Raffle                   @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  user              User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  walletAddress     WalletAddress            @relation(fields: [walletAddressId], references: [id], onDelete: Restrict)
+  winners           RaffleWinner[]
+  taskVerifications RaffleTaskVerification[]
 
   @@unique([raffleId, userId])
   @@unique([raffleId, walletAddressId])

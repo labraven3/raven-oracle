@@ -881,3 +881,441 @@ footer p {
     margin-top: 60px;
   }
 }
+
+/* =========================================================
+   RAVEN ORACLE BETA FUNCTIONAL UI
+   ========================================================= */
+
+.raven-shell {
+  min-height: 100vh;
+}
+
+.raven-header {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 22px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.raven-header nav {
+  display: flex;
+  gap: 28px;
+}
+
+.raven-header nav a {
+  color: inherit;
+  text-decoration: none;
+  opacity: .72;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.brand-mark {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  border: 1px solid rgba(255,255,255,.16);
+}
+
+.brand strong,
+.brand span {
+  display: block;
+}
+
+.brand span {
+  font-size: 11px;
+  opacity: .55;
+  margin-top: 2px;
+}
+
+.hero {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 95px 24px 85px;
+  display: grid;
+  grid-template-columns: 1.2fr .8fr;
+  gap: 70px;
+  align-items: center;
+}
+
+.hero-copy h1 {
+  font-size: clamp(52px, 7vw, 92px);
+  line-height: .94;
+  letter-spacing: -.055em;
+  margin: 18px 0 26px;
+}
+
+.hero-copy p {
+  max-width: 650px;
+  font-size: 18px;
+  line-height: 1.7;
+  opacity: .68;
+}
+
+.eyebrow {
+  font-size: 11px;
+  letter-spacing: .18em;
+  font-weight: 800;
+  opacity: .55;
+}
+
+.hero-actions,
+.community-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 30px;
+  flex-wrap: wrap;
+}
+
+.primary-button,
+.secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 0 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.14);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform .18s ease, opacity .18s ease;
+}
+
+.primary-button:hover,
+.secondary-button:hover {
+  transform: translateY(-1px);
+  opacity: .9;
+}
+
+.primary-button {
+  background: white;
+  color: #090909;
+}
+
+.secondary-button {
+  background: rgba(255,255,255,.045);
+  color: inherit;
+}
+
+.primary-button.small {
+  min-height: 42px;
+  margin-top: 20px;
+}
+
+.primary-button.full {
+  width: 100%;
+}
+
+.hero-card,
+.community-card,
+.raffle-card,
+.empty-state,
+.notice,
+.raffle-modal {
+  border: 1px solid rgba(255,255,255,.11);
+  background: rgba(255,255,255,.035);
+  border-radius: 22px;
+}
+
+.hero-card {
+  padding: 30px;
+  min-height: 430px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 20px;
+}
+
+.hero-card-top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  letter-spacing: .15em;
+  opacity: .55;
+}
+
+.live-dot {
+  opacity: 1;
+}
+
+.oracle-symbol {
+  font-size: 150px;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+  margin: 20px 0;
+}
+
+.hero-stat,
+.modal-prize,
+.entry-status {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 15px 0;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+
+.hero-stat span,
+.modal-prize span,
+.entry-status span {
+  opacity: .55;
+}
+
+.section {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 70px 24px;
+}
+
+.section-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.section-heading h2,
+.community-card h2 {
+  font-size: clamp(34px, 4vw, 52px);
+  letter-spacing: -.04em;
+  margin: 8px 0 0;
+}
+
+.raffle-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.raffle-card {
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 170px 1fr;
+}
+
+.raffle-art {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  font-size: 50px;
+  font-weight: 900;
+  background: rgba(255,255,255,.055);
+}
+
+.raffle-content {
+  padding: 28px;
+}
+
+.raffle-label {
+  font-size: 10px;
+  letter-spacing: .16em;
+  opacity: .5;
+  font-weight: 800;
+}
+
+.raffle-content h3 {
+  font-size: 27px;
+  margin: 9px 0;
+}
+
+.raffle-content p {
+  line-height: 1.6;
+  opacity: .65;
+}
+
+.raffle-requirements {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+.raffle-requirements span {
+  font-size: 12px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.055);
+}
+
+.raffle-prize {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.raffle-prize span {
+  font-size: 11px;
+  opacity: .5;
+}
+
+.empty-state,
+.notice {
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notice {
+  margin-bottom: 20px;
+}
+
+.community-card {
+  padding: 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 40px;
+}
+
+.community-card p {
+  max-width: 650px;
+  opacity: .65;
+  line-height: 1.6;
+}
+
+.community-actions {
+  margin-top: 0;
+}
+
+footer {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 45px 24px;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  border-top: 1px solid rgba(255,255,255,.08);
+  opacity: .7;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0,0,0,.76);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.raffle-modal {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding: 34px;
+  position: relative;
+  box-shadow: 0 30px 100px rgba(0,0,0,.5);
+}
+
+.raffle-modal h2 {
+  font-size: 40px;
+  letter-spacing: -.04em;
+  margin: 12px 0;
+}
+
+.raffle-modal > p {
+  line-height: 1.65;
+  opacity: .65;
+}
+
+.modal-close {
+  position: absolute;
+  right: 18px;
+  top: 15px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 30px;
+  cursor: pointer;
+}
+
+.modal-checklist {
+  margin: 25px 0;
+  display: grid;
+  gap: 10px;
+}
+
+.entry-status {
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.entry-status small {
+  width: 100%;
+  opacity: .5;
+}
+
+.modal-note {
+  display: block;
+  margin-top: 15px;
+  opacity: .45;
+  line-height: 1.5;
+}
+
+@media (max-width: 850px) {
+  .raven-header nav {
+    display: none;
+  }
+
+  .hero {
+    grid-template-columns: 1fr;
+    padding-top: 55px;
+  }
+
+  .raffle-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .community-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 600px) {
+  .raven-header {
+    padding: 16px;
+  }
+
+  .raven-header .primary-button {
+    padding: 0 12px;
+    min-height: 40px;
+    font-size: 12px;
+  }
+
+  .hero,
+  .section {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .raffle-card {
+    grid-template-columns: 1fr;
+  }
+
+  .raffle-art {
+    min-height: 130px;
+  }
+
+  footer {
+    padding-left: 16px;
+    padding-right: 16px;
+    flex-direction: column;
+  }
+}

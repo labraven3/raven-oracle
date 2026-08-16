@@ -9,6 +9,14 @@ const envSchema = z.object({
   WEB_ORIGIN: z.string().url().default("http://localhost:3000"),
   DATABASE_URL: z.string().min(1).optional(),
   JWT_SECRET: z.string().min(32),
+
+  X_CLIENT_ID: z.string().min(1),
+  X_CLIENT_SECRET: z.string().min(1),
+  X_REDIRECT_URI: z.string().url(),
+
+  DISCORD_CLIENT_ID: z.string().min(1),
+  DISCORD_CLIENT_SECRET: z.string().min(1),
+  DISCORD_REDIRECT_URI: z.string().url(),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

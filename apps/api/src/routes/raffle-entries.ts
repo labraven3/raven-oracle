@@ -3,6 +3,8 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { evaluateRaffleEntry } from "../services/eligibility.service.js";
+import { verifyRaffleEligibility } from "../services/raffle-eligibility.service.js";
+import { verifyRaffleTask } from "../services/raffle-task-verification.service.js";
 
 const router = Router();
 
@@ -306,6 +308,202 @@ router.post(
         success: true,
         result,
         entry: updatedEntry,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+
+/**
+ * POST /api/raffles/:raffleId/entries/me/verify-tasks
+ *
+ * Verifies every task attached to the raffle for the current user.
+ */
+router.post(
+  "/:raffleId/entries/me/verify-tasks",
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      const raffleId = getIdParam(req.params.raffleId);
+
+      if (!raffleId || !req.userId) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid raffle or authentication",
+        });
+      }
+
+      const raffle = await prisma.raffle.findUnique({
+        where: { id: raffleId },
+        select: {
+          id: true,
+          tasks: {
+            orderBy: [
+              { sortOrder: "asc" },
+              { createdAt: "asc" },
+            ],
+          },
+        },
+      });
+
+      if (!raffle) {
+        return res.status(404).json({
+          success: false,
+          message: "Raffle not found",
+        });
+      }
+
+      const entry = await prisma.raffleEntry.findUnique({
+        where: {
+          raffleId_userId: {
+            raffleId,
+            userId: req.userId,
+          },
+        },
+      });
+
+      if (!entry) {
+        return res.status(404).json({
+          success: false,
+          message: "You must enter the raffle before verifying tasks",
+        });
+      }
+
+      if (raffle.tasks.length === 0) {
+        return res.json({
+          success: true,
+          allRequiredTasksVerified: true,
+          tasks: [],
+        });
+      }
+
+      const results = [];
+
+      for (const task of raffle.tasks) {
+        try {
+          const result = await verifyRaffleTask(
+            task.id,
+            entry.id,
+            req.userId,
+          );
+
+          results.push({
+            taskId: task.id,
+            type: task.type,
+            title: task.title,
+            required: task.isRequired,
+            verified: result.verified,
+            reason: result.reason ?? null,
+            evidence: result.evidence ?? null,
+          });
+        } catch (error) {
+          results.push({
+            taskId: task.id,
+            type: task.type,
+            title: task.title,
+            required: task.isRequired,
+            verified: false,
+            reason:
+              error instanceof Error
+                ? error.message
+                : "Task verification failed",
+            evidence: null,
+          });
+        }
+      }
+
+      const requiredTasks = results.filter(
+        (task) => task.required,
+      );
+
+      const allRequiredTasksVerified =
+        requiredTasks.every((task) => task.verified);
+
+      const verifiedCount = results.filter(
+        (task) => task.verified,
+      ).length;
+
+      return res.json({
+        success: true,
+        allRequiredTasksVerified,
+        verifiedCount,
+        totalTasks: results.length,
+        requiredTasks: requiredTasks.length,
+        tasks: results,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+
+/**
+ * POST /api/raffles/:raffleId/entries/me/verify
+ *
+ * Final entrant-side eligibility check.
+ *
+ * Automatically verifies every raffle task belonging to the
+ * authenticated user's entry.
+ */
+router.post(
+  "/:raffleId/entries/me/verify",
+  requireAuth,
+  async (req, res, next) => {
+    try {
+      const raffleId = getIdParam(req.params.raffleId);
+
+      if (!raffleId || !req.userId) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid raffle or authentication",
+        });
+      }
+
+      const raffle = await prisma.raffle.findUnique({
+        where: { id: raffleId },
+        select: {
+          id: true,
+          status: true,
+          startsAt: true,
+          endsAt: true,
+        },
+      });
+
+      if (!raffle) {
+        return res.status(404).json({
+          success: false,
+          message: "Raffle not found",
+        });
+      }
+
+      const entry = await prisma.raffleEntry.findUnique({
+        where: {
+          raffleId_userId: {
+            raffleId,
+            userId: req.userId,
+          },
+        },
+      });
+
+      if (!entry) {
+        return res.status(404).json({
+          success: false,
+          message: "Enter the raffle before verifying eligibility",
+        });
+      }
+
+      const result = await verifyRaffleEligibility(
+        raffleId,
+        entry.id,
+        req.userId,
+      );
+
+      return res.json({
+        success: true,
+        ...result,
       });
     } catch (error) {
       next(error);
