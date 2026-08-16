@@ -32,6 +32,11 @@ const emptyTask: TaskDraft = {
   isRequired: true,
 };
 
+function localDateTimeValue(date: Date) {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export default function CreateRaffle() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState("");
@@ -68,6 +73,8 @@ export default function CreateRaffle() {
     () => projects.find((project) => project.id === projectId),
     [projects, projectId],
   );
+
+  const minDateTime = localDateTimeValue(new Date());
 
   const addTask = () =>
     setTasks((items) => [...items, { ...emptyTask, title: "", target: "", targetUrl: "" }]);
@@ -116,8 +123,6 @@ export default function CreateRaffle() {
         });
       }
 
-      // The API returns the real raffle UUID. Go straight to the participant
-      // page so nobody has to manually replace a placeholder ID in the URL.
       window.location.href = `/raffles/${raffle.raffle.id}`;
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to create raffle");
@@ -179,9 +184,32 @@ export default function CreateRaffle() {
                 <label>Winner count<input type="number" min={1} value={winners} onChange={(e) => setWinners(Math.max(1, Number(e.target.value)))} /></label>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
-                <label>Starts<input type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} /></label>
-                <label>Ends<input type="datetime-local" value={endsAt} onChange={(e) => setEndsAt(e.target.value)} /></label>
+                <label>
+                  Starts
+                  <input
+                    type="datetime-local"
+                    value={startsAt}
+                    min={minDateTime}
+                    step={60}
+                    onChange={(e) => setStartsAt(e.target.value)}
+                    aria-label="Raffle start date and time"
+                  />
+                </label>
+                <label>
+                  Ends
+                  <input
+                    type="datetime-local"
+                    value={endsAt}
+                    min={startsAt || minDateTime}
+                    step={60}
+                    onChange={(e) => setEndsAt(e.target.value)}
+                    aria-label="Raffle end date and time"
+                  />
+                </label>
               </div>
+              <p className="text-[11px] leading-5 text-zinc-600">
+                Use the calendar and clock controls in each field. Times are saved in your local timezone and converted to UTC automatically.
+              </p>
             </div>
           </section>
 
@@ -229,7 +257,7 @@ export default function CreateRaffle() {
         </button>
       </div>
 
-      <style jsx>{`label{display:block;font-size:11px;color:#77717f}input,textarea,select{display:block;width:100%;margin-top:8px;border:1px solid #292531;border-radius:8px;background:#08080b;color:#f5f5f7;padding:11px;font:inherit;font-size:12px;outline:none}textarea{min-height:110px;resize:vertical}input:focus,textarea:focus,select:focus{border-color:#7651ad}`}</style>
+      <style jsx>{`label{display:block;font-size:11px;color:#77717f}input,textarea,select{display:block;width:100%;margin-top:8px;border:1px solid #292531;border-radius:8px;background:#08080b;color:#f5f5f7;padding:11px;font:inherit;font-size:12px;outline:none;color-scheme:dark}textarea{min-height:110px;resize:vertical}input:focus,textarea:focus,select:focus{border-color:#7651ad}`}</style>
     </main>
   );
 }
