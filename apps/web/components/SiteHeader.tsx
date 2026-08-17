@@ -1,0 +1,10 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+export default function SiteHeader() {
+  const [light, setLight] = useState(false);
+  useEffect(() => { setLight(localStorage.getItem("raven-theme") === "light"); }, []);
+  const toggle = () => { const next = !light; setLight(next); localStorage.setItem("raven-theme", next ? "light" : "dark"); document.documentElement.classList.toggle("light", next); };
+  return <header className="sticky top-0 z-50 border-b border-black/10 bg-[var(--ro-bg)]/90 backdrop-blur-xl dark:border-white/10"><div className="mx-auto flex min-h-[72px] w-[min(1240px,calc(100%-32px))] items-center gap-6"><a href="/" className="flex min-w-[205px] items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-violet-900 font-black text-white shadow-lg shadow-violet-900/20">R</span><span><b className="block text-[13px] tracking-[.18em] text-[var(--ro-text)]">RAVEN ORACLE</b><small className="mt-0.5 block text-[8px] font-bold tracking-[.16em] text-[var(--ro-muted)]">NFT COMMUNITY PLATFORM</small></span></a><nav className="hidden flex-1 items-center justify-center gap-6 text-xs font-medium text-[var(--ro-soft)] md:flex"><a href="/raffles" className="transition hover:text-violet-400">Raffles</a><a href="/projects" className="transition hover:text-violet-400">NFT Projects</a><a href="/alpha" className="transition hover:text-violet-400">King of Alpha</a><a href="/chat" className="transition hover:text-violet-400">Community</a><a href="/how-it-works" className="transition hover:text-violet-400">How it works</a></nav><div className="ml-auto flex items-center gap-2"><button onClick={toggle} className="rounded-xl border border-[var(--ro-border)] bg-[var(--ro-panel)] px-3 py-2 text-xs text-[var(--ro-text)]" aria-label="Toggle theme">{light ? "☾" : "☀"}</button><a href="/account" className="rounded-xl bg-[var(--ro-text)] px-4 py-2.5 text-[11px] font-black text-[var(--ro-inverse)]">Account</a></div></div></header>;
+}
