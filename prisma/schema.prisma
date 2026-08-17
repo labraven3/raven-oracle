@@ -1,0 +1,544 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+}
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  BANNED
+  DELETED
+}
+enum AuthProvider {
+  EMAIL
+  DISCORD
+  X
+}
+enum SocialProvider {
+  DISCORD
+  X
+}
+enum WalletChain {
+  EVM
+  SOLANA
+}
+enum WalletStatus {
+  ACTIVE
+  ARCHIVED
+  FLAGGED
+}
+enum ProjectStatus {
+  SUBMITTED
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+enum ProjectCategory {
+  NFT
+  TOKEN
+  GAME
+  TOOL
+  DEFI
+  COMMUNITY
+  OTHER
+}
+enum RatingStatus {
+  ACTIVE
+  HIDDEN
+  REMOVED
+}
+enum RaffleStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  CLOSED
+  DRAWING
+  COMPLETED
+  CANCELLED
+}
+enum RaffleEntryStatus {
+  PENDING
+  ELIGIBLE
+  INELIGIBLE
+  DISQUALIFIED
+  WINNER
+  NOT_SELECTED
+}
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  BLOCKED
+}
+enum RaffleWinnerStatus {
+  SELECTED
+  NOTIFIED
+  CLAIMED
+  EXPIRED
+  REPLACED
+  DISQUALIFIED
+}
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+enum AlphaSubmissionStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  VERIFIED
+  REJECTED
+  DUPLICATE
+  ARCHIVED
+}
+enum OpportunityType {
+  MINT
+  AIRDROP
+  WL
+  TRADING
+  TOOL
+  SECURITY
+  OTHER
+}
+enum PointTransactionType {
+  ALPHA_VERIFIED
+  RAFFLE_REWARD
+  WL_REDEMPTION
+  ADMIN_ADJUSTMENT
+  PENALTY
+  REVERSAL
+}
+enum ChatChannelType {
+  GENERAL
+  PROJECT
+  RAFFLE
+  ADMIN
+}
+enum ChatBridgeSource {
+  WEB
+  DISCORD
+}
+enum ChatMessageStatus {
+  VISIBLE
+  HIDDEN
+  REMOVED
+  FLAGGED
+}
+enum AuditAction {
+  USER_SUSPENDED
+  USER_BANNED
+  PROJECT_APPROVED
+  PROJECT_REJECTED
+  ALPHA_VERIFIED
+  ALPHA_REJECTED
+  POINTS_AWARDED
+  POINTS_DEDUCTED
+  RAFFLE_CREATED
+  RAFFLE_UPDATED
+  RAFFLE_CANCELLED
+  RAFFLE_WINNER_SELECTED
+  RAFFLE_WINNER_REPLACED
+  CHAT_MESSAGE_MODERATED
+  ADMIN_ACTION
+}
+enum RaffleTaskType {
+  X_FOLLOW
+  X_LIKE
+  X_REPOST
+  DISCORD_JOIN
+}
+enum RaffleTaskVerificationStatus {
+  PENDING
+  VERIFIED
+  FAILED
+}
+
+model User {
+  id String @id @default(uuid()) @db.Uuid
+  email String? @unique
+  passwordHash String?
+  emailVerifiedAt DateTime?
+  username String? @unique
+  displayName String?
+  avatarUrl String?
+  role UserRole @default(USER)
+  status UserStatus @default(PENDING)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  socialAccounts SocialAccount[]
+  walletAddresses WalletAddress[]
+  submittedProjects Project[] @relation("ProjectSubmitter")
+  approvedProjects Project[] @relation("ProjectApprover")
+  projectRatings ProjectRating[]
+  raffleEntries RaffleEntry[]
+  createdRaffles Raffle[] @relation("RaffleCreator")
+  raffleWinners RaffleWinner[]
+  alphaSubmissions AlphaSubmission[] @relation("AlphaSubmitter")
+  reviewedSubmissions AlphaSubmission[] @relation("AlphaReviewer")
+  pointTransactions PointTransaction[] @relation("PointRecipient")
+  createdPointTxns PointTransaction[] @relation("PointCreator")
+  chatMessages ChatMessage[] @relation("ChatAuthor")
+  moderatedMessages ChatMessage[] @relation("ChatModerator")
+  auditLogs AuditLog[] @relation("AuditActor")
+  raffleTaskVerifications RaffleTaskVerification[]
+  @@index([status])
+  @@index([createdAt])
+}
+model SocialAccount {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  provider SocialProvider
+  providerAccountId String
+  providerUsername String?
+  displayName String?
+  avatarUrl String?
+  accessTokenEncrypted String?
+  refreshTokenEncrypted String?
+  tokenExpiresAt DateTime?
+  isActive Boolean @default(true)
+  connectedAt DateTime @default(now())
+  disconnectedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@index([provider])
+}
+model WalletAddress {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  chain WalletChain
+  network String
+  address String
+  normalizedAddress String
+  label String?
+  isPrimary Boolean @default(false)
+  ownershipVerifiedAt DateTime?
+  status WalletStatus @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  raffleEntries RaffleEntry[]
+  @@unique([chain, normalizedAddress])
+  @@index([userId])
+  @@index([chain])
+  @@index([status])
+}
+model Project {
+  id String @id @default(uuid()) @db.Uuid
+  name String
+  slug String @unique
+  description String?
+  websiteUrl String?
+  xUrl String?
+  discordUrl String?
+  logoUrl String?
+  category ProjectCategory @default(OTHER)
+  status ProjectStatus @default(SUBMITTED)
+  submittedByUserId String? @db.Uuid
+  approvedByUserId String? @db.Uuid
+  approvedAt DateTime?
+  rejectedAt DateTime?
+  rejectionReason String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  submittedBy User? @relation("ProjectSubmitter", fields: [submittedByUserId], references: [id], onDelete: SetNull)
+  approvedBy User? @relation("ProjectApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  ratings ProjectRating[]
+  raffles Raffle[]
+  alphaSubmissions AlphaSubmission[]
+  chatChannels ChatChannel[]
+  @@index([status])
+  @@index([category])
+  @@index([submittedByUserId])
+  @@index([createdAt])
+}
+model ProjectRating {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  projectId String @db.Uuid
+  rating Int
+  comment String?
+  status RatingStatus @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  @@unique([userId, projectId])
+  @@index([projectId])
+  @@index([userId])
+  @@index([projectId, status])
+}
+model Raffle {
+  id String @id @default(uuid()) @db.Uuid
+  projectId String? @db.Uuid
+  createdByUserId String @db.Uuid
+  title String
+  description String?
+  prizeName String
+  prizeDescription String?
+  prizeQuantity Int @default(1)
+  startsAt DateTime
+  endsAt DateTime
+  entryRules Json
+  status RaffleStatus @default(DRAFT)
+  maxEntriesPerUser Int @default(1)
+  winnerCount Int @default(1)
+  fairnessAlgorithmVersion String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  cancelledAt DateTime?
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdBy User @relation("RaffleCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  entries RaffleEntry[]
+  winners RaffleWinner[]
+  snapshots RaffleEligibilitySnapshot[]
+  pointTxns PointTransaction[]
+  chatChannels ChatChannel[]
+  tasks RaffleTask[]
+  @@index([projectId])
+  @@index([createdByUserId])
+  @@index([status])
+  @@index([startsAt])
+  @@index([endsAt])
+}
+model RaffleTask {
+  id String @id @default(uuid()) @db.Uuid
+  raffleId String @db.Uuid
+  type RaffleTaskType
+  title String
+  description String?
+  target String
+  targetUrl String?
+  isRequired Boolean @default(true)
+  sortOrder Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  raffle Raffle @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  verifications RaffleTaskVerification[]
+  @@index([raffleId])
+  @@index([raffleId, sortOrder])
+  @@index([type])
+}
+model RaffleTaskVerification {
+  id String @id @default(uuid()) @db.Uuid
+  raffleTaskId String @db.Uuid
+  entryId String @db.Uuid
+  userId String @db.Uuid
+  status RaffleTaskVerificationStatus @default(PENDING)
+  verifiedAt DateTime?
+  failureReason String?
+  evidence Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  raffleTask RaffleTask @relation(fields: [raffleTaskId], references: [id], onDelete: Cascade)
+  entry RaffleEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([raffleTaskId, entryId])
+  @@index([entryId])
+  @@index([userId])
+  @@index([status])
+}
+model RaffleEntry {
+  id String @id @default(uuid()) @db.Uuid
+  raffleId String @db.Uuid
+  userId String @db.Uuid
+  walletAddressId String @db.Uuid
+  walletAddressSnapshot String
+  status RaffleEntryStatus @default(PENDING)
+  eligibilityCheckedAt DateTime?
+  eligibilityReasons Json?
+  captchaProvider String?
+  captchaVerificationRef String?
+  captchaPassed Boolean?
+  riskScore Int?
+  riskLevel RiskLevel?
+  riskSignals Json?
+  ipRiskHash String?
+  deviceRiskIdHash String?
+  accountAgeDaysAtEntry Int?
+  walletAgeDaysAtEntry Int?
+  socialVerifiedAtEntry Boolean @default(false)
+  enteredAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  raffle Raffle @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  walletAddress WalletAddress @relation(fields: [walletAddressId], references: [id], onDelete: Restrict)
+  winners RaffleWinner[]
+  taskVerifications RaffleTaskVerification[]
+  @@unique([raffleId, userId])
+  @@unique([raffleId, walletAddressId])
+  @@index([raffleId, status])
+  @@index([userId])
+  @@index([walletAddressId])
+  @@index([enteredAt])
+}
+model RaffleWinner {
+  id String @id @default(uuid()) @db.Uuid
+  raffleId String @db.Uuid
+  entryId String @db.Uuid
+  userId String @db.Uuid
+  walletAddressSnapshot String
+  selectionRank Int
+  status RaffleWinnerStatus @default(SELECTED)
+  selectedAt DateTime @default(now())
+  notifiedAt DateTime?
+  notificationStatus NotificationStatus @default(PENDING)
+  claimedAt DateTime?
+  claimReference String?
+  replacedByWinnerId String? @db.Uuid
+  replacementReason String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  raffle Raffle @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  entry RaffleEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  replacedByWinner RaffleWinner? @relation("WinnerReplacement", fields: [replacedByWinnerId], references: [id])
+  replacements RaffleWinner[] @relation("WinnerReplacement")
+  @@unique([raffleId, selectionRank])
+  @@unique([raffleId, entryId])
+  @@index([raffleId])
+  @@index([userId])
+  @@index([status])
+  @@index([notificationStatus])
+}
+model RaffleEligibilitySnapshot {
+  id String @id @default(uuid()) @db.Uuid
+  raffleId String @db.Uuid
+  eligibleEntryCount Int
+  eligibleEntryIdsHash String
+  snapshotJsonRef String?
+  randomnessSource String
+  randomnessRequestRef String?
+  randomnessValueHash String?
+  algorithmVersion String
+  winnerIndexResults Json
+  createdAt DateTime @default(now())
+  raffle Raffle @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  @@index([raffleId])
+  @@index([createdAt])
+}
+model AlphaSubmission {
+  id String @id @default(uuid()) @db.Uuid
+  submittedByUserId String @db.Uuid
+  projectId String? @db.Uuid
+  title String
+  description String
+  evidenceLinks Json
+  opportunityType OpportunityType
+  expectedResult String?
+  status AlphaSubmissionStatus @default(SUBMITTED)
+  reviewedByUserId String? @db.Uuid
+  reviewedAt DateTime?
+  rejectionReason String?
+  pointsAwarded Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  submittedBy User @relation("AlphaSubmitter", fields: [submittedByUserId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  reviewedBy User? @relation("AlphaReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  pointTxns PointTransaction[]
+  @@index([submittedByUserId])
+  @@index([projectId])
+  @@index([status])
+  @@index([reviewedByUserId])
+  @@index([createdAt])
+}
+model PointTransaction {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  amount Int
+  type PointTransactionType
+  reason String
+  alphaSubmissionId String? @db.Uuid
+  raffleId String? @db.Uuid
+  auditLogId String? @db.Uuid
+  createdByUserId String? @db.Uuid
+  metadata Json?
+  createdAt DateTime @default(now())
+  user User @relation("PointRecipient", fields: [userId], references: [id], onDelete: Restrict)
+  createdBy User? @relation("PointCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  alphaSubmission AlphaSubmission? @relation(fields: [alphaSubmissionId], references: [id], onDelete: SetNull)
+  raffle Raffle? @relation(fields: [raffleId], references: [id], onDelete: SetNull)
+  auditLog AuditLog? @relation(fields: [auditLogId], references: [id], onDelete: SetNull)
+  @@index([userId])
+  @@index([type])
+  @@index([alphaSubmissionId])
+  @@index([raffleId])
+  @@index([createdAt])
+}
+model ChatChannel {
+  id String @id @default(uuid()) @db.Uuid
+  name String
+  slug String @unique
+  type ChatChannelType @default(GENERAL)
+  projectId String? @db.Uuid
+  raffleId String? @db.Uuid
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  raffle Raffle? @relation(fields: [raffleId], references: [id], onDelete: SetNull)
+  messages ChatMessage[]
+  @@index([type])
+  @@index([projectId])
+  @@index([raffleId])
+  @@index([isActive])
+}
+model ChatMessage {
+  id String @id @default(uuid()) @db.Uuid
+  channelId String @db.Uuid
+  userId String @db.Uuid
+  message String
+  moderationStatus ChatMessageStatus @default(VISIBLE)
+  moderatedByUserId String? @db.Uuid
+  moderatedAt DateTime?
+  discordMessageId String?
+  discordChannelId String?
+  bridgeSource ChatBridgeSource @default(WEB)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  channel ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user User @relation("ChatAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  moderatedBy User? @relation("ChatModerator", fields: [moderatedByUserId], references: [id], onDelete: SetNull)
+  @@index([channelId, createdAt])
+  @@index([userId])
+  @@index([moderationStatus])
+  @@index([discordMessageId])
+}
+model AuditLog {
+  id String @id @default(uuid()) @db.Uuid
+  actorUserId String? @db.Uuid
+  action AuditAction
+  entityType String
+  entityId String
+  summary String
+  before Json?
+  after Json?
+  metadata Json?
+  riskContext Json?
+  createdAt DateTime @default(now())
+  actor User? @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  pointTxns PointTransaction[]
+  @@index([actorUserId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}

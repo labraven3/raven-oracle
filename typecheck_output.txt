@@ -1,0 +1,27 @@
+
+> raven-oracle@0.1.0 typecheck:api
+> npm run typecheck --workspace apps/api
+
+
+> raven-oracle-api@1.0.0 typecheck
+> npx --yes -p typescript@5.9.3 tsc --noEmit
+
+error TS2688: Cannot find type definition file for 'lodash'.
+  The file is in the program because:
+    Entry point for implicit type library 'lodash'
+error TS2688: Cannot find type definition file for 'node'.
+  The file is in the program because:
+    Entry point for implicit type library 'node'
+error TS2688: Cannot find type definition file for 'pg'.
+  The file is in the program because:
+    Entry point for implicit type library 'pg'
+error TS2688: Cannot find type definition file for 'react'.
+  The file is in the program because:
+    Entry point for implicit type library 'react'
+npm error Lifecycle script `typecheck` failed with error:
+npm error code 2
+npm error path C:\Users\shaki\Downloads\raven-oracle-main\raven-oracle-main\apps\api
+npm error workspace raven-oracle-api@1.0.0
+npm error location C:\Users\shaki\Downloads\raven-oracle-main\raven-oracle-main\apps\api
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c npx --yes -p typescript@5.9.3 tsc --noEmit

@@ -1,0 +1,32 @@
+{
+  "name": "raven-oracle",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Raven Oracle open crypto and NFT community platform.",
+  "workspaces": [
+    "apps/web",
+    "apps/api"
+  ],
+  "scripts": {
+    "dev": "trap 'kill 0' EXIT; npm run dev:api & npm run dev --workspace apps/web",
+    "dev:web": "trap 'kill 0' EXIT; npm run dev:api & npm run dev --workspace apps/web",
+    "dev:api": "npm run dev --workspace apps/api",
+    "build": "npm run build --workspaces --if-present",
+    "build:web": "npm run build --workspace apps/web",
+    "build:api": "npm run build --workspace apps/api",
+    "lint": "npm run lint --workspace apps/web",
+    "lint:web": "npm run lint --workspace apps/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "typecheck:web": "npm run typecheck --workspace apps/web",
+    "typecheck:api": "npm run typecheck --workspace apps/api",
+    "start:api": "npm run start --workspace apps/api",
+    "start:web": "npm run start --workspace apps/web"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "prisma": "^7.9.1",
+    "typescript": "^5.9.3"
+  }
+}
