@@ -4,121 +4,26 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
+type Winner = { id: string; userId: string; walletAddressSnapshot: string; selectionRank: number; status: string; notificationStatus: string; selectedAt: string; notifiedAt?: string | null; user?: { displayName?: string | null; username?: string | null; email?: string | null; emailVerifiedAt?: string | null } };
+type Data = { raffle: { id: string; title: string; status: string; winnerCount: number; prizeName: string }; winners: Winner[]; viewer: "CREATOR" | "WINNER" };
 
-type Winner = {
-  id: string;
-  userId: string;
-  walletAddressSnapshot: string;
-  selectionRank: number;
-  status: string;
-  notificationStatus: string;
-  selectedAt: string;
-  notifiedAt?: string | null;
-  claimedAt?: string | null;
-  claimReference?: string | null;
-  replacedByWinnerId?: string | null;
-  replacementReason?: string | null;
-};
-
-type Data = {
-  raffle: { id: string; title: string; status: string; winnerCount: number };
-  winners: Winner[];
-  viewer: "CREATOR" | "WINNER";
-};
-
-async function api<T>(path: string, options: RequestInit = {}) {
-  const headers = new Headers(options.headers);
-  headers.set("Content-Type", "application/json");
-  const token = typeof window !== "undefined" ? localStorage.getItem("raven_token") : null;
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-  const response = await fetch(`${API}${path}`, { ...options, headers });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.message ?? `Request failed (${response.status})`);
-  return data as T;
-}
-
-function short(value: string) {
-  return value.length > 18 ? `${value.slice(0, 10)}…${value.slice(-6)}` : value;
-}
+async function api<T>(path: string, options: RequestInit = {}) { const headers = new Headers(options.headers); headers.set("Content-Type", "application/json"); const token = typeof window !== "undefined" ? localStorage.getItem("raven_token") : null; if (token) headers.set("Authorization", `Bearer ${token}`); const response = await fetch(`${API}${path}`, { ...options, headers }); const data = await response.json().catch(() => ({})); if (!response.ok) throw new Error(data.message ?? `Request failed (${response.status})`); return data as T; }
+function short(value: string) { return value.length > 22 ? `${value.slice(0, 10)}…${value.slice(-8)}` : value; }
 
 export default function WinnersPage() {
-  const { id } = useParams<{ id: string }>();
-  const [data, setData] = useState<Data | null>(null);
-  const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const load = useCallback(async () => {
-    try {
-      setData(await api<Data>(`/raffles/${id}/winners`));
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to load winners");
-    }
-  }, [id]);
-
+  const { id } = useParams<{ id: string }>(); const [data, setData] = useState<Data | null>(null); const [message, setMessage] = useState(""); const [busy, setBusy] = useState(false);
+  const load = useCallback(async () => { try { setData(await api<Data>(`/raffles/${id}/winners`)); } catch (e) { setMessage(e instanceof Error ? e.message : "Unable to load winners"); } }, [id]);
   useEffect(() => { void load(); }, [load]);
-
-  const action = async (path: string, body?: unknown) => {
-    setBusy(true); setMessage("");
-    try {
-      await api(path, { method: "POST", body: body ? JSON.stringify(body) : undefined });
-      await load();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Action failed");
-    } finally { setBusy(false); }
-  };
+  const action = async (path: string) => { setBusy(true); setMessage(""); try { await api(path, { method: "POST" }); await load(); } catch (e) { setMessage(e instanceof Error ? e.message : "Action failed"); } finally { setBusy(false); } };
+  const exportCsv = async () => { setBusy(true); try { const token = localStorage.getItem("raven_token") ?? ""; const response = await fetch(`${API}/raffles/${id}/winners/export`, { headers: { Authorization: `Bearer ${token}` } }); if (!response.ok) throw new Error("Unable to export whitelist"); const blob = await response.blob(); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `raven-oracle-${id}-winners.csv`; a.click(); URL.revokeObjectURL(url); setMessage("Whitelist CSV downloaded."); } catch (e) { setMessage(e instanceof Error ? e.message : "Unable to export whitelist"); } finally { setBusy(false); } };
 
   if (!data) return <main className="min-h-screen bg-[#07070a] p-10 text-zinc-400">{message || "Loading winners…"}</main>;
-
-  return (
-    <main className="min-h-screen bg-[#07070a] text-zinc-100">
-      <div className="mx-auto max-w-5xl px-5 py-10">
-        <a href={`/raffles/${id}`} className="text-xs text-zinc-500 hover:text-zinc-200">← Back to raffle</a>
-        <div className="mt-6 flex flex-col justify-between gap-5 rounded-3xl border border-white/10 bg-[#0d0c11] p-7 sm:flex-row sm:items-center">
-          <div>
-            <p className="text-[9px] font-black tracking-[.2em] text-violet-300/70">WINNER MANAGEMENT</p>
-            <h1 className="mt-2 text-3xl font-semibold">{data.raffle.title}</h1>
-            <p className="mt-2 text-sm text-zinc-500">{data.raffle.status} · {data.raffle.winnerCount} winner{data.raffle.winnerCount === 1 ? "" : "s"}</p>
-          </div>
-          {data.viewer === "CREATOR" && data.raffle.status === "CLOSED" && (
-            <button disabled={busy} onClick={() => action(`/raffles/${id}/draw`)} className="rounded-xl bg-violet-400 px-5 py-3 text-xs font-black text-black disabled:opacity-50">Draw winners</button>
-          )}
-        </div>
-
-        {message && <div className="mt-5 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 text-sm text-amber-200">{message}</div>}
-
-        <div className="mt-6 space-y-3">
-          {data.winners.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-white/10 p-10 text-center text-sm text-zinc-600">No winners selected yet.</div>
-          ) : data.winners.map((winner) => (
-            <div key={winner.id} className="rounded-2xl border border-white/10 bg-[#0d0c11] p-5">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-violet-400/10 px-2 py-1 text-[9px] font-black text-violet-300">#{winner.selectionRank}</span>
-                    <b>{short(winner.walletAddressSnapshot)}</b>
-                    <span className="rounded-full border border-white/10 px-2 py-1 text-[9px] font-bold text-zinc-400">{winner.status}</span>
-                  </div>
-                  <p className="mt-2 text-xs text-zinc-600">Selected {new Date(winner.selectedAt).toLocaleString()}</p>
-                  {winner.claimReference && <p className="mt-1 text-xs text-emerald-300">Claim reference: {winner.claimReference}</p>}
-                  {winner.replacementReason && <p className="mt-1 text-xs text-zinc-500">{winner.replacementReason}</p>}
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {data.viewer === "CREATOR" && (winner.status === "SELECTED" || winner.status === "NOTIFIED") && (
-                    <button disabled={busy || winner.status === "NOTIFIED"} onClick={() => action(`/raffles/${id}/winners/${winner.id}/notify`)} className="rounded-lg border border-white/10 px-3 py-2 text-[10px] font-bold">{winner.status === "NOTIFIED" ? "Notified" : "Notify winner"}</button>
-                  )}
-                  {data.viewer === "CREATOR" && ["SELECTED", "NOTIFIED"].includes(winner.status) && (
-                    <button disabled={busy} onClick={() => action(`/raffles/${id}/winners/${winner.id}/expire`)} className="rounded-lg border border-red-500/20 px-3 py-2 text-[10px] font-bold text-red-300">Expire / replace</button>
-                  )}
-                  {data.viewer === "WINNER" && winner.status === "NOTIFIED" && (
-                    <button disabled={busy} onClick={() => action(`/raffles/${id}/winners/${winner.id}/claim`)} className="rounded-lg bg-emerald-400 px-4 py-2 text-[10px] font-black text-black">Claim prize</button>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </main>
-  );
+  const creator = data.viewer === "CREATOR";
+  return <main className="min-h-screen bg-[#07070a] text-zinc-100"><div className="mx-auto max-w-6xl px-5 py-10">
+    <a href="/dashboard" className="text-xs text-zinc-500 hover:text-white">← Creator Studio</a>
+    <div className="mt-6 rounded-3xl border border-white/10 bg-[#0d0c11] p-7"><div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between"><div><p className="text-[9px] font-black tracking-[.2em] text-violet-300/70">NFT WHITELIST WINNERS</p><h1 className="mt-2 text-4xl font-semibold">{data.raffle.title}</h1><p className="mt-2 text-sm text-zinc-500">{data.raffle.prizeName} · {data.raffle.status} · {data.winners.length}/{data.raffle.winnerCount} winners</p></div>{creator && <div className="flex flex-wrap gap-2"><button disabled={busy} onClick={exportCsv} className="rounded-xl border border-white/10 px-4 py-3 text-xs font-black">Export whitelist CSV</button>{data.raffle.status === "CLOSED" && <button disabled={busy} onClick={() => action(`/raffles/${id}/draw`)} className="rounded-xl bg-violet-400 px-5 py-3 text-xs font-black text-black">Draw winners</button>}</div>}</div></div>
+    {message && <div className="mt-5 rounded-xl border border-violet-500/20 bg-violet-500/5 p-4 text-sm text-violet-200">{message}</div>}
+    <div className="mt-6 grid gap-3">{data.winners.length === 0 ? <div className="rounded-2xl border border-dashed border-white/10 p-12 text-center text-sm text-zinc-600">No winners selected yet.</div> : data.winners.map((winner) => <article key={winner.id} className="rounded-2xl border border-white/10 bg-[#0d0c11] p-5"><div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-violet-400/10 px-2 py-1 text-[9px] font-black text-violet-300">#{winner.selectionRank}</span><span className="rounded-full border border-emerald-500/20 bg-emerald-500/5 px-2 py-1 text-[9px] font-black text-emerald-300">{winner.status}</span><span className="rounded-full border border-white/10 px-2 py-1 text-[9px] text-zinc-500">Email: {winner.notificationStatus}</span></div><div className="mt-4"><p className="text-[9px] font-black tracking-[.15em] text-zinc-600">WHITELIST WALLET</p><p className="mt-1 break-all font-mono text-sm text-zinc-200">{winner.walletAddressSnapshot}</p></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><div><p className="text-[9px] font-black tracking-[.15em] text-zinc-600">WINNER</p><p className="mt-1 text-xs text-zinc-400">{winner.user?.username ? `@${winner.user.username}` : winner.user?.displayName ?? short(winner.userId)}</p></div><div><p className="text-[9px] font-black tracking-[.15em] text-zinc-600">CONTACT EMAIL</p><p className="mt-1 text-xs text-zinc-400">{winner.user?.email ?? "No email added"} {winner.user?.emailVerifiedAt ? <span className="text-emerald-300">· verified</span> : <span className="text-amber-300">· unverified</span>}</p></div></div></div>{creator && <div className="flex shrink-0 flex-wrap gap-2">{winner.notificationStatus === "FAILED" || winner.status === "SELECTED" ? <button disabled={busy} onClick={() => action(`/raffles/${id}/winners/${winner.id}/notify`)} className="rounded-lg bg-white px-4 py-2.5 text-[10px] font-black text-black">{winner.notificationStatus === "FAILED" ? "Retry email" : "Send winner email"}</button> : <button disabled={busy} onClick={() => action(`/raffles/${id}/winners/${winner.id}/resend`)} className="rounded-lg border border-white/10 px-4 py-2.5 text-[10px] font-black">Resend email</button>}<span className="rounded-lg border border-emerald-500/15 bg-emerald-500/5 px-4 py-2.5 text-[10px] font-black text-emerald-300">Whitelist ready</span></div>}</div></article>)}</div>
+    <div className="mt-7 rounded-2xl border border-violet-400/15 bg-violet-500/5 p-6"><p className="text-[9px] font-black tracking-[.18em] text-violet-300">HOW NFT WINNERS WORK</p><p className="mt-3 text-sm leading-6 text-zinc-400">A selected winner stays the winner. Raven Oracle sends the verified profile Gmail as a notification, while the wallet address above is the address the project uses for its whitelist. There is no claim deadline, claim button, expiration, or automatic replacement.</p></div>
+  </div></main>;
 }
