@@ -8,8 +8,8 @@
     "apps/api"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace apps/web",
-    "dev:web": "npm run dev --workspace apps/web",
+    "dev": "trap 'kill 0' EXIT; npm run dev:api & npm run dev --workspace apps/web",
+    "dev:web": "trap 'kill 0' EXIT; npm run dev:api & npm run dev --workspace apps/web",
     "dev:api": "npm run dev --workspace apps/api",
     "build": "npm run build --workspaces --if-present",
     "build:web": "npm run build --workspace apps/web",
