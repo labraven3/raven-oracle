@@ -3,14 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import SiteHeader from "../../../components/SiteHeader";
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
+import { API_BASE_URL } from "@/lib/api-config";
 type Raffle = { id: string; title: string; description?: string | null; prizeName: string; prizeQuantity: number; startsAt: string; endsAt: string; status: string; winnerCount: number };
 type Project = { id: string; name: string; description: string | null; websiteUrl: string | null; xUrl: string | null; discordUrl: string | null; logoUrl: string; category: string; status: string; raffles: Raffle[] };
 
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>(); const [project, setProject] = useState<Project | null>(null); const [loading, setLoading] = useState(true); const [error, setError] = useState("");
-  useEffect(() => { fetch(`${API}/projects/${id}`, { cache: "no-store" }).then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.message ?? "Project not found"); return d; }).then(d => setProject(d.project)).catch(e => setError(e instanceof Error ? e.message : "Unable to load project")).finally(() => setLoading(false)); }, [id]);
+  useEffect(() => { fetch(`${API_BASE_URL}/projects/${id}`, { cache: "no-store" }).then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.message ?? "Project not found"); return d; }).then(d => setProject(d.project)).catch(e => setError(e instanceof Error ? e.message : "Unable to load project")).finally(() => setLoading(false)); }, [id]);
   const live = useMemo(() => project?.raffles.filter(r => r.status === "ACTIVE") ?? [], [project]); const upcoming = useMemo(() => project?.raffles.filter(r => r.status === "SCHEDULED") ?? [], [project]); const completed = useMemo(() => project?.raffles.filter(r => r.status === "COMPLETED" || r.status === "CLOSED") ?? [], [project]);
   if (loading) return <main className="min-h-screen bg-[#06060a] text-zinc-500"><SiteHeader/><div className="mx-auto max-w-6xl p-10">Loading NFT project…</div></main>;
   if (error || !project || project.status !== "APPROVED") return <main className="min-h-screen bg-[#06060a] text-zinc-400"><SiteHeader/><div className="mx-auto max-w-2xl px-5 py-24"><a href="/projects" className="text-xs text-violet-300">← NFT Projects</a><div className="mt-5 rounded-3xl border border-white/10 bg-[#0d0c11] p-8">{error || "Project is not publicly available."}</div></div></main>;

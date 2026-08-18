@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { API_BASE_URL } from "@/lib/api-config";
 
 type Raffle = {
   id: string;
@@ -30,15 +31,13 @@ type Leader = {
   points: number;
 };
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
-
 async function api<T>(path: string): Promise<T> {
   const headers = new Headers({ "Content-Type": "application/json" });
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("raven_token");
     if (token) headers.set("Authorization", `Bearer ${token}`);
   }
-  const response = await fetch(`${API}${path}`, { headers, cache: "no-store" });
+  const response = await fetch(`${API_BASE_URL}${path}`, { headers, cache: "no-store" });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.message ?? `Request failed (${response.status})`);
   return data as T;

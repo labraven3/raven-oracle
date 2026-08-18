@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
+import { API_BASE_URL } from "@/lib/api-config";
 
 type Project = { id: string; name: string; slug: string; logoUrl?: string | null; category: string };
 type TaskDraft = {
@@ -18,7 +17,7 @@ async function api<T>(path: string, options: RequestInit = {}) {
   headers.set("Content-Type", "application/json");
   const token = localStorage.getItem("raven_token");
   if (token) headers.set("Authorization", `Bearer ${token}`);
-  const res = await fetch(`${API}${path}`, { ...options, headers });
+  const res = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.message ?? `Request failed (${res.status})`);
   return data as T;

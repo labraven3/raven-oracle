@@ -2,12 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
+import { API_BASE_URL } from "@/lib/api-config";
 type Winner = { id: string; userId: string; walletAddressSnapshot: string; selectionRank: number; status: string; notificationStatus: string; selectedAt: string; notifiedAt?: string | null; user?: { displayName?: string | null; username?: string | null; email?: string | null; emailVerifiedAt?: string | null } };
 type Data = { raffle: { id: string; title: string; status: string; winnerCount: number; prizeName: string }; winners: Winner[]; viewer: "CREATOR" | "WINNER" };
 
-async function api<T>(path: string, options: RequestInit = {}) { const headers = new Headers(options.headers); headers.set("Content-Type", "application/json"); const token = typeof window !== "undefined" ? localStorage.getItem("raven_token") : null; if (token) headers.set("Authorization", `Bearer ${token}`); const response = await fetch(`${API}${path}`, { ...options, headers }); const data = await response.json().catch(() => ({})); if (!response.ok) throw new Error(data.message ?? `Request failed (${response.status})`); return data as T; }
+async function api<T>(path: string, options: RequestInit = {}) { const headers = new Headers(options.headers); headers.set("Content-Type", "application/json"); const token = typeof window !== "undefined" ? localStorage.getItem("raven_token") : null; if (token) headers.set("Authorization", `Bearer ${token}`); const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers }); const data = await response.json().catch(() => ({})); if (!response.ok) throw new Error(data.message ?? `Request failed (${response.status})`); return data as T; }
 function short(value: string) { return value.length > 22 ? `${value.slice(0, 10)}…${value.slice(-8)}` : value; }
 
 export default function WinnersPage() {
@@ -15,7 +14,7 @@ export default function WinnersPage() {
   const load = useCallback(async () => { try { setData(await api<Data>(`/raffles/${id}/winners`)); } catch (e) { setMessage(e instanceof Error ? e.message : "Unable to load winners"); } }, [id]);
   useEffect(() => { void load(); }, [load]);
   const action = async (path: string) => { setBusy(true); setMessage(""); try { await api(path, { method: "POST" }); await load(); } catch (e) { setMessage(e instanceof Error ? e.message : "Action failed"); } finally { setBusy(false); } };
-  const exportCsv = async () => { setBusy(true); try { const token = localStorage.getItem("raven_token") ?? ""; const response = await fetch(`${API}/raffles/${id}/winners/export`, { headers: { Authorization: `Bearer ${token}` } }); if (!response.ok) throw new Error("Unable to export whitelist"); const blob = await response.blob(); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `raven-oracle-${id}-winners.csv`; a.click(); URL.revokeObjectURL(url); setMessage("Whitelist CSV downloaded."); } catch (e) { setMessage(e instanceof Error ? e.message : "Unable to export whitelist"); } finally { setBusy(false); } };
+  const exportCsv = async () => { setBusy(true); try { const token = localStorage.getItem("raven_token") ?? ""; const response = await fetch(`${API_BASE_URL}/raffles/${id}/winners/export`, { headers: { Authorization: `Bearer ${token}` } }); if (!response.ok) throw new Error("Unable to export whitelist"); const blob = await response.blob(); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `raven-oracle-${id}-winners.csv`; a.click(); URL.revokeObjectURL(url); setMessage("Whitelist CSV downloaded."); } catch (e) { setMessage(e instanceof Error ? e.message : "Unable to export whitelist"); } finally { setBusy(false); } };
 
   if (!data) return <main className="min-h-screen bg-[#07070a] p-10 text-zinc-400">{message || "Loading winners…"}</main>;
   const creator = data.viewer === "CREATOR";

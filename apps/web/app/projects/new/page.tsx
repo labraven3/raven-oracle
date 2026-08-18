@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
+import { API_BASE_URL } from "@/lib/api-config";
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 const ACCEPTED_LOGO_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
@@ -11,7 +10,7 @@ async function api<T>(path: string, options: RequestInit = {}) {
   headers.set("Content-Type", "application/json");
   const token = localStorage.getItem("raven_token");
   if (token) headers.set("Authorization", `Bearer ${token}`);
-  const response = await fetch(`${API}${path}`, { ...options, headers });
+  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.message ?? `Request failed (${response.status})`);
   return data as T;
