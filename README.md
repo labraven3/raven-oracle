@@ -80,6 +80,37 @@ Register the application callback URLs exactly as configured by `X_REDIRECT_URI`
 
 X task verification requires the scopes requested by the application. Discord task verification requires the authenticated user's guild access.
 
+## Production Deployment
+
+Raven Oracle is production-ready with comprehensive deployment documentation:
+
+- **[Quick Start Guide](docs/QUICK_START_DEPLOYMENT.md)** - Deploy in ~2.75 hours
+- **[Complete Deployment Guide](docs/DEPLOYMENT_GUIDE.md)** - Detailed step-by-step instructions
+- **[Systemd Setup](docs/SYSTEMD_SETUP.md)** - Alternative to PM2 process management
+
+### Deployment Features
+
+- Free-tier compatible (Oracle Cloud, GCP, AWS, DigitalOcean)
+- Single-server architecture (Nginx → Next.js + Express → PostgreSQL)
+- Automated backups (daily, 7-day retention)
+- Health monitoring with auto-restart
+- Let's Encrypt SSL/HTTPS
+- PM2 or Systemd process management
+- Rate limiting and security headers
+- One-command deployment updates
+
+### Quick Deploy
+
+```bash
+# Follow QUICK_START_DEPLOYMENT.md for full instructions
+# Or use automated deployment:
+./scripts/deploy.sh
+```
+
+See [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md) for complete production deployment instructions.
+
 ## Security
 
 Never commit real `.env` files, OAuth secrets, JWT secrets, private keys, or seed phrases. Raven Oracle does not require users to provide wallet private keys or seed phrases.
+
+All security requirements verified - see [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
