@@ -8,13 +8,15 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1).optional(),
   JWT_SECRET: z.string().min(32),
 
-  X_CLIENT_ID: z.string().min(1),
-  X_CLIENT_SECRET: z.string().min(1),
-  X_REDIRECT_URI: z.string().url(),
+  // X OAuth - optional, only required when X OAuth routes are used
+  X_CLIENT_ID: z.string().min(1).optional(),
+  X_CLIENT_SECRET: z.string().min(1).optional(),
+  X_REDIRECT_URI: z.string().url().optional(),
 
-  DISCORD_CLIENT_ID: z.string().min(1),
-  DISCORD_CLIENT_SECRET: z.string().min(1),
-  DISCORD_REDIRECT_URI: z.string().url(),
+  // Discord OAuth - optional, only required when Discord OAuth routes are used
+  DISCORD_CLIENT_ID: z.string().min(1).optional(),
+  DISCORD_CLIENT_SECRET: z.string().min(1).optional(),
+  DISCORD_REDIRECT_URI: z.string().url().optional(),
 
   GMAIL_USER: z.string().email().optional(),
   GMAIL_APP_PASSWORD: z.string().min(1).optional(),

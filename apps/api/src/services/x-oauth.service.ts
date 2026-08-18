@@ -83,13 +83,20 @@ function decryptState(state: string) {
   return parsed;
 }
 
+function validateXOAuthConfig() {
+  if (!env.X_CLIENT_ID || !env.X_CLIENT_SECRET || !env.X_REDIRECT_URI) {
+    throw new Error("X OAuth is not configured. Please set X_CLIENT_ID, X_CLIENT_SECRET, and X_REDIRECT_URI environment variables.");
+  }
+}
+
 export function createXAuthorizationUrl(userId: string) {
+  validateXOAuthConfig();
   const { codeVerifier, codeChallenge } = createPkce();
   const state = encryptState({ userId, codeVerifier, createdAt: Date.now() });
   const params = new URLSearchParams({
     response_type: "code",
-    client_id: env.X_CLIENT_ID,
-    redirect_uri: env.X_REDIRECT_URI,
+    client_id: env.X_CLIENT_ID!,
+    redirect_uri: env.X_REDIRECT_URI!,
     scope: SCOPES.join(" "),
     state,
     code_challenge: codeChallenge,
@@ -99,11 +106,12 @@ export function createXAuthorizationUrl(userId: string) {
 }
 
 async function exchangeCode(code: string, codeVerifier: string) {
+  validateXOAuthConfig();
   const body = new URLSearchParams({
     code,
     grant_type: "authorization_code",
-    client_id: env.X_CLIENT_ID,
-    redirect_uri: env.X_REDIRECT_URI,
+    client_id: env.X_CLIENT_ID!,
+    redirect_uri: env.X_REDIRECT_URI!,
     code_verifier: codeVerifier,
   });
   const credentials = Buffer.from(`${env.X_CLIENT_ID}:${env.X_CLIENT_SECRET}`).toString("base64");

@@ -29,14 +29,22 @@ function decryptState(state: string) {
   return parsed;
 }
 
+function validateDiscordOAuthConfig() {
+  if (!env.DISCORD_CLIENT_ID || !env.DISCORD_CLIENT_SECRET || !env.DISCORD_REDIRECT_URI) {
+    throw new Error("Discord OAuth is not configured. Please set DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, and DISCORD_REDIRECT_URI environment variables.");
+  }
+}
+
 export function createDiscordAuthorizationUrl(userId: string | null = null) {
+  validateDiscordOAuthConfig();
   const state = encryptState({ userId, createdAt: Date.now(), nonce: crypto.randomBytes(24).toString("base64url") });
-  const params = new URLSearchParams({ client_id: env.DISCORD_CLIENT_ID, redirect_uri: env.DISCORD_REDIRECT_URI, response_type: "code", scope: SCOPES.join(" "), state });
+  const params = new URLSearchParams({ client_id: env.DISCORD_CLIENT_ID!, redirect_uri: env.DISCORD_REDIRECT_URI!, response_type: "code", scope: SCOPES.join(" "), state });
   return `${DISCORD_AUTHORIZE_URL}?${params.toString()}`;
 }
 
 async function exchangeCode(code: string) {
-  const body = new URLSearchParams({ client_id: env.DISCORD_CLIENT_ID, client_secret: env.DISCORD_CLIENT_SECRET, grant_type: "authorization_code", code, redirect_uri: env.DISCORD_REDIRECT_URI });
+  validateDiscordOAuthConfig();
+  const body = new URLSearchParams({ client_id: env.DISCORD_CLIENT_ID!, client_secret: env.DISCORD_CLIENT_SECRET!, grant_type: "authorization_code", code, redirect_uri: env.DISCORD_REDIRECT_URI! });
   const response = await fetch(DISCORD_TOKEN_URL, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body });
   const data = await response.json() as { access_token?: string; refresh_token?: string; expires_in?: number; error?: string; error_description?: string };
   if (!response.ok || !data.access_token) throw new Error(data.error_description || data.error || "Discord token exchange failed");
