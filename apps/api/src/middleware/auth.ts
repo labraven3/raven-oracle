@@ -58,3 +58,55 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     return res.status(401).json({ success: false, message: "Invalid authentication token" });
   }
 }
+
+/**
+ * Middleware to check if user account is active
+ * Must be used after requireAuth
+ * Blocks SUSPENDED, PENDING users from accessing protected features
+ */
+export async function requireActiveAccount(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ success: false, message: "Authentication required" });
+    }
+
+    const user = await verifyAuthToken(req.headers.authorization?.slice("Bearer ".length).trim() || cookieToken(req) || "");
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: "User not found" });
+    }
+
+    // Check account status
+    if (user.status === "SUSPENDED") {
+      return res.status(403).json({ 
+        success: false, 
+        message: "Your account has been suspended. Please contact support." 
+      });
+    }
+
+    if (user.status === "PENDING") {
+      return res.status(403).json({ 
+        success: false, 
+        message: "Please verify your email to access this feature." 
+      });
+    }
+
+    if (user.status === "BANNED" || user.status === "DELETED") {
+      return res.status(403).json({ 
+        success: false, 
+        message: "Access denied." 
+      });
+    }
+
+    if (user.status !== "ACTIVE") {
+      return res.status(403).json({ 
+        success: false, 
+        message: "Your account is not active." 
+      });
+    }
+
+    next();
+  } catch (error) {
+    return res.status(401).json({ success: false, message: "Invalid authentication token" });
+  }
+}

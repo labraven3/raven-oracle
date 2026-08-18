@@ -6,9 +6,20 @@ import { requireAuth } from "../middleware/auth.js";
 const router = Router();
 
 const updateProfileSchema = z.object({
-  username: z.string().min(3).max(32).optional(),
-  displayName: z.string().min(1).max(80).optional(),
-  avatarUrl: z.string().url().nullable().optional(),
+  username: z.string()
+    .min(3, "Username must be at least 3 characters")
+    .max(32, "Username must not exceed 32 characters")
+    .regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, underscores, and hyphens")
+    .optional(),
+  displayName: z.string()
+    .min(1, "Display name is required")
+    .max(80, "Display name must not exceed 80 characters")
+    .optional(),
+  avatarUrl: z.string()
+    .url("Avatar URL must be a valid URL")
+    .max(500, "Avatar URL too long")
+    .nullable()
+    .optional(),
 });
 
 router.get("/", requireAuth, async (req, res, next) => {
@@ -55,8 +66,25 @@ router.patch("/", requireAuth, async (req, res, next) => {
       return res.status(400).json({
         success: false,
         message: "Invalid profile data",
-        errors: z.treeifyError(parsed.error),
+        errors: parsed.error.issues.map(issue => ({
+          field: issue.path.join('.'),
+          message: issue.message,
+        })),
       });
+    }
+
+    // Check username uniqueness if username is being updated
+    if (parsed.data.username) {
+      const existingUser = await prisma.user.findUnique({
+        where: { username: parsed.data.username },
+      });
+
+      if (existingUser && existingUser.id !== req.userId) {
+        return res.status(409).json({
+          success: false,
+          message: "Username is already taken",
+        });
+      }
     }
 
     const data = Object.fromEntries(
