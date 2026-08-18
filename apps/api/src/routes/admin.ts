@@ -422,4 +422,385 @@ router.get("/audit-logs", async (req, res, next) => {
   }
 });
 
+/**
+ * GET /api/admin/users
+ * View all users with filtering options
+ */
+router.get("/users", async (req, res, next) => {
+  try {
+    const status =
+      typeof req.query.status === "string" ? req.query.status : undefined;
+    const role =
+      typeof req.query.role === "string" ? req.query.role : undefined;
+
+    const where: {
+      deletedAt: null;
+      status?: never;
+      role?: never;
+    } = { deletedAt: null };
+
+    if (status && ["PENDING", "ACTIVE", "SUSPENDED", "BANNED"].includes(status)) {
+      where.status = status as never;
+    }
+
+    if (role && ["USER", "MODERATOR", "ADMIN"].includes(role)) {
+      where.role = role as never;
+    }
+
+    const users = await prisma.user.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: 200,
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        displayName: true,
+        role: true,
+        status: true,
+        emailVerifiedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: {
+          select: {
+            raffleEntries: true,
+            alphaSubmissions: true,
+            chatMessages: true,
+            walletAddresses: true,
+          },
+        },
+      },
+    });
+
+    res.json({ success: true, users });
+  } catch (e) {
+    next(e);
+  }
+});
+
+/**
+ * PATCH /api/admin/users/:id/status
+ * Suspend or ban a user
+ */
+router.patch("/users/:id/status", async (req, res, next) => {
+  try {
+    if (!req.userId) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Authentication required" });
+    }
+
+    const actorId = req.userId;
+
+    const parsed = z
+      .object({
+        status: z.enum(["ACTIVE", "SUSPENDED", "BANNED"]),
+        reason: z.string().trim().max(1000).optional(),
+      })
+      .safeParse(req.body);
+
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid user status data" });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, status: true, role: true, deletedAt: true },
+    });
+
+    if (!user || user.deletedAt) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    // Prevent modifying admin/moderator accounts unless actor is admin
+    const actor = await prisma.user.findUnique({
+      where: { id: actorId },
+      select: { role: true },
+    });
+
+    if (
+      ["ADMIN", "MODERATOR"].includes(user.role) &&
+      actor?.role !== "ADMIN"
+    ) {
+      return res
+        .status(403)
+        .json({
+          success: false,
+          message: "Only admins can modify admin/moderator accounts",
+        });
+    }
+
+    const beforeStatus = user.status;
+
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        status: parsed.data.status,
+      },
+    });
+
+    // Log audit trail
+    if (parsed.data.status === "SUSPENDED") {
+      await prisma.auditLog.create({
+        data: {
+          actorUserId: actorId,
+          action: "USER_SUSPENDED",
+          entityType: "User",
+          entityId: user.id,
+          summary: `User suspended${parsed.data.reason ? `: ${parsed.data.reason}` : ""}`,
+          before: { status: beforeStatus },
+          after: { status: updated.status },
+          ...(parsed.data.reason && { metadata: { reason: parsed.data.reason } }),
+        },
+      });
+    } else if (parsed.data.status === "BANNED") {
+      await prisma.auditLog.create({
+        data: {
+          actorUserId: actorId,
+          action: "USER_BANNED",
+          entityType: "User",
+          entityId: user.id,
+          summary: `User banned${parsed.data.reason ? `: ${parsed.data.reason}` : ""}`,
+          before: { status: beforeStatus },
+          after: { status: updated.status },
+          ...(parsed.data.reason && { metadata: { reason: parsed.data.reason } }),
+        },
+      });
+    }
+
+    res.json({ success: true, user: updated });
+  } catch (e) {
+    next(e);
+  }
+});
+
+/**
+ * PATCH /api/admin/raffles/:id/cancel
+ * Cancel a raffle
+ */
+router.patch("/raffles/:id/cancel", async (req, res, next) => {
+  try {
+    if (!req.userId) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Authentication required" });
+    }
+
+    const actorId = req.userId;
+
+    const parsed = z
+      .object({
+        reason: z.string().trim().min(1).max(1000),
+      })
+      .safeParse(req.body);
+
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Cancellation reason required" });
+    }
+
+    const raffle = await prisma.raffle.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, status: true, cancelledAt: true },
+    });
+
+    if (!raffle) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Raffle not found" });
+    }
+
+    if (raffle.cancelledAt) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Raffle already cancelled" });
+    }
+
+    if (["COMPLETED", "DRAWING"].includes(raffle.status)) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Cannot cancel a raffle that is completed or drawing",
+        });
+    }
+
+    const beforeStatus = raffle.status;
+
+    const updated = await prisma.raffle.update({
+      where: { id: raffle.id },
+      data: {
+        status: "CANCELLED",
+        cancelledAt: new Date(),
+      },
+    });
+
+    // Log audit trail
+    await prisma.auditLog.create({
+      data: {
+        actorUserId: actorId,
+        action: "RAFFLE_CANCELLED",
+        entityType: "Raffle",
+        entityId: raffle.id,
+        summary: `Raffle cancelled: ${parsed.data.reason}`,
+        before: { status: beforeStatus },
+        after: { status: updated.status },
+        metadata: { reason: parsed.data.reason },
+      },
+    });
+
+    res.json({ success: true, raffle: updated });
+  } catch (e) {
+    next(e);
+  }
+});
+
+/**
+ * GET /api/admin/raffles/:id/winners
+ * Review winners for a specific raffle
+ */
+router.get("/raffles/:id/winners", async (req, res, next) => {
+  try {
+    const raffleId = req.params.id;
+
+    const raffle = await prisma.raffle.findUnique({
+      where: { id: raffleId },
+      select: { id: true, title: true, status: true },
+    });
+
+    if (!raffle) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Raffle not found" });
+    }
+
+    const winners = await prisma.raffleWinner.findMany({
+      where: { raffleId },
+      orderBy: { selectionRank: "asc" },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            displayName: true,
+          },
+        },
+        entry: {
+          select: {
+            id: true,
+            status: true,
+          },
+        },
+      },
+    });
+
+    res.json({ success: true, raffle, winners });
+  } catch (e) {
+    next(e);
+  }
+});
+
+/**
+ * PATCH /api/admin/users/:id/points
+ * Award or deduct points manually
+ */
+router.patch("/users/:id/points", async (req, res, next) => {
+  try {
+    if (!req.userId) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Authentication required" });
+    }
+
+    const actorId = req.userId;
+
+    const parsed = z
+      .object({
+        amount: z.number().int().min(-10000).max(10000),
+        reason: z.string().trim().min(1).max(500),
+      })
+      .safeParse(req.body);
+
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid points adjustment data" });
+    }
+
+    if (parsed.data.amount === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Amount cannot be zero" });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, deletedAt: true },
+    });
+
+    if (!user || user.deletedAt) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    // Create point transaction
+    await prisma.pointTransaction.create({
+      data: {
+        userId: user.id,
+        amount: parsed.data.amount,
+        type: parsed.data.amount > 0 ? "ADMIN_ADJUSTMENT" : "PENALTY",
+        reason: parsed.data.reason,
+        createdByUserId: actorId,
+      },
+    });
+
+    // Log audit trail
+    if (parsed.data.amount > 0) {
+      await logPointsTransaction(
+        actorId,
+        user.id,
+        parsed.data.amount,
+        "POINTS_AWARDED",
+        parsed.data.reason,
+        "User",
+        user.id
+      );
+    } else {
+      await logPointsTransaction(
+        actorId,
+        user.id,
+        Math.abs(parsed.data.amount),
+        "POINTS_DEDUCTED",
+        parsed.data.reason,
+        "User",
+        user.id
+      );
+    }
+
+    // Get updated total points
+    const totalPoints = await prisma.pointTransaction.aggregate({
+      where: { userId: user.id },
+      _sum: { amount: true },
+    });
+
+    res.json({
+      success: true,
+      transaction: {
+        amount: parsed.data.amount,
+        reason: parsed.data.reason,
+      },
+      totalPoints: totalPoints._sum.amount ?? 0,
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
 export default router;
