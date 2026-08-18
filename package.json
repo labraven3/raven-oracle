@@ -25,9 +25,6 @@
   "engines": {
     "node": ">=20"
   },
-  "prisma": {
-    "seed": "npx tsx prisma/seed.ts"
-  },
   "devDependencies": {
     "prisma": "^7.9.1",
     "tsx": "^4.19.2",
