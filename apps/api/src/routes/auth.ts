@@ -127,6 +127,14 @@ router.get("/me", requireAuth, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+router.post("/logout", requireAuth, async (req, res, next) => {
+  try {
+    // With stateless JWTs, logout is handled client-side by clearing the token
+    // The token will expire naturally after 7 days
+    return res.json({ success: true, message: "Logged out successfully" });
+  } catch (e) { next(e); }
+});
+
 router.post("/email/request-verification", requireAuth, otpRequestRateLimiter, async (req, res, next) => {
   try {
     if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
