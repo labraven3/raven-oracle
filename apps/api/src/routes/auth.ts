@@ -9,6 +9,17 @@ import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { createEmailVerificationToken, sendEmailVerification, verifyEmailVerificationToken, createOtpChallenge, sendEmailOtp, verifyOtpChallenge } from "../services/email.service.js";
 import { env } from "../config/env.js";
+import {
+  logLoginSuccess,
+  logLoginFailed,
+  logRegistration,
+  logEmailVerificationSuccess,
+  logEmailVerificationFailed,
+  logOtpRequest,
+  logOtpVerificationSuccess,
+  logOtpVerificationFailed,
+  logLogout,
+} from "../services/auth-audit.service.js";
 
 const router = Router();
 const scrypt = promisify(scryptCallback);
@@ -102,6 +113,10 @@ router.post("/register", registerRateLimiter, async (req, res, next) => {
     const verificationToken = createEmailVerificationToken(user.id, email, null);
     try { await sendEmailVerification(email, `${env.WEB_ORIGIN}/account?verifyEmail=${encodeURIComponent(verificationToken)}`); }
     catch (error) { console.error("Initial email verification delivery failed:", error); }
+    
+    // Audit log: registration success
+    logRegistration(user.id, req).catch(console.error);
+    
     return res.status(201).json({ success: true, token, user, emailVerificationRequired: true });
   } catch (e) { next(e); }
 });
@@ -111,9 +126,24 @@ router.post("/login", loginRateLimiter, async (req, res, next) => {
     const parsed = credentials.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ success: false, message: "Email and password are required." });
     const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
-    if (!user || !user.passwordHash || ["BANNED", "DELETED", "SUSPENDED"].includes(user.status) || !(await verifyPassword(parsed.data.password, user.passwordHash))) return res.status(401).json({ success: false, message: "Invalid email or password." });
-    if (!user.emailVerifiedAt) return res.status(403).json({ success: false, message: "Verify your email before signing in.", emailVerificationRequired: true });
+    
+    if (!user || !user.passwordHash || ["BANNED", "DELETED", "SUSPENDED"].includes(user.status) || !(await verifyPassword(parsed.data.password, user.passwordHash))) {
+      // Audit log: login failed
+      logLoginFailed(parsed.data.email, "invalid_credentials", req).catch(console.error);
+      return res.status(401).json({ success: false, message: "Invalid email or password." });
+    }
+    
+    if (!user.emailVerifiedAt) {
+      // Audit log: login failed - email not verified
+      logLoginFailed(parsed.data.email, "email_not_verified", req).catch(console.error);
+      return res.status(403).json({ success: false, message: "Verify your email before signing in.", emailVerificationRequired: true });
+    }
+    
     const token = await createAuthToken(user.id);
+    
+    // Audit log: login success
+    logLoginSuccess(user.id, req).catch(console.error);
+    
     return res.json({ success: true, token, user });
   } catch (e) { next(e); }
 });
@@ -131,6 +161,12 @@ router.post("/logout", requireAuth, async (req, res, next) => {
   try {
     // With stateless JWTs, logout is handled client-side by clearing the token
     // The token will expire naturally after 7 days
+    
+    // Audit log: logout
+    if (req.userId) {
+      logLogout(req.userId, req).catch(console.error);
+    }
+    
     return res.json({ success: true, message: "Logged out successfully" });
   } catch (e) { next(e); }
 });
@@ -149,6 +185,10 @@ router.post("/email/request-verification", requireAuth, otpRequestRateLimiter, a
     const { code, challenge } = createOtpChallenge(user.id, email);
     await sendEmailOtp(email, code);
     await prisma.user.update({ where: { id: user.id }, data: { email, emailVerifiedAt: null } });
+    
+    // Audit log: OTP request
+    logOtpRequest(user.id, req).catch(console.error);
+    
     return res.json({ success: true, verified: false, challenge, message: "A 6-digit OTP was sent from Raven Oracle to your email." });
   } catch (e) { next(e); }
 });
@@ -159,9 +199,22 @@ router.post("/email/verify-otp", requireAuth, otpVerifyRateLimiter, async (req, 
     const parsed = otpInput.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ success: false, message: "Enter the 6-digit OTP." });
     const email = parsed.data.email;
-    verifyOtpChallenge(parsed.data.challenge, req.userId, email, parsed.data.code);
+    
+    try {
+      verifyOtpChallenge(parsed.data.challenge, req.userId, email, parsed.data.code);
+    } catch (e) {
+      // Audit log: OTP verification failed
+      const message = e instanceof Error ? e.message : "OTP verification failed";
+      logOtpVerificationFailed(req.userId, message, req).catch(console.error);
+      return res.status(400).json({ success: false, message });
+    }
+    
     const user = await prisma.user.update({ where: { id: req.userId }, data: { email, emailVerifiedAt: new Date(), status: "ACTIVE" } });
     const token = await createAuthToken(user.id);
+    
+    // Audit log: OTP verification success
+    logOtpVerificationSuccess(user.id, req).catch(console.error);
+    
     return res.json({ success: true, token, user, message: "Email verified successfully." });
   } catch (e) {
     const message = e instanceof Error ? e.message : "OTP verification failed";
@@ -172,12 +225,34 @@ router.post("/email/verify-otp", requireAuth, otpVerifyRateLimiter, async (req, 
 router.post("/email/verify", async (req, res, next) => {
   try {
     const token = typeof req.body?.token === "string" ? req.body.token : "";
-    const data = verifyEmailVerificationToken(token);
+    
+    let data;
+    try {
+      data = verifyEmailVerificationToken(token);
+    } catch (e) {
+      // Audit log: email verification failed
+      const message = e instanceof Error ? e.message : "Email verification failed";
+      logEmailVerificationFailed(message, req).catch(console.error);
+      return res.status(400).json({ success: false, message });
+    }
+    
     const user = await prisma.user.findUnique({ where: { id: data.userId } });
-    if (!user) return res.status(404).json({ success: false, message: "Account not found." });
-    if (user.email !== null && user.email !== data.email) return res.status(409).json({ success: false, message: "This verification link is no longer valid." });
+    if (!user) {
+      logEmailVerificationFailed("Account not found", req).catch(console.error);
+      return res.status(404).json({ success: false, message: "Account not found." });
+    }
+    
+    if (user.email !== null && user.email !== data.email) {
+      logEmailVerificationFailed("Verification link no longer valid", req).catch(console.error);
+      return res.status(409).json({ success: false, message: "This verification link is no longer valid." });
+    }
+    
     const updated = await prisma.user.update({ where: { id: user.id }, data: { email: data.email, emailVerifiedAt: new Date(), status: "ACTIVE" } });
     const authToken = await createAuthToken(updated.id);
+    
+    // Audit log: email verification success
+    logEmailVerificationSuccess(updated.id, req).catch(console.error);
+    
     return res.json({ success: true, token: authToken, user: updated, message: "Email verified successfully." });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Email verification failed";

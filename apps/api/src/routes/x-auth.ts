@@ -5,6 +5,7 @@ import {
   createXAuthorizationUrl,
 } from "../services/x-oauth.service.js";
 import { env } from "../config/env.js";
+import { logOAuthLoginSuccess, logOAuthLoginFailed } from "../services/auth-audit.service.js";
 
 const router = Router();
 
@@ -61,12 +62,18 @@ router.get("/callback", async (req, res) => {
           ? req.query.error_description
           : error;
 
+      // Audit log: OAuth login failed
+      logOAuthLoginFailed("X", reason, req).catch(console.error);
+
       return res.redirect(
         `${env.WEB_ORIGIN}/?social=x&status=error&message=${encodeURIComponent(reason)}`,
       );
     }
 
     if (!code || !state) {
+      // Audit log: OAuth login failed
+      logOAuthLoginFailed("X", "Missing code or state", req).catch(console.error);
+      
       return res.redirect(
         `${env.WEB_ORIGIN}/?social=x&status=error&message=${encodeURIComponent(
           "Missing X OAuth code or state",
@@ -78,6 +85,9 @@ router.get("/callback", async (req, res) => {
       code,
       state,
     );
+
+    // Audit log: OAuth login success
+    logOAuthLoginSuccess(account.userId, "X", req).catch(console.error);
 
     return res.redirect(
       `${env.WEB_ORIGIN}/?social=x&status=connected&account=${encodeURIComponent(
@@ -91,6 +101,9 @@ router.get("/callback", async (req, res) => {
       error instanceof Error
         ? error.message
         : "X connection failed";
+
+    // Audit log: OAuth login failed
+    logOAuthLoginFailed("X", message, req).catch(console.error);
 
     return res.redirect(
       `${env.WEB_ORIGIN}/?social=x&status=error&message=${encodeURIComponent(message)}`,

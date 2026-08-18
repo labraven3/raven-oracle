@@ -209,6 +209,7 @@ export async function connectXAccount(code: string, state: string) {
     },
     select: {
       id: true,
+      userId: true,
       provider: true,
       providerAccountId: true,
       providerUsername: true,

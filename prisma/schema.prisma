@@ -162,6 +162,19 @@ enum RaffleTaskVerificationStatus {
   VERIFIED
   FAILED
 }
+enum AuthAuditEvent {
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  REGISTER_SUCCESS
+  EMAIL_VERIFICATION_SUCCESS
+  EMAIL_VERIFICATION_FAILED
+  OTP_REQUEST
+  OTP_VERIFICATION_SUCCESS
+  OTP_VERIFICATION_FAILED
+  LOGOUT
+  OAUTH_LOGIN_SUCCESS
+  OAUTH_LOGIN_FAILED
+}
 
 model User {
   id String @id @default(uuid()) @db.Uuid
@@ -192,6 +205,7 @@ model User {
   moderatedMessages ChatMessage[] @relation("ChatModerator")
   auditLogs AuditLog[] @relation("AuditActor")
   raffleTaskVerifications RaffleTaskVerification[]
+  authAuditLogs AuthAuditLog[]
   @@index([status])
   @@index([createdAt])
 }
@@ -541,4 +555,21 @@ model AuditLog {
   @@index([action])
   @@index([entityType, entityId])
   @@index([createdAt])
+}
+model AuthAuditLog {
+  id String @id @default(uuid()) @db.Uuid
+  userId String? @db.Uuid
+  event AuthAuditEvent
+  success Boolean
+  provider String?
+  ipAddress String?
+  userAgent String?
+  reason String?
+  metadata Json?
+  createdAt DateTime @default(now())
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  @@index([userId])
+  @@index([event])
+  @@index([createdAt])
+  @@index([userId, event])
 }
