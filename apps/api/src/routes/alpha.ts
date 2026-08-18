@@ -2,6 +2,10 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
+import {
+  detectDuplicateAlpha,
+  checkExactDuplicate,
+} from "../services/alpha-duplicate.service.js";
 
 const router = Router();
 const createSchema = z.object({
@@ -55,9 +59,55 @@ router.post("/", requireAuth, async (req, res, next) => {
       const project = await prisma.project.findUnique({ where: { id: parsed.data.projectId }, select: { id: true, status: true } });
       if (!project || project.status !== "APPROVED") return res.status(400).json({ success: false, message: "Project is not available" });
     }
-    const submission = await prisma.alphaSubmission.create({ data: { submittedByUserId: req.userId, projectId: parsed.data.projectId ?? null, title: parsed.data.title, description: parsed.data.description, evidenceLinks: parsed.data.evidenceLinks, opportunityType: parsed.data.opportunityType, expectedResult: parsed.data.expectedResult ?? null } });
-    return res.status(201).json({ success: true, submission });
-  } catch (error) { next(error); }
+
+    // Check for exact duplicate (same user, same content, within 7 days)
+    const exactDuplicateId = await checkExactDuplicate(
+      parsed.data.title,
+      parsed.data.evidenceLinks,
+      req.userId
+    );
+
+    if (exactDuplicateId) {
+      return res.status(409).json({
+        success: false,
+        message: "You have already submitted identical or very similar alpha recently",
+        duplicateSubmissionId: exactDuplicateId,
+      });
+    }
+
+    // Detect potential duplicates (from other users)
+    const potentialDuplicates = await detectDuplicateAlpha(
+      parsed.data.title,
+      parsed.data.evidenceLinks,
+      parsed.data.projectId ?? null,
+      req.userId
+    );
+
+    const submission = await prisma.alphaSubmission.create({
+      data: {
+        submittedByUserId: req.userId,
+        projectId: parsed.data.projectId ?? null,
+        title: parsed.data.title,
+        description: parsed.data.description,
+        evidenceLinks: parsed.data.evidenceLinks,
+        opportunityType: parsed.data.opportunityType,
+        expectedResult: parsed.data.expectedResult ?? null,
+      },
+    });
+
+    return res.status(201).json({
+      success: true,
+      submission,
+      ...(potentialDuplicates.length > 0
+        ? {
+            warning: "Similar submissions detected",
+            potentialDuplicates: potentialDuplicates.slice(0, 3),
+          }
+        : {}),
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.get("/mine", requireAuth, async (req, res, next) => {
