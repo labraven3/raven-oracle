@@ -55,7 +55,16 @@ const otpVerifyRateLimiter = rateLimit({
     return challenge || ipKeyGenerator(req);
   },
 });
-const credentials = z.object({ email: z.string().trim().toLowerCase().email(), password: z.string().min(8).max(128) });
+const credentials = z.object({
+  email: z.string().trim().toLowerCase().email(),
+  password: z
+    .string()
+    .min(12, "Password must be at least 12 characters long")
+    .max(128, "Password must not exceed 128 characters")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number"),
+});
 const emailInput = z.object({ email: z.string().trim().toLowerCase().email() });
 const otpInput = z.object({ email: z.string().trim().toLowerCase().email(), challenge: z.string().min(20), code: z.string().regex(/^\d{6}$/) });
 
@@ -76,7 +85,14 @@ async function verifyPassword(password: string, encoded: string) {
 router.post("/register", registerRateLimiter, async (req, res, next) => {
   try {
     const parsed = credentials.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ success: false, message: "Use a valid email and a password of at least 8 characters." });
+    if (!parsed.success) {
+      // Extract password-specific error messages from Zod validation
+      const passwordErrors = parsed.error.issues.filter(issue => issue.path.includes('password'));
+      const message = passwordErrors.length > 0 && passwordErrors[0]
+        ? passwordErrors[0].message 
+        : "Use a valid email and a password that meets the requirements.";
+      return res.status(400).json({ success: false, message });
+    }
     const email = parsed.data.email;
     const exists = await prisma.user.findUnique({ where: { email } });
     if (exists) return res.status(409).json({ success: false, message: "An account with that email already exists." });
