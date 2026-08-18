@@ -3,6 +3,7 @@ import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:cry
 import { promisify } from "node:util";
 import { z } from "zod";
 import rateLimit from "express-rate-limit";
+import { ipKeyGenerator } from "express-rate-limit";
 import { createAuthToken } from "../services/auth.service.js";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -38,7 +39,7 @@ const otpRequestRateLimiter = rateLimit({
   message: { success: false, message: "Too many OTP requests. Please try again later." },
   keyGenerator: (req) => {
     // Rate limit by authenticated user ID instead of IP
-    return req.userId || req.ip || "unknown";
+    return req.userId || ipKeyGenerator(req);
   },
 });
 
@@ -51,7 +52,7 @@ const otpVerifyRateLimiter = rateLimit({
   keyGenerator: (req) => {
     // Rate limit by challenge token to prevent brute force of a specific OTP
     const challenge = typeof req.body?.challenge === "string" ? req.body.challenge : "";
-    return challenge || req.ip || "unknown";
+    return challenge || ipKeyGenerator(req);
   },
 });
 const credentials = z.object({ email: z.string().trim().toLowerCase().email(), password: z.string().min(8).max(128) });
