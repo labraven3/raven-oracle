@@ -85,7 +85,10 @@ function decryptState(state: string) {
 
 function validateXOAuthConfig() {
   if (!env.X_CLIENT_ID || !env.X_CLIENT_SECRET || !env.X_REDIRECT_URI) {
-    throw new Error("X OAuth is not configured. Please set X_CLIENT_ID, X_CLIENT_SECRET, and X_REDIRECT_URI environment variables.");
+    // Log full error server-side
+    console.error("X OAuth is not configured. Missing X_CLIENT_ID, X_CLIENT_SECRET, or X_REDIRECT_URI.");
+    // Throw safe error for client
+    throw new Error("X authentication is not available.");
   }
 }
 

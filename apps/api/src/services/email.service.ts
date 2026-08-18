@@ -21,7 +21,12 @@ export function verifyEmailVerificationToken(token: string) {
 }
 
 function requireGmail() {
-  if (!env.GMAIL_USER || !env.GMAIL_APP_PASSWORD) throw new Error("Raven Oracle email delivery is not configured. Add GMAIL_USER and GMAIL_APP_PASSWORD to the API environment.");
+  if (!env.GMAIL_USER || !env.GMAIL_APP_PASSWORD) {
+    // Log full error server-side
+    console.error("Email delivery is not configured. Missing GMAIL_USER or GMAIL_APP_PASSWORD.");
+    // Throw safe error for client
+    throw new Error("Email delivery is not available.");
+  }
 }
 
 async function readResponse(socket: tls.TLSSocket) {
@@ -36,7 +41,12 @@ async function readResponse(socket: tls.TLSSocket) {
 
 async function command(socket: tls.TLSSocket, value: string, expected: RegExp) {
   socket.write(`${value}\r\n`); const response = await readResponse(socket);
-  if (!expected.test(response)) throw new Error(`Gmail SMTP error: ${response.trim()}`);
+  if (!expected.test(response)) {
+    // Log full error server-side
+    console.error(`Gmail SMTP error: ${response.trim()}`);
+    // Throw safe error for client
+    throw new Error("Email delivery failed.");
+  }
 }
 
 function escapeHeader(value: string) { return value.replace(/[\r\n]/g, " "); }

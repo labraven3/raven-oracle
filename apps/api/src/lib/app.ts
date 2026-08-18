@@ -1,5 +1,6 @@
 import express from "express";
 import { securityMiddleware } from "../middleware/security.js";
+import { errorHandler, notFoundHandler } from "../middleware/error-handler.js";
 import { healthRouter } from "../routes/health.js";
 import usersRouter from "../routes/users.js";
 import authRouter from "../routes/auth.js";
@@ -39,5 +40,12 @@ export function createApp() {
   app.use("/api/alpha", alphaRouter);
   app.use("/api/chat", chatRouter);
   app.use("/api/admin", adminRouter);
+  
+  // 404 handler - must be after all routes
+  app.use(notFoundHandler);
+  
+  // Global error handler - must be last
+  app.use(errorHandler);
+  
   return app;
 }

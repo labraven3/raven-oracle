@@ -31,7 +31,10 @@ function decryptState(state: string) {
 
 function validateDiscordOAuthConfig() {
   if (!env.DISCORD_CLIENT_ID || !env.DISCORD_CLIENT_SECRET || !env.DISCORD_REDIRECT_URI) {
-    throw new Error("Discord OAuth is not configured. Please set DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, and DISCORD_REDIRECT_URI environment variables.");
+    // Log full error server-side
+    console.error("Discord OAuth is not configured. Missing DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, or DISCORD_REDIRECT_URI.");
+    // Throw safe error for client
+    throw new Error("Discord authentication is not available.");
   }
 }
 
