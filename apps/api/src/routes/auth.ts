@@ -2,6 +2,7 @@ import { Router } from "express";
 import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { z } from "zod";
+import rateLimit from "express-rate-limit";
 import { createAuthToken } from "../services/auth.service.js";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -10,6 +11,49 @@ import { env } from "../config/env.js";
 
 const router = Router();
 const scrypt = promisify(scryptCallback);
+
+// Rate limiting configurations
+const loginRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 attempts per window per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: "Too many login attempts. Please try again later." },
+  skipSuccessfulRequests: true, // Don't count successful logins
+});
+
+const registerRateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 3, // 3 attempts per window per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: "Too many registration attempts. Please try again later." },
+});
+
+const otpRequestRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 3, // 3 requests per window per user
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: "Too many OTP requests. Please try again later." },
+  keyGenerator: (req) => {
+    // Rate limit by authenticated user ID instead of IP
+    return req.userId || req.ip || "unknown";
+  },
+});
+
+const otpVerifyRateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes (OTP lifetime)
+  max: 10, // 10 verification attempts per challenge
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: "Too many verification attempts. Please request a new OTP." },
+  keyGenerator: (req) => {
+    // Rate limit by challenge token to prevent brute force of a specific OTP
+    const challenge = typeof req.body?.challenge === "string" ? req.body.challenge : "";
+    return challenge || req.ip || "unknown";
+  },
+});
 const credentials = z.object({ email: z.string().trim().toLowerCase().email(), password: z.string().min(8).max(128) });
 const emailInput = z.object({ email: z.string().trim().toLowerCase().email() });
 const otpInput = z.object({ email: z.string().trim().toLowerCase().email(), challenge: z.string().min(20), code: z.string().regex(/^\d{6}$/) });
@@ -28,7 +72,7 @@ async function verifyPassword(password: string, encoded: string) {
   return expected.length === derived.length && timingSafeEqual(expected, derived);
 }
 
-router.post("/register", async (req, res, next) => {
+router.post("/register", registerRateLimiter, async (req, res, next) => {
   try {
     const parsed = credentials.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ success: false, message: "Use a valid email and a password of at least 8 characters." });
@@ -45,7 +89,7 @@ router.post("/register", async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-router.post("/login", async (req, res, next) => {
+router.post("/login", loginRateLimiter, async (req, res, next) => {
   try {
     const parsed = credentials.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ success: false, message: "Email and password are required." });
@@ -66,7 +110,7 @@ router.get("/me", requireAuth, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-router.post("/email/request-verification", requireAuth, async (req, res, next) => {
+router.post("/email/request-verification", requireAuth, otpRequestRateLimiter, async (req, res, next) => {
   try {
     if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
     const parsed = emailInput.safeParse(req.body);
@@ -84,7 +128,7 @@ router.post("/email/request-verification", requireAuth, async (req, res, next) =
   } catch (e) { next(e); }
 });
 
-router.post("/email/verify-otp", requireAuth, async (req, res, next) => {
+router.post("/email/verify-otp", requireAuth, otpVerifyRateLimiter, async (req, res, next) => {
   try {
     if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
     const parsed = otpInput.safeParse(req.body);
