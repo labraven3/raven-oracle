@@ -1,0 +1,222 @@
+# Raven Oracle - Nginx Configuration Example
+# 
+# This is a complete Nginx configuration for Raven Oracle production deployment.
+# 
+# Installation:
+# 1. Copy this file to /etc/nginx/sites-available/raven-oracle
+# 2. Update all instances of yourdomain.com with your actual domain
+# 3. Create symbolic link: sudo ln -s /etc/nginx/sites-available/raven-oracle /etc/nginx/sites-enabled/
+# 4. Test configuration: sudo nginx -t
+# 5. Reload Nginx: sudo systemctl reload nginx
+
+# Rate limiting zones
+limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
+limit_req_zone $binary_remote_addr zone=web_limit:10m rate=30r/s;
+limit_req_zone $binary_remote_addr zone=auth_limit:10m rate=5r/s;
+
+# Upstream servers
+upstream raven_api {
+    server localhost:4000;
+    keepalive 64;
+}
+
+upstream raven_web {
+    server localhost:3000;
+    keepalive 64;
+}
+
+# Redirect HTTP to HTTPS
+server {
+    listen 80;
+    listen [::]:80;
+    server_name yourdomain.com www.yourdomain.com;
+
+    # Let's Encrypt ACME challenge
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
+
+    # Redirect all other traffic to HTTPS
+    location / {
+        return 301 https://$server_name$request_uri;
+    }
+}
+
+# HTTPS Server - Main Configuration
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name yourdomain.com www.yourdomain.com;
+
+    # SSL Configuration
+    # These paths will be set by Certbot
+    # ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
+    # ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+    
+    # SSL Security Settings
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers on;
+    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
+    ssl_stapling on;
+    ssl_stapling_verify on;
+
+    # Security Headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+    add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+
+    # Client Settings
+    client_max_body_size 10M;
+    client_body_buffer_size 128k;
+    client_header_buffer_size 1k;
+    large_client_header_buffers 4 16k;
+
+    # Timeouts
+    proxy_connect_timeout 60s;
+    proxy_send_timeout 60s;
+    proxy_read_timeout 60s;
+    send_timeout 60s;
+
+    # Logging
+    access_log /var/log/nginx/raven-access.log combined;
+    error_log /var/log/nginx/raven-error.log warn;
+
+    # API Proxy - Authentication Endpoints (Stricter Rate Limit)
+    location ~ ^/api/auth/(register|login|verify-otp|request-otp) {
+        limit_req zone=auth_limit burst=5 nodelay;
+        limit_req_status 429;
+
+        proxy_pass http://raven_api;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        
+        # Disable buffering for real-time responses
+        proxy_buffering off;
+    }
+
+    # API Proxy - General Endpoints
+    location /api {
+        limit_req zone=api_limit burst=20 nodelay;
+        limit_req_status 429;
+
+        proxy_pass http://raven_api;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    # Next.js Static Assets (Aggressive Caching)
+    location /_next/static/ {
+        proxy_pass http://raven_web;
+        proxy_http_version 1.1;
+        
+        # Cache for 1 year (immutable assets)
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        
+        # Security headers still apply
+        add_header X-Content-Type-Options "nosniff" always;
+        
+        # Enable gzip compression
+        gzip on;
+        gzip_vary on;
+        gzip_types text/css application/javascript;
+    }
+
+    # Next.js Images
+    location /_next/image {
+        proxy_pass http://raven_web;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        
+        # Cache images for 1 day
+        add_header Cache-Control "public, max-age=86400";
+    }
+
+    # Favicon and Static Images
+    location ~* \.(ico|jpg|jpeg|png|gif|svg|webp)$ {
+        proxy_pass http://raven_web;
+        
+        # Cache for 7 days
+        add_header Cache-Control "public, max-age=604800";
+        
+        # Don't log favicon requests
+        access_log off;
+        log_not_found off;
+    }
+
+    # Robots.txt
+    location = /robots.txt {
+        proxy_pass http://raven_web;
+        access_log off;
+        log_not_found off;
+    }
+
+    # Sitemap
+    location = /sitemap.xml {
+        proxy_pass http://raven_web;
+        
+        # Cache for 1 hour
+        add_header Cache-Control "public, max-age=3600";
+    }
+
+    # Web Application - Main Proxy
+    location / {
+        limit_req zone=web_limit burst=50 nodelay;
+        limit_req_status 429;
+
+        proxy_pass http://raven_web;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        
+        # Don't cache HTML pages
+        add_header Cache-Control "no-cache, no-store, must-revalidate";
+        add_header Pragma "no-cache";
+        add_header Expires "0";
+    }
+
+    # Deny access to hidden files
+    location ~ /\. {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+
+    # Custom error pages (optional)
+    # error_page 404 /404.html;
+    # error_page 500 502 503 504 /50x.html;
+}
+
+# WWW to non-WWW redirect (optional)
+# Uncomment if you want to enforce non-www
+# server {
+#     listen 443 ssl http2;
+#     listen [::]:443 ssl http2;
+#     server_name www.yourdomain.com;
+#
+#     ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
+#     ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+#
+#     return 301 https://yourdomain.com$request_uri;
+# }

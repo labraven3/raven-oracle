@@ -1,0 +1,38 @@
+[Unit]
+Description=Raven Oracle API Service
+Documentation=https://github.com/labraven3/raven-oracle
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=raven
+Group=raven
+WorkingDirectory=/home/raven/raven-oracle/apps/api
+Environment=NODE_ENV=production
+EnvironmentFile=/home/raven/raven-oracle/apps/api/.env
+ExecStart=/usr/bin/node /home/raven/raven-oracle/apps/api/dist/server.js
+
+# Restart policy
+Restart=always
+RestartSec=10s
+StartLimitInterval=5min
+StartLimitBurst=5
+
+# Resource limits
+LimitNOFILE=65536
+MemoryLimit=512M
+
+# Logging
+StandardOutput=append:/home/raven/logs/api-out.log
+StandardError=append:/home/raven/logs/api-error.log
+SyslogIdentifier=raven-api
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/raven/logs
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,38 @@
+[Unit]
+Description=Raven Oracle Web Service
+Documentation=https://github.com/labraven3/raven-oracle
+After=network.target raven-api.service
+
+[Service]
+Type=simple
+User=raven
+Group=raven
+WorkingDirectory=/home/raven/raven-oracle/apps/web
+Environment=NODE_ENV=production
+EnvironmentFile=/home/raven/raven-oracle/apps/web/.env.local
+ExecStart=/usr/bin/node /home/raven/raven-oracle/apps/web/node_modules/next/dist/bin/next start -p 3000
+
+# Restart policy
+Restart=always
+RestartSec=10s
+StartLimitInterval=5min
+StartLimitBurst=5
+
+# Resource limits
+LimitNOFILE=65536
+MemoryLimit=512M
+
+# Logging
+StandardOutput=append:/home/raven/logs/web-out.log
+StandardError=append:/home/raven/logs/web-error.log
+SyslogIdentifier=raven-web
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/raven/logs
+
+[Install]
+WantedBy=multi-user.target
