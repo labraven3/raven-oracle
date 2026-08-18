@@ -48,12 +48,43 @@ async function uniqueSlug(name: string) {
   return slug;
 }
 
-router.get("/", async (_req, res, next) => {
+router.get("/", async (req, res, next) => {
   try {
+    // Extract query parameters for filtering and search
+    const category = req.query.category as string | undefined;
+    const status = req.query.status as string | undefined;
+    const search = req.query.search as string | undefined;
+    const limit = Math.min(parseInt(req.query.limit as string) || 100, 100);
+
+    // Build where clause
+    const where: any = {
+      deletedAt: null,
+    };
+
+    // Filter by category
+    if (category && ["NFT", "TOKEN", "GAME", "TOOL", "DEFI", "COMMUNITY", "OTHER"].includes(category)) {
+      where.category = category;
+    }
+
+    // Filter by status (only admins/moderators should see non-approved)
+    // For now, public sees only APPROVED projects
+    // Admin routes will handle other statuses
+    if (status === "APPROVED" || !status) {
+      where.status = "APPROVED";
+    }
+
+    // Search by name or description
+    if (search && search.trim()) {
+      where.OR = [
+        { name: { contains: search.trim(), mode: "insensitive" } },
+        { description: { contains: search.trim(), mode: "insensitive" } },
+      ];
+    }
+
     const projects = await prisma.project.findMany({
-      where: { deletedAt: null },
+      where,
       orderBy: { createdAt: "desc" },
-      take: 100,
+      take: limit,
       select: {
         id: true,
         name: true,
@@ -68,7 +99,8 @@ router.get("/", async (_req, res, next) => {
         createdAt: true,
       },
     });
-    return res.json({ success: true, projects });
+    
+    return res.json({ success: true, projects, total: projects.length });
   } catch (error) {
     next(error);
   }
@@ -76,11 +108,41 @@ router.get("/", async (_req, res, next) => {
 
 router.post("/", requireAuth, async (req, res, next) => {
   try {
-    if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
+    if (!req.userId) {
+      return res.status(401).json({ success: false, message: "Authentication required" });
+    }
+
     const parsed = createSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ success: false, message: "Invalid project data", errors: z.treeifyError(parsed.error) });
+    
+    if (!parsed.success) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid project data", 
+        errors: parsed.error.issues.map(issue => ({
+          field: issue.path.join('.'),
+          message: issue.message,
+        })),
+      });
+    }
+
+    // Check if user already has too many pending submissions (spam prevention)
+    const pendingCount = await prisma.project.count({
+      where: {
+        submittedByUserId: req.userId,
+        status: "SUBMITTED",
+        deletedAt: null,
+      },
+    });
+
+    if (pendingCount >= 5) {
+      return res.status(429).json({
+        success: false,
+        message: "You have too many pending project submissions. Please wait for them to be reviewed.",
+      });
+    }
 
     const slug = await uniqueSlug(parsed.data.name);
+    
     const project = await prisma.project.create({
       data: {
         name: parsed.data.name,
@@ -108,13 +170,26 @@ router.get("/:id", async (req, res, next) => {
       where: { id: req.params.id },
       include: {
         raffles: {
-          where: { cancelledAt: null },
+          where: { 
+            cancelledAt: null,
+            status: { in: ["SCHEDULED", "ACTIVE", "CLOSED", "COMPLETED"] }, // Only show public raffles
+          },
           orderBy: { startsAt: "desc" },
           take: 50,
         },
       },
     });
-    if (!project || project.deletedAt) return res.status(404).json({ success: false, message: "Project not found" });
+    
+    if (!project || project.deletedAt) {
+      return res.status(404).json({ success: false, message: "Project not found" });
+    }
+
+    // Public users can only see APPROVED projects
+    // This check ensures non-approved projects are not accessible via direct ID
+    if (project.status !== "APPROVED") {
+      return res.status(404).json({ success: false, message: "Project not found" });
+    }
+    
     return res.json({ success: true, project });
   } catch (error) {
     next(error);
