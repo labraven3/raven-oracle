@@ -72,6 +72,11 @@ if (env.NODE_ENV === "production") {
   if (!env.DATABASE_URL) {
     productionErrors.push("  • DATABASE_URL is required in production");
   }
+  
+  // DATABASE_URL should not point to localhost in production
+  if (env.DATABASE_URL?.includes("localhost")) {
+    productionErrors.push("  • DATABASE_URL cannot point to localhost in production");
+  }
 
   // Validate DATABASE_URL doesn't expose credentials in error logs
   if (env.DATABASE_URL && env.DATABASE_URL.includes("localhost")) {

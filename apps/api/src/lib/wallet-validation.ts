@@ -35,18 +35,23 @@ export function isValidEvmAddress(address: string): boolean {
 
 /**
  * Validate EVM checksum (EIP-55)
- * Uses Keccak-256 hash for checksum validation
+ * Note: Full EIP-55 checksum validation requires Keccak-256 hashing library
+ * For security: accepts all format-valid addresses but logs a warning for production
  */
 function isValidEvmChecksum(address: string): boolean {
   const addressWithoutPrefix = address.slice(2);
   
-  // For checksum validation, we need crypto
-  // Simple checksum validation without full Keccak implementation
-  // If address has mixed case, we assume it's checksummed correctly
-  // A full implementation would require keccak256 library
-  
-  // For production, this should use a proper keccak256 implementation
-  // For now, accept mixed-case addresses as valid
+  // If all lowercase or all uppercase, checksum not used (valid per spec)
+  if (addressWithoutPrefix === addressWithoutPrefix.toLowerCase() ||
+      addressWithoutPrefix === addressWithoutPrefix.toUpperCase()) {
+    return true;
+  }
+
+  // Mixed case addresses should have valid checksum
+  // Full EIP-55 validation requires keccak256 which requires external dependency
+  // For now, we accept them with a note that production should implement full validation
+  // TODO: Add keccak256 validation when adding ethers.js or similar dependency
+  console.warn(`[SECURITY] Checksum validation not fully implemented for address: ${address}. Consider adding ethers.js for full EIP-55 validation.`);
   return true;
 }
 

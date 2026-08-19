@@ -87,6 +87,16 @@ router.get("/:raffleId/entries", requireAuth, async (req, res, next) => {
     const raffleId = getIdParam(req.params.raffleId);
     if (!raffleId) return res.status(400).json({ success: false, message: "Invalid raffle ID" });
 
+    // Verify the user is the raffle creator
+    const raffle = await prisma.raffle.findUnique({
+      where: { id: raffleId },
+      select: { createdByUserId: true }
+    });
+    if (!raffle) return res.status(404).json({ success: false, message: "Raffle not found" });
+    if (raffle.createdByUserId !== req.userId) {
+      return res.status(403).json({ success: false, message: "Only the raffle creator can view entries" });
+    }
+
     const entries = await prisma.raffleEntry.findMany({
       where: { raffleId },
       select: {
