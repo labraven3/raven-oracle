@@ -93,7 +93,7 @@ async function verifyPassword(password: string, encoded: string) {
 
 async function sendVerificationForUser(userId: string, email: string) {
   const verificationToken = createEmailVerificationToken(userId, email, null);
-  const verificationUrl = `${env.WEB_ORIGIN}/account?verifyEmail=${encodeURIComponent(verificationToken)}`;
+  const verificationUrl = `${env.WEB_ORIGIN}/verify-email?token=${encodeURIComponent(verificationToken)}&email=${encodeURIComponent(email)}`;
   await sendEmailVerification(email, verificationUrl);
 }
 
@@ -134,10 +134,8 @@ router.post("/register", registerRateLimiter, async (req, res, next) => {
       });
     }
 
-    const token = await createAuthToken(user.id);
     logRegistration(user.id, req).catch(console.error);
-
-    return res.status(201).json({ success: true, token, user, emailVerificationRequired: true });
+    return res.status(201).json({ success: true, user, emailVerificationRequired: true, email });
   } catch (e) {
     next(e);
   }
@@ -276,15 +274,19 @@ router.post("/email/verify", async (req, res, next) => {
       return res.status(404).json({ success: false, message: "Account not found." });
     }
 
+    if (user.emailVerifiedAt) {
+      logEmailVerificationFailed("Email already verified", req).catch(console.error);
+      return res.status(409).json({ success: false, message: "This verification link has already been used. You can log in." });
+    }
+
     if (user.email !== null && user.email !== data.email) {
       logEmailVerificationFailed("Verification link no longer valid", req).catch(console.error);
       return res.status(409).json({ success: false, message: "This verification link is no longer valid." });
     }
 
     const updated = await prisma.user.update({ where: { id: user.id }, data: { email: data.email, emailVerifiedAt: new Date(), status: "ACTIVE" } });
-    const authToken = await createAuthToken(updated.id);
     logEmailVerificationSuccess(updated.id, req).catch(console.error);
-    return res.json({ success: true, token: authToken, user: updated, message: "Email verified successfully." });
+    return res.json({ success: true, message: "Email verified successfully. You can now log in." });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Email verification failed";
     return res.status(400).json({ success: false, message });
