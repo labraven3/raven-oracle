@@ -9,10 +9,13 @@
 
 const { randomBytes, scrypt } = require('crypto');
 const { promisify } = require('util');
-require('dotenv').config({ path: 'apps/api/.env' });
+const path = require('path');
 
-// Import Prisma from api app
-const { PrismaClient } = require('./apps/api/node_modules/@prisma/client');
+// Load environment variables
+require('dotenv').config({ path: path.join(__dirname, '../apps/api/.env') });
+
+// Import Prisma from root node_modules
+const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 const scryptAsync = promisify(scrypt);
