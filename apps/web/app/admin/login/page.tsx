@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { API_BASE_URL } from "@/lib/api-config";
@@ -11,30 +11,6 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  // Check if already logged in as admin
-  useEffect(() => {
-    const token = localStorage.getItem("raven_token");
-    if (token) {
-      // Try to verify if user is admin
-      verifyAdminAccess(token);
-    }
-  }, []);
-
-  async function verifyAdminAccess(token: string) {
-    try {
-      const response = await fetch(`${API_BASE_URL}/admin/overview`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (response.ok) {
-        setIsAuthenticated(true);
-        window.location.href = "/admin";
-      }
-    } catch {
-      // Not admin, continue to login
-    }
-  }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -54,39 +30,27 @@ export default function AdminLoginPage() {
         throw new Error(data.message || "Login failed");
       }
 
+      // Store token first
+      localStorage.setItem("raven_token", data.token);
+
       // Check if user is admin
       const adminResponse = await fetch(`${API_BASE_URL}/admin/overview`, {
         headers: { Authorization: `Bearer ${data.token}` },
       });
 
       if (!adminResponse.ok) {
+        localStorage.removeItem("raven_token");
         setError("You do not have admin access. Contact an administrator.");
+        setLoading(false);
         return;
       }
 
-      localStorage.setItem("raven_token", data.token);
-      setIsAuthenticated(true);
-      
-      // Force redirect using window.location
+      // Redirect to admin dashboard
       window.location.href = "/admin";
     } catch (err: any) {
       setError(err.message || "Login failed");
-    } finally {
       setLoading(false);
     }
-  }
-
-  if (isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0b0a12]">
-        <div className="text-center">
-          <div className="inline-block animate-spin">
-            <div className="w-8 h-8 border-4 border-[#9b63ff] border-t-transparent rounded-full"></div>
-          </div>
-          <p className="text-[#8f8a9e] mt-4">Redirecting to admin panel...</p>
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -123,7 +87,8 @@ export default function AdminLoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                disabled={loading}
+                className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
                 placeholder="admin@example.com"
               />
             </div>
@@ -135,7 +100,8 @@ export default function AdminLoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                disabled={loading}
+                className="w-full px-4 py-3 bg-black/40 border border-white/10 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-500 disabled:opacity-50"
                 placeholder="••••••••••••"
               />
             </div>
