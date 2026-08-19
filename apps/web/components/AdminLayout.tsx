@@ -20,7 +20,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   const menuItems = [
     { title: "Dashboard", icon: "📊", href: "/admin", description: "Overview & statistics" },
-    { title: "Manage Admins", icon: "🔐", href: "/admin/manage-admins", description: "Approve/remove admin access" },
     { title: "Hero Settings", icon: "🎨", href: "/admin/hero-settings", description: "Customize hero section" },
     { title: "Community Links", icon: "🔗", href: "/admin/community-links", description: "Manage footer links" },
     { title: "Audit Logs", icon: "📋", href: "/admin/audit-logs", description: "View system logs" },
