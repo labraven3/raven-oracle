@@ -53,9 +53,23 @@ export default function Home() {
       setRaffles(r.raffles.filter((x) => ["ACTIVE", "SCHEDULED"].includes(x.status)));
     });
 
+    let lastScrollY = 0;
     const handleScroll = () => {
-      setHeroVisible(window.scrollY < 100);
+      const currentScrollY = window.scrollY;
+      
+      // Hero visible only when at top (scrollY < 100) AND scrolling up
+      if (currentScrollY < 100) {
+        setHeroVisible(true);
+      } else if (currentScrollY > lastScrollY) {
+        // Scrolling down - hide hero
+        setHeroVisible(false);
+      }
+      // Note: We don't show hero when scrolling up from below
+      // It only shows when user reaches top (scrollY < 100)
+      
+      lastScrollY = currentScrollY;
     };
+    
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
