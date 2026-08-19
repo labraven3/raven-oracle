@@ -42,6 +42,7 @@ export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [iconIndex, setIconIndex] = useState(0);
   const [communityLinks, setCommunityLinks] = useState<any[]>([]);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Rotating icons for floating cards
   const iconSets = [
@@ -130,8 +131,8 @@ export default function Home() {
         <div className="absolute top-1/2 left-1/2 w-80 h-80 bg-purple-500/10 rounded-full blur-[100px] animate-pulse delay-500" />
       </div>
 
-      {/* Navigation */}
-      <nav className="relative z-50 border-b border-white/10 bg-black/20 backdrop-blur-xl">
+      {/* Navigation - Fixed Header */}
+      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-black/40 backdrop-blur-xl">
         <div className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center font-black text-lg shadow-lg shadow-violet-500/50">
@@ -158,7 +159,7 @@ export default function Home() {
             </Link>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-3">
             {isLoggedIn ? (
               <>
                 <Link
@@ -191,14 +192,104 @@ export default function Home() {
               </>
             )}
           </div>
+
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden w-10 h-10 flex items-center justify-center rounded-lg border border-white/10 hover:bg-white/5"
+          >
+            <div className="w-5 h-4 flex flex-col justify-between">
+              <span className={`block h-0.5 w-full bg-white transition-all ${mobileMenuOpen ? 'rotate-45 translate-y-1.5' : ''}`} />
+              <span className={`block h-0.5 w-full bg-white transition-all ${mobileMenuOpen ? 'opacity-0' : ''}`} />
+              <span className={`block h-0.5 w-full bg-white transition-all ${mobileMenuOpen ? '-rotate-45 -translate-y-2' : ''}`} />
+            </div>
+          </button>
         </div>
+
+        {/* Mobile Menu Dropdown */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-white/10 bg-black/95 backdrop-blur-xl">
+            <div className="px-6 py-4 space-y-3">
+              <Link
+                href="/projects"
+                className="block py-2 text-sm text-zinc-400 hover:text-white transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                NFT Projects
+              </Link>
+              <Link
+                href="/raffles"
+                className="block py-2 text-sm text-zinc-400 hover:text-white transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Raffles
+              </Link>
+              <Link
+                href="/alpha"
+                className="block py-2 text-sm text-zinc-400 hover:text-white transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                King of Alpha
+              </Link>
+              <Link
+                href="/how-it-works"
+                className="block py-2 text-sm text-zinc-400 hover:text-white transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                How it Works
+              </Link>
+              
+              <div className="pt-3 border-t border-white/10 space-y-2">
+                {isLoggedIn ? (
+                  <>
+                    <Link
+                      href="/dashboard"
+                      className="block px-4 py-2 text-xs font-bold border border-white/10 rounded-lg hover:bg-white/5 text-center"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Creator Studio
+                    </Link>
+                    <Link
+                      href="/account"
+                      className="block px-4 py-2 text-xs font-black bg-gradient-to-r from-violet-500 to-purple-600 rounded-lg shadow-lg shadow-violet-500/30 text-center"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Account
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/login"
+                      className="block px-4 py-2 text-xs font-bold border border-white/10 rounded-lg hover:bg-white/5 text-center"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Login
+                    </Link>
+                    <Link
+                      href="/register"
+                      className="block px-4 py-2 text-xs font-black bg-gradient-to-r from-violet-500 to-purple-600 rounded-lg shadow-lg shadow-violet-500/30 text-center"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Sign Up
+                    </Link>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </nav>
+
+      {/* Spacer for fixed header */}
+      <div className="h-[72px]" />
 
       {/* Hero Section with Floating Elements */}
       <section
-        className={`relative overflow-hidden transition-all duration-700 ${
-          heroVisible ? "h-[600px] opacity-100" : "h-0 opacity-0"
+        className={`relative overflow-hidden transition-all duration-1000 ease-in-out ${
+          heroVisible ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"
         }`}
+        style={{ height: heroVisible ? '600px' : '0px' }}
       >
         <div className="absolute inset-0 flex items-center justify-center">
           {/* Floating NFT Cards with coin flip animation */}
