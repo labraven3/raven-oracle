@@ -53,6 +53,7 @@ export default function AccountPage() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [discordBusy, setDiscordBusy] = useState(false);
+  const [xBusy, setXBusy] = useState(false);
   const [address, setAddress] = useState("");
   const [chain, setChain] = useState<"EVM" | "SOLANA">("EVM");
 
@@ -71,20 +72,32 @@ export default function AccountPage() {
   useEffect(() => {
     const handleHashAndLoad = async () => {
       const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+      const params = new URLSearchParams(window.location.search);
       const token = hash.get("token");
-      const status = hash.get("status");
-      const msg = hash.get("message");
+      const status = hash.get("status") || params.get("status");
+      const msg = hash.get("message") || params.get("message");
+      const social = params.get("social");
+      const account = params.get("account");
 
       if (token) localStorage.setItem("raven_token", token);
-      if (status === "connected")
-        setMessage("Discord connected. Add your Gmail below when you're ready.");
+      
+      if (status === "connected") {
+        if (social === "x" && account) {
+          setMessage(`X account @${account} connected successfully.`);
+        } else {
+          setMessage("Discord connected. Add your Gmail below when you're ready.");
+        }
+      }
+      
       if (status === "email-required")
         setMessage(
           "Discord connected. Your Discord email is not used automatically. Add the Gmail you want on your Raven Oracle profile."
         );
+      
       if (status === "error" && msg) setMessage(msg);
 
       if (window.location.hash) window.history.replaceState({}, "", window.location.pathname);
+      if (window.location.search) window.history.replaceState({}, "", window.location.pathname);
 
       if (localStorage.getItem("raven_token")) {
         try {
@@ -106,6 +119,17 @@ export default function AccountPage() {
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Unable to start Discord connection");
       setDiscordBusy(false);
+    }
+  };
+
+  const connectX = async () => {
+    setXBusy(true);
+    try {
+      const data = await api<{ authorizationUrl: string }>("/auth/x/start");
+      window.location.href = data.authorizationUrl;
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "Unable to start X connection");
+      setXBusy(false);
     }
   };
 
@@ -279,9 +303,13 @@ export default function AccountPage() {
                     {xSocial?.providerUsername ? `@${xSocial.providerUsername}` : "Not connected"}
                   </p>
                 </div>
-                <span className="rounded-full border border-white/10 px-3 py-2 text-[10px] text-zinc-600">
-                  Coming later
-                </span>
+                <button
+                  disabled={xBusy}
+                  onClick={() => void connectX()}
+                  className="rounded-lg border border-white/10 px-3 py-2 text-[10px] font-bold"
+                >
+                  {xBusy ? "Connecting…" : xSocial ? "Reconnect" : "Connect"}
+                </button>
               </div>
             </div>
           </article>
