@@ -528,7 +528,7 @@ export default function Home() {
       </footer>
 
       <style jsx>{`
-        @keyframes coin-flip {
+        @keyframes coin-flip-sync {
           0% {
             transform: translateY(0) rotateX(0deg) scale(1);
             z-index: 20;
@@ -550,42 +550,11 @@ export default function Home() {
             z-index: 20;
           }
         }
-        @keyframes coin-flip-delayed {
-          0% {
-            transform: translateY(0) rotateY(0deg) scale(1);
-            z-index: 20;
-          }
-          25% {
-            transform: translateY(-70px) rotateY(180deg) scale(1.2);
-            z-index: 50;
-          }
-          50% {
-            transform: translateY(-90px) rotateY(360deg) scale(1.3);
-            z-index: 50;
-          }
-          75% {
-            transform: translateY(-70px) rotateY(540deg) scale(1.2);
-            z-index: 50;
-          }
-          100% {
-            transform: translateY(0) rotateY(720deg) scale(1);
-            z-index: 20;
-          }
-        }
-        .animate-coin-flip-1 {
-          animation: coin-flip 3s ease-in-out infinite;
-          transform-style: preserve-3d;
-        }
-        .animate-coin-flip-2 {
-          animation: coin-flip-delayed 3s ease-in-out infinite 0.3s;
-          transform-style: preserve-3d;
-        }
-        .animate-coin-flip-3 {
-          animation: coin-flip 3s ease-in-out infinite 0.6s;
-          transform-style: preserve-3d;
-        }
+        .animate-coin-flip-1,
+        .animate-coin-flip-2,
+        .animate-coin-flip-3,
         .animate-coin-flip-4 {
-          animation: coin-flip-delayed 3s ease-in-out infinite 0.9s;
+          animation: coin-flip-sync 3s ease-in-out infinite;
           transform-style: preserve-3d;
         }
       `}</style>
