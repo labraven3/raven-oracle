@@ -3,10 +3,12 @@ import helmet from "helmet";
 import { env } from "../config/env.js";
 
 // Allow both configured WEB_ORIGIN and localhost (for Next.js rewrite proxy)
+// Also allow production IPs for direct browser access
 const allowedOrigins = [
   env.WEB_ORIGIN,
   "http://localhost:3001",
   "http://127.0.0.1:3001",
+  "http://3.235.129.163:3001",
 ];
 
 export const securityMiddleware = [
