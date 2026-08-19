@@ -9,8 +9,12 @@ type HeroSettings = {
   enabled: boolean;
   tagline1: string;
   tagline2: string;
-  gradient1: string;
-  gradient2: string;
+  gradient1Color1: string;
+  gradient1Color2: string;
+  gradient1Color3: string;
+  gradient2Color1: string;
+  gradient2Color2: string;
+  gradient2Color3: string;
   iconSets: string[][];
   animationSpeed: number;
 };
@@ -19,15 +23,19 @@ const defaultSettings: HeroSettings = {
   enabled: true,
   tagline1: "The Future of",
   tagline2: "NFT Whitelists",
-  gradient1: "from-violet-400 via-purple-300 to-pink-400",
-  gradient2: "from-blue-400 via-cyan-300 to-violet-400",
+  gradient1Color1: "#a78bfa",
+  gradient1Color2: "#c084fc",
+  gradient1Color3: "#f0abfc",
+  gradient2Color1: "#60a5fa",
+  gradient2Color2: "#67e8f9",
+  gradient2Color3: "#a78bfa",
   iconSets: [
-    ["🎨", "💎", "🎮", "⛓️"],
-    ["🚀", "🌟", "🎯", "💰"],
-    ["🔥", "⚡", "🌈", "🎭"],
-    ["🏆", "👑", "💫", "🎪"],
+    ["https://via.placeholder.com/150", "https://via.placeholder.com/150", "https://via.placeholder.com/150", "https://via.placeholder.com/150"],
+    ["https://via.placeholder.com/150", "https://via.placeholder.com/150", "https://via.placeholder.com/150", "https://via.placeholder.com/150"],
+    ["https://via.placeholder.com/150", "https://via.placeholder.com/150", "https://via.placeholder.com/150", "https://via.placeholder.com/150"],
+    ["https://via.placeholder.com/150", "https://via.placeholder.com/150", "https://via.placeholder.com/150", "https://via.placeholder.com/150"],
   ],
-  animationSpeed: 4000,
+  animationSpeed: 3000,
 };
 
 export default function AdminHeroSettingsPage() {
@@ -72,14 +80,6 @@ export default function AdminHeroSettingsPage() {
     newSets[setIndex][iconIndex] = value;
     setSettings({ ...settings, iconSets: newSets });
   };
-
-  const gradientPresets = [
-    { name: "Purple-Pink", value: "from-violet-400 via-purple-300 to-pink-400" },
-    { name: "Blue-Cyan", value: "from-blue-400 via-cyan-300 to-violet-400" },
-    { name: "Green-Emerald", value: "from-green-400 via-emerald-300 to-teal-400" },
-    { name: "Orange-Red", value: "from-orange-400 via-red-300 to-pink-400" },
-    { name: "Gold-Yellow", value: "from-yellow-400 via-amber-300 to-orange-400" },
-  ];
 
   return (
     <AdminLayout>
@@ -156,20 +156,145 @@ export default function AdminHeroSettingsPage() {
 
           {/* Gradient Colors */}
           <div className="rounded-2xl border border-white/10 bg-[#0d0c11] p-6">
-            <h2 className="text-xl font-bold">Gradient Colors</h2>
-            <div className="mt-4 space-y-4">
+            <h2 className="text-xl font-bold mb-2">Gradient Colors</h2>
+            <p className="text-xs text-zinc-500 mb-4">Pick any color for each gradient position</p>
+            
+            <div className="space-y-6">
+              {/* Line 1 Gradient */}
               <div>
-                <label className="block text-xs font-bold text-zinc-400">Line 1 Gradient</label>
-                <select
-                  value={settings.gradient1}
-                  onChange={(e) => setSettings({ ...settings, gradient1: e.target.value })}
-                  className="mt-2 w-full rounded-lg border border-white/10 bg-black px-4 py-3 text-sm outline-none"
-                >
-                  {gradientPresets.map((preset) => (
-                    <option key={preset.value} value={preset.value}>
-                      {preset.name}
-                    </option>
-                  ))}
+                <label className="block text-sm font-bold text-zinc-300 mb-3">Line 1 Gradient (Tagline 1)</label>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs text-zinc-500 mb-2">Start Color</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={settings.gradient1Color1}
+                        onChange={(e) => setSettings({ ...settings, gradient1Color1: e.target.value })}
+                        className="w-16 h-10 rounded border border-white/10 bg-black cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={settings.gradient1Color1}
+                        onChange={(e) => setSettings({ ...settings, gradient1Color1: e.target.value })}
+                        className="flex-1 rounded-lg border border-white/10 bg-black px-3 py-2 text-xs outline-none"
+                        placeholder="#a78bfa"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-zinc-500 mb-2">Middle Color</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={settings.gradient1Color2}
+                        onChange={(e) => setSettings({ ...settings, gradient1Color2: e.target.value })}
+                        className="w-16 h-10 rounded border border-white/10 bg-black cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={settings.gradient1Color2}
+                        onChange={(e) => setSettings({ ...settings, gradient1Color2: e.target.value })}
+                        className="flex-1 rounded-lg border border-white/10 bg-black px-3 py-2 text-xs outline-none"
+                        placeholder="#c084fc"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-zinc-500 mb-2">End Color</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={settings.gradient1Color3}
+                        onChange={(e) => setSettings({ ...settings, gradient1Color3: e.target.value })}
+                        className="w-16 h-10 rounded border border-white/10 bg-black cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={settings.gradient1Color3}
+                        onChange={(e) => setSettings({ ...settings, gradient1Color3: e.target.value })}
+                        className="flex-1 rounded-lg border border-white/10 bg-black px-3 py-2 text-xs outline-none"
+                        placeholder="#f0abfc"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div 
+                  className="mt-3 h-12 rounded-lg"
+                  style={{
+                    background: `linear-gradient(to right, ${settings.gradient1Color1}, ${settings.gradient1Color2}, ${settings.gradient1Color3})`
+                  }}
+                />
+              </div>
+
+              {/* Line 2 Gradient */}
+              <div>
+                <label className="block text-sm font-bold text-zinc-300 mb-3">Line 2 Gradient (Tagline 2)</label>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs text-zinc-500 mb-2">Start Color</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={settings.gradient2Color1}
+                        onChange={(e) => setSettings({ ...settings, gradient2Color1: e.target.value })}
+                        className="w-16 h-10 rounded border border-white/10 bg-black cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={settings.gradient2Color1}
+                        onChange={(e) => setSettings({ ...settings, gradient2Color1: e.target.value })}
+                        className="flex-1 rounded-lg border border-white/10 bg-black px-3 py-2 text-xs outline-none"
+                        placeholder="#60a5fa"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-zinc-500 mb-2">Middle Color</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={settings.gradient2Color2}
+                        onChange={(e) => setSettings({ ...settings, gradient2Color2: e.target.value })}
+                        className="w-16 h-10 rounded border border-white/10 bg-black cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={settings.gradient2Color2}
+                        onChange={(e) => setSettings({ ...settings, gradient2Color2: e.target.value })}
+                        className="flex-1 rounded-lg border border-white/10 bg-black px-3 py-2 text-xs outline-none"
+                        placeholder="#67e8f9"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-zinc-500 mb-2">End Color</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={settings.gradient2Color3}
+                        onChange={(e) => setSettings({ ...settings, gradient2Color3: e.target.value })}
+                        className="w-16 h-10 rounded border border-white/10 bg-black cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={settings.gradient2Color3}
+                        onChange={(e) => setSettings({ ...settings, gradient2Color3: e.target.value })}
+                        className="flex-1 rounded-lg border border-white/10 bg-black px-3 py-2 text-xs outline-none"
+                        placeholder="#a78bfa"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div 
+                  className="mt-3 h-12 rounded-lg"
+                  style={{
+                    background: `linear-gradient(to right, ${settings.gradient2Color1}, ${settings.gradient2Color2}, ${settings.gradient2Color3})`
+                  }}
+                />
+              </div>
+            </div>
+          </div>
                 </select>
                 <div className={`mt-2 h-8 rounded-lg bg-gradient-to-r ${settings.gradient1}`} />
               </div>
@@ -191,31 +316,42 @@ export default function AdminHeroSettingsPage() {
             </div>
           </div>
 
-          {/* Icon Sets */}
+          {/* Icon Sets - Now with Image URLs */}
           <div className="rounded-2xl border border-white/10 bg-[#0d0c11] p-6">
-            <h2 className="text-xl font-bold">Floating Card Icons (4 Sets)</h2>
+            <h2 className="text-xl font-bold">Floating Card Images (4 Sets)</h2>
             <p className="mt-2 text-xs text-zinc-500">
-              Icons rotate automatically. Each set has 4 icons for the 4 floating cards.
+              Images rotate automatically. Each set has 4 images for the 4 floating cards. Use PNG/JPG URLs that will stretch to fill the card.
             </p>
             <div className="mt-4 space-y-4">
               {settings.iconSets.map((set, setIndex) => (
                 <div key={setIndex} className="rounded-xl border border-white/10 bg-black/20 p-4">
-                  <div className="mb-2 text-xs font-bold text-zinc-400">
+                  <div className="mb-3 text-xs font-bold text-zinc-400">
                     Set {setIndex + 1}
                   </div>
-                  <div className="grid grid-cols-4 gap-3">
-                    {set.map((icon, iconIndex) => (
-                      <div key={iconIndex}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {set.map((imageUrl, iconIndex) => (
+                      <div key={iconIndex} className="space-y-2">
                         <label className="block text-[10px] text-zinc-600">
-                          Card {iconIndex + 1}
+                          Card {iconIndex + 1} - Image URL
                         </label>
                         <input
-                          value={icon}
+                          value={imageUrl}
                           onChange={(e) => updateIcon(setIndex, iconIndex, e.target.value)}
-                          maxLength={2}
-                          className="mt-1 w-full rounded-lg border border-white/10 bg-black px-3 py-2 text-center text-2xl outline-none"
-                          placeholder="🎨"
+                          className="w-full rounded-lg border border-white/10 bg-black px-3 py-2 text-xs outline-none"
+                          placeholder="https://example.com/image.png"
                         />
+                        {imageUrl && (
+                          <div className="relative w-full h-24 rounded-lg overflow-hidden bg-black border border-white/10">
+                            <img
+                              src={imageUrl}
+                              alt={`Card ${iconIndex + 1}`}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.src = "https://via.placeholder.com/150?text=Invalid+URL";
+                              }}
+                            />
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

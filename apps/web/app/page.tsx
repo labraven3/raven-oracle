@@ -44,6 +44,7 @@ export default function Home() {
   const [iconIndex, setIconIndex] = useState(0);
   const [communityLinks, setCommunityLinks] = useState<any[]>([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [heroSettings, setHeroSettings] = useState<any>(null);
   const { theme, toggleTheme } = useTheme();
 
   // Rotating icons for floating cards
@@ -71,6 +72,7 @@ export default function Home() {
     if (savedSettings) {
       try {
         const parsed = JSON.parse(savedSettings);
+        setHeroSettings(parsed);
         if (parsed.iconSets) iconSets.splice(0, iconSets.length, ...parsed.iconSets);
         if (parsed.animationSpeed) {
           const speed = parsed.animationSpeed;
@@ -403,36 +405,60 @@ export default function Home() {
         style={{ height: heroVisible ? '600px' : '0px' }}
       >
         <div className="absolute inset-0 flex items-center justify-center">
-          {/* Floating NFT Cards with coin flip animation */}
+          {/* Floating NFT Cards with coin flip animation - Now with images */}
           <div className="absolute top-20 left-20 w-32 h-32 animate-coin-flip-1">
-            <div className="w-full h-full bg-gradient-to-br from-violet-500/20 to-purple-600/20 rounded-2xl border border-violet-500/30 backdrop-blur-sm shadow-2xl shadow-violet-500/20 transition-all duration-300">
-              <div className="w-full h-full bg-gradient-to-br from-violet-400/10 to-purple-500/10 rounded-2xl flex items-center justify-center text-4xl">
-                {currentIcons[0]}
-              </div>
+            <div className="w-full h-full bg-gradient-to-br from-violet-500/20 to-purple-600/20 rounded-2xl border border-violet-500/30 backdrop-blur-sm shadow-2xl shadow-violet-500/20 transition-all duration-300 overflow-hidden">
+              <img 
+                src={currentIcons[0]} 
+                alt="NFT 1" 
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.parentElement!.innerHTML = '<div class="w-full h-full flex items-center justify-center text-4xl">🎨</div>';
+                }}
+              />
             </div>
           </div>
 
           <div className="absolute top-40 right-32 w-40 h-40 animate-coin-flip-2">
-            <div className="w-full h-full bg-gradient-to-br from-blue-500/20 to-cyan-600/20 rounded-2xl border border-blue-500/30 backdrop-blur-sm shadow-2xl shadow-blue-500/20 transition-all duration-300">
-              <div className="w-full h-full bg-gradient-to-br from-blue-400/10 to-cyan-500/10 rounded-2xl flex items-center justify-center text-5xl">
-                {currentIcons[1]}
-              </div>
+            <div className="w-full h-full bg-gradient-to-br from-blue-500/20 to-cyan-600/20 rounded-2xl border border-blue-500/30 backdrop-blur-sm shadow-2xl shadow-blue-500/20 transition-all duration-300 overflow-hidden">
+              <img 
+                src={currentIcons[1]} 
+                alt="NFT 2" 
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.parentElement!.innerHTML = '<div class="w-full h-full flex items-center justify-center text-5xl">💎</div>';
+                }}
+              />
             </div>
           </div>
 
           <div className="absolute bottom-32 left-40 w-36 h-36 animate-coin-flip-3">
-            <div className="w-full h-full bg-gradient-to-br from-pink-500/20 to-rose-600/20 rounded-2xl border border-pink-500/30 backdrop-blur-sm shadow-2xl shadow-pink-500/20 transition-all duration-300">
-              <div className="w-full h-full bg-gradient-to-br from-pink-400/10 to-rose-500/10 rounded-2xl flex items-center justify-center text-4xl">
-                {currentIcons[2]}
-              </div>
+            <div className="w-full h-full bg-gradient-to-br from-pink-500/20 to-rose-600/20 rounded-2xl border border-pink-500/30 backdrop-blur-sm shadow-2xl shadow-pink-500/20 transition-all duration-300 overflow-hidden">
+              <img 
+                src={currentIcons[2]} 
+                alt="NFT 3" 
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.parentElement!.innerHTML = '<div class="w-full h-full flex items-center justify-center text-4xl">🎮</div>';
+                }}
+              />
             </div>
           </div>
 
           <div className="absolute bottom-20 right-20 w-28 h-28 animate-coin-flip-4">
-            <div className="w-full h-full bg-gradient-to-br from-green-500/20 to-emerald-600/20 rounded-2xl border border-green-500/30 backdrop-blur-sm shadow-2xl shadow-green-500/20 transition-all duration-300">
-              <div className="w-full h-full bg-gradient-to-br from-green-400/10 to-emerald-500/10 rounded-2xl flex items-center justify-center text-3xl">
-                {currentIcons[3]}
-              </div>
+            <div className="w-full h-full bg-gradient-to-br from-green-500/20 to-emerald-600/20 rounded-2xl border border-green-500/30 backdrop-blur-sm shadow-2xl shadow-green-500/20 transition-all duration-300 overflow-hidden">
+              <img 
+                src={currentIcons[3]} 
+                alt="NFT 4" 
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.parentElement!.innerHTML = '<div class="w-full h-full flex items-center justify-center text-3xl">⛓️</div>';
+                }}
+              />
             </div>
           </div>
 
@@ -446,12 +472,26 @@ export default function Home() {
               WEB3 NFT RAFFLE PLATFORM
             </div>
             <h1 className="text-6xl md:text-7xl font-black tracking-tight mb-6">
-              <span className="bg-gradient-to-r from-violet-400 via-purple-300 to-pink-400 bg-clip-text text-transparent">
-                The Future of
+              <span 
+                className="bg-clip-text text-transparent"
+                style={{
+                  backgroundImage: heroSettings 
+                    ? `linear-gradient(to right, ${heroSettings.gradient1Color1}, ${heroSettings.gradient1Color2}, ${heroSettings.gradient1Color3})`
+                    : 'linear-gradient(to right, #a78bfa, #c084fc, #f0abfc)'
+                }}
+              >
+                {heroSettings?.tagline1 || "The Future of"}
               </span>
               <br />
-              <span className="bg-gradient-to-r from-blue-400 via-cyan-300 to-violet-400 bg-clip-text text-transparent">
-                NFT Whitelists
+              <span 
+                className="bg-clip-text text-transparent"
+                style={{
+                  backgroundImage: heroSettings 
+                    ? `linear-gradient(to right, ${heroSettings.gradient2Color1}, ${heroSettings.gradient2Color2}, ${heroSettings.gradient2Color3})`
+                    : 'linear-gradient(to right, #60a5fa, #67e8f9, #a78bfa)'
+                }}
+              >
+                {heroSettings?.tagline2 || "NFT Whitelists"}
               </span>
             </h1>
             <p className={`text-xl max-w-2xl mx-auto mb-10 leading-relaxed ${
