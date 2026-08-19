@@ -39,8 +39,16 @@ export default function Home() {
   const [raffles, setRaffles] = useState<Raffle[]>([]);
   const [tab, setTab] = useState<"upcoming" | "trending">("trending");
   const [heroVisible, setHeroVisible] = useState(true);
-  const [heroHidden, setHeroHidden] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [iconIndex, setIconIndex] = useState(0);
+
+  // Rotating icons for floating cards
+  const iconSets = [
+    ["🎨", "💎", "🎮", "⛓️"],
+    ["🚀", "🌟", "🎯", "💰"],
+    ["🔥", "⚡", "🌈", "🎭"],
+    ["🏆", "👑", "💫", "🎪"],
+  ];
 
   useEffect(() => {
     const token = localStorage.getItem("raven_token");
@@ -54,26 +62,26 @@ export default function Home() {
       setRaffles(r.raffles.filter((x) => ["ACTIVE", "SCHEDULED"].includes(x.status)));
     });
 
+    // Icon rotation every 4 seconds
+    const iconInterval = setInterval(() => {
+      setIconIndex((prev) => (prev + 1) % 4);
+    }, 4000);
+
+    // Hero visibility on scroll
     const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      
-      // Once user scrolls past 200px, permanently hide hero
-      if (currentScrollY > 200 && !heroHidden) {
-        setHeroVisible(false);
-        setHeroHidden(true);
-      }
-      // Only show hero again if user is at very top AND hadn't hidden it before
-      else if (currentScrollY < 50 && !heroHidden) {
-        setHeroVisible(true);
-      }
+      setHeroVisible(window.scrollY < 300);
     };
     
     window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [heroHidden]);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      clearInterval(iconInterval);
+    };
+  }, []);
 
   const trending = projects.slice(0, 6);
   const upcoming = raffles.slice(0, 6);
+  const currentIcons = iconSets[iconIndex];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0a0a0f] via-[#0f0a1f] to-[#0a0a0f] text-white">
@@ -149,31 +157,31 @@ export default function Home() {
       </nav>
 
       {/* Hero Section with Floating Elements */}
-      {heroVisible && !heroHidden && (
-        <section className="relative overflow-hidden h-[600px]">
+      {heroVisible && (
+        <section className="relative overflow-hidden h-[600px] transition-opacity duration-700">
         <div className="absolute inset-0 flex items-center justify-center">
-          {/* Floating NFT Cards */}
-          <div className="absolute top-20 left-20 w-32 h-32 bg-gradient-to-br from-violet-500/20 to-purple-600/20 rounded-2xl border border-violet-500/30 backdrop-blur-sm animate-float shadow-2xl shadow-violet-500/20">
+          {/* Floating NFT Cards with rotating icons */}
+          <div className="absolute top-20 left-20 w-32 h-32 bg-gradient-to-br from-violet-500/20 to-purple-600/20 rounded-2xl border border-violet-500/30 backdrop-blur-sm animate-float shadow-2xl shadow-violet-500/20 transition-all duration-1000">
             <div className="w-full h-full bg-gradient-to-br from-violet-400/10 to-purple-500/10 rounded-2xl flex items-center justify-center text-4xl">
-              🎨
+              {currentIcons[0]}
             </div>
           </div>
 
-          <div className="absolute top-40 right-32 w-40 h-40 bg-gradient-to-br from-blue-500/20 to-cyan-600/20 rounded-2xl border border-blue-500/30 backdrop-blur-sm animate-float-delayed shadow-2xl shadow-blue-500/20">
+          <div className="absolute top-40 right-32 w-40 h-40 bg-gradient-to-br from-blue-500/20 to-cyan-600/20 rounded-2xl border border-blue-500/30 backdrop-blur-sm animate-float-delayed shadow-2xl shadow-blue-500/20 transition-all duration-1000">
             <div className="w-full h-full bg-gradient-to-br from-blue-400/10 to-cyan-500/10 rounded-2xl flex items-center justify-center text-5xl">
-              💎
+              {currentIcons[1]}
             </div>
           </div>
 
-          <div className="absolute bottom-32 left-40 w-36 h-36 bg-gradient-to-br from-pink-500/20 to-rose-600/20 rounded-2xl border border-pink-500/30 backdrop-blur-sm animate-float shadow-2xl shadow-pink-500/20">
+          <div className="absolute bottom-32 left-40 w-36 h-36 bg-gradient-to-br from-pink-500/20 to-rose-600/20 rounded-2xl border border-pink-500/30 backdrop-blur-sm animate-float shadow-2xl shadow-pink-500/20 transition-all duration-1000">
             <div className="w-full h-full bg-gradient-to-br from-pink-400/10 to-rose-500/10 rounded-2xl flex items-center justify-center text-4xl">
-              🎮
+              {currentIcons[2]}
             </div>
           </div>
 
-          <div className="absolute bottom-20 right-20 w-28 h-28 bg-gradient-to-br from-green-500/20 to-emerald-600/20 rounded-2xl border border-green-500/30 backdrop-blur-sm animate-float-delayed shadow-2xl shadow-green-500/20">
+          <div className="absolute bottom-20 right-20 w-28 h-28 bg-gradient-to-br from-green-500/20 to-emerald-600/20 rounded-2xl border border-green-500/30 backdrop-blur-sm animate-float-delayed shadow-2xl shadow-green-500/20 transition-all duration-1000">
             <div className="w-full h-full bg-gradient-to-br from-green-400/10 to-emerald-500/10 rounded-2xl flex items-center justify-center text-3xl">
-              ⛓️
+              {currentIcons[3]}
             </div>
           </div>
 
@@ -182,10 +190,14 @@ export default function Home() {
             <div className="inline-block mb-6 px-4 py-2 bg-violet-500/10 border border-violet-500/30 rounded-full text-xs font-black tracking-[.2em] text-violet-300">
               WEB3 NFT RAFFLE PLATFORM
             </div>
-            <h1 className="text-6xl md:text-7xl font-black tracking-tight mb-6 bg-gradient-to-r from-white via-violet-200 to-purple-300 bg-clip-text text-transparent">
-              The Future of
+            <h1 className="text-6xl md:text-7xl font-black tracking-tight mb-6">
+              <span className="bg-gradient-to-r from-violet-400 via-purple-300 to-pink-400 bg-clip-text text-transparent">
+                The Future of
+              </span>
               <br />
-              NFT Whitelists
+              <span className="bg-gradient-to-r from-blue-400 via-cyan-300 to-violet-400 bg-clip-text text-transparent">
+                NFT Whitelists
+              </span>
             </h1>
             <p className="text-xl text-zinc-400 max-w-2xl mx-auto mb-10 leading-relaxed">
               Join verified NFT communities, complete tasks, and win whitelist spots through provably fair raffles powered by blockchain technology.
