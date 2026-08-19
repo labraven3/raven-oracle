@@ -28,7 +28,7 @@ async function requireAdmin(
 
   const user = await prisma.user.findUnique({
     where: { id: req.userId },
-    select: { role: true, status: true },
+    select: { role: true, status: true, isAdminApproved: true },
   });
 
   if (
@@ -39,6 +39,14 @@ async function requireAdmin(
     return res
       .status(403)
       .json({ success: false, message: "Admin access required" });
+  }
+
+  // Check if user is approved for admin access
+  if (!user.isAdminApproved) {
+    return res.status(403).json({
+      success: false,
+      message: "Admin access pending approval. Please contact the administrator.",
+    });
   }
 
   next();
@@ -804,3 +812,242 @@ router.patch("/users/:id/points", async (req, res, next) => {
 });
 
 export default router;
+
+
+/**
+ * GET /api/admin/whitelist
+ * View users pending admin approval and approved admins
+ */
+router.get("/whitelist", async (req, res, next) => {
+  try {
+    const filter =
+      typeof req.query.filter === "string" ? req.query.filter : "pending";
+
+    const where =
+      filter === "approved"
+        ? { isAdminApproved: true, deletedAt: null }
+        : { isAdminApproved: false, deletedAt: null };
+
+    const users = await prisma.user.findMany({
+      where,
+      orderBy: {
+        [filter === "approved" ? "adminApprovedAt" : "createdAt"]: "desc",
+      },
+      take: 200,
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        displayName: true,
+        role: true,
+        status: true,
+        isAdminApproved: true,
+        adminApprovedAt: true,
+        emailVerifiedAt: true,
+        createdAt: true,
+        _count: {
+          select: {
+            raffleEntries: true,
+            alphaSubmissions: true,
+          },
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      users,
+      filter,
+      count: users.length,
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
+/**
+ * PATCH /api/admin/whitelist/:id/approve
+ * Approve a user as admin
+ */
+router.patch("/whitelist/:id/approve", async (req, res, next) => {
+  try {
+    if (!req.userId) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Authentication required" });
+    }
+
+    const actorId = req.userId;
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        isAdminApproved: true,
+        deletedAt: true,
+      },
+    });
+
+    if (!user || user.deletedAt) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    if (user.isAdminApproved) {
+      return res.json({
+        success: true,
+        message: "User is already approved",
+        user,
+      });
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        isAdminApproved: true,
+        adminApprovedAt: new Date(),
+      },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        displayName: true,
+        role: true,
+        isAdminApproved: true,
+        adminApprovedAt: true,
+        createdAt: true,
+      },
+    });
+
+    // Audit log
+    await prisma.auditLog.create({
+      data: {
+        actorUserId: actorId,
+        action: "ADMIN_ACTION",
+        entityType: "User",
+        entityId: user.id,
+        summary: `Approved admin whitelist for ${user.email}`,
+        metadata: { action: "whitelist_approve" },
+      },
+    });
+
+    res.json({
+      success: true,
+      message: "User approved for admin access",
+      user: updated,
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
+/**
+ * PATCH /api/admin/whitelist/:id/reject
+ * Reject admin approval for a user
+ */
+router.patch("/whitelist/:id/reject", async (req, res, next) => {
+  try {
+    if (!req.userId) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Authentication required" });
+    }
+
+    const actorId = req.userId;
+
+    const parsed = z
+      .object({
+        reason: z.string().trim().max(500).optional(),
+      })
+      .safeParse(req.body);
+
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid request data" });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        isAdminApproved: true,
+        deletedAt: true,
+      },
+    });
+
+    if (!user || user.deletedAt) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    if (user.isAdminApproved) {
+      // Revoke approval
+      const updated = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          isAdminApproved: false,
+          adminApprovedAt: null,
+        },
+        select: {
+          id: true,
+          email: true,
+          username: true,
+          displayName: true,
+          role: true,
+          isAdminApproved: true,
+          adminApprovedAt: true,
+        },
+      });
+
+      // Audit log
+      await prisma.auditLog.create({
+        data: {
+          actorUserId: actorId,
+          action: "ADMIN_ACTION",
+          entityType: "User",
+          entityId: user.id,
+          summary: `Revoked admin whitelist for ${user.email}${parsed.data.reason ? `: ${parsed.data.reason}` : ""}`,
+          metadata: { action: "whitelist_reject", reason: parsed.data.reason },
+        },
+      });
+
+      res.json({
+        success: true,
+        message: "Admin access revoked",
+        user: updated,
+      });
+    } else {
+      // Audit log for rejection
+      await prisma.auditLog.create({
+        data: {
+          actorUserId: actorId,
+          action: "ADMIN_ACTION",
+          entityType: "User",
+          entityId: user.id,
+          summary: `Rejected admin whitelist for ${user.email}${parsed.data.reason ? `: ${parsed.data.reason}` : ""}`,
+          metadata: { action: "whitelist_reject", reason: parsed.data.reason },
+        },
+      });
+
+      res.json({
+        success: true,
+        message: "Admin request rejected",
+        user: {
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          isAdminApproved: false,
+        },
+      });
+    }
+  } catch (e) {
+    next(e);
+  }
+});

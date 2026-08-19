@@ -186,6 +186,8 @@ model User {
   avatarUrl String?
   role UserRole @default(USER)
   status UserStatus @default(PENDING)
+  isAdminApproved Boolean @default(false)
+  adminApprovedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   deletedAt DateTime?
