@@ -11,6 +11,8 @@ type User = {
   emailVerifiedAt?: string | null;
   displayName?: string | null;
   username?: string | null;
+  role?: string;
+  status?: string;
 };
 
 type Social = {
@@ -47,138 +49,77 @@ export default function AccountPage() {
   const [user, setUser] = useState<User | null>(null);
   const [socials, setSocials] = useState<Social[]>([]);
   const [wallets, setWallets] = useState<Wallet[]>([]);
-  const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState("");
-  const [challenge, setChallenge] = useState("");
-  const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [discordBusy, setDiscordBusy] = useState(false);
-  const [xBusy, setXBusy] = useState(false);
-  const [address, setAddress] = useState("");
-  const [chain, setChain] = useState<"EVM" | "SOLANA">("EVM");
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [editingProfile, setEditingProfile] = useState(false);
+  const [email, setEmail] = useState("");
+  const [address, setAddress] = useState("");
+  const [chain, setChain] = useState<"EVM" | "SOLANA">("EVM");
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
 
   const load = useCallback(async () => {
-    const [meRes, socialsRes, walletsRes] = await Promise.all([
-      api<{ user: User }>("/auth/me"),
+    const me = await api<{ user: User }>("/auth/me");
+    setUser(me.user);
+    setUsername(me.user.username ?? "");
+    setDisplayName(me.user.displayName ?? "");
+    setEmail(me.user.email ?? "");
+
+    const results = await Promise.allSettled([
       api<{ accounts: Social[] }>("/social-accounts/"),
       api<{ wallets: Wallet[] }>("/wallets/"),
     ]);
-    setUser(meRes.user);
-    setEmail(meRes.user.email ?? "");
-    setUsername(meRes.user.username ?? "");
-    setDisplayName(meRes.user.displayName ?? "");
-    setSocials(socialsRes.accounts);
-    setWallets(walletsRes.wallets.filter((x) => x.status !== "DELETED"));
+
+    if (results[0]?.status === "fulfilled") setSocials(results[0].value.accounts);
+    if (results[1]?.status === "fulfilled") {
+      setWallets(results[1].value.wallets.filter((wallet) => wallet.status !== "DELETED"));
+    }
   }, []);
 
   useEffect(() => {
-    const handleHashAndLoad = async () => {
-      const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-      const params = new URLSearchParams(window.location.search);
-      const token = hash.get("token");
-      const status = hash.get("status") || params.get("status");
-      const msg = hash.get("message") || params.get("message");
-      const social = params.get("social");
-      const account = params.get("account");
-
-      if (token) localStorage.setItem("raven_token", token);
-      
-      if (status === "connected") {
-        if (social === "x" && account) {
-          setMessage(`X account @${account} connected successfully.`);
-        } else {
-          setMessage("Discord connected. Add your Gmail below when you're ready.");
-        }
+    let active = true;
+    const start = async () => {
+      const token = localStorage.getItem("raven_token");
+      if (!token) {
+        router.replace("/login");
+        return;
       }
-      
-      if (status === "email-required")
-        setMessage(
-          "Discord connected. Your Discord email is not used automatically. Add the Gmail you want on your Raven Oracle profile."
-        );
-      
-      if (status === "error" && msg) setMessage(msg);
 
-      if (window.location.hash) window.history.replaceState({}, "", window.location.pathname);
-      if (window.location.search) window.history.replaceState({}, "", window.location.pathname);
-
-      if (localStorage.getItem("raven_token")) {
-        try {
-          await load();
-        } catch {
-          setUser(null);
+      try {
+        await load();
+      } catch {
+        // Old/invalid tokens must never fall back to the old Discord-only account screen.
+        if (active) {
+          localStorage.removeItem("raven_token");
+          router.replace("/login");
         }
       }
     };
+    void start();
+    return () => {
+      active = false;
+    };
+  }, [load, router]);
 
-    void handleHashAndLoad();
-  }, [load]);
-
-  const connectDiscord = async () => {
-    setDiscordBusy(true);
-    try {
-      const data = await api<{ authorizationUrl: string }>("/auth/discord/start");
-      window.location.href = data.authorizationUrl;
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Unable to start Discord connection");
-      setDiscordBusy(false);
+  const updateProfile = async () => {
+    if (!username.trim() && !displayName.trim()) {
+      setMessage("Username or display name required.");
+      return;
     }
-  };
-
-  const connectX = async () => {
-    setXBusy(true);
-    try {
-      const data = await api<{ authorizationUrl: string }>("/auth/x/start");
-      window.location.href = data.authorizationUrl;
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Unable to start X connection");
-      setXBusy(false);
-    }
-  };
-
-  const sendOtp = async () => {
-    if (!email.trim()) return setMessage("Enter your Gmail address first.");
     setBusy(true);
     try {
-      const data = await api<{ challenge: string; message: string }>(
-        "/auth/email/request-verification",
-        {
-          method: "POST",
-          body: JSON.stringify({ email: email.trim() }),
-        }
-      );
-      setChallenge(data.challenge);
-      setOtp("");
-      setMessage(data.message);
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Unable to send OTP");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const verifyOtp = async () => {
-    if (!challenge) return setMessage("Request an OTP first.");
-    if (!/^\d{6}$/.test(otp)) return setMessage("Enter the 6-digit OTP from Raven Oracle.");
-    setBusy(true);
-    try {
-      const data = await api<{ token: string; user: User; message: string }>(
-        "/auth/email/verify-otp",
-        {
-          method: "POST",
-          body: JSON.stringify({ email: email.trim(), challenge, code: otp }),
-        }
-      );
-      localStorage.setItem("raven_token", data.token);
-      setUser(data.user);
-      setChallenge("");
-      setOtp("");
-      setMessage(data.message);
+      await api("/profile", {
+        method: "PATCH",
+        body: JSON.stringify({
+          username: username.trim() || undefined,
+          displayName: displayName.trim() || undefined,
+        }),
+      });
       await load();
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : "OTP verification failed");
+      setEditing(false);
+      setMessage("Profile updated successfully.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to update profile");
     } finally {
       setBusy(false);
     }
@@ -193,361 +134,118 @@ export default function AccountPage() {
         body: JSON.stringify({ address: address.trim(), chain }),
       });
       setAddress("");
+      await load();
       setMessage("Prize address saved.");
-      await load();
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Unable to save address");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to save wallet");
     } finally {
       setBusy(false);
     }
   };
 
-  const updateProfile = async () => {
-    if (!username.trim() && !displayName.trim()) {
-      return setMessage("Username or display name required.");
-    }
-    setBusy(true);
-    try {
-      await api("/profile", {
-        method: "PATCH",
-        body: JSON.stringify({
-          username: username.trim() || undefined,
-          displayName: displayName.trim() || undefined,
-        }),
-      });
-      setMessage("Profile updated successfully.");
-      setEditingProfile(false);
-      await load();
-    } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Unable to update profile");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    // Clear token
+  const logout = () => {
     localStorage.removeItem("raven_token");
-
-    // Notify backend
-    try {
-      const token = localStorage.getItem("raven_token");
-      if (token) {
-        await fetch(`${API_BASE_URL}/auth/logout`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        });
-      }
-    } catch {
-      // Ignore errors
-    }
-
-    // Redirect
-    router.push("/");
+    router.replace("/login");
   };
 
-  if (!user)
+  if (!user) {
     return (
       <main className="min-h-screen bg-[#06060a] text-zinc-100">
         <SiteHeader />
-        <section className="mx-auto max-w-lg px-5 py-20">
-          <span className="text-[9px] font-black tracking-[.2em] text-violet-300/60">
-            RAVEN ORACLE ACCOUNT
-          </span>
-          <h1 className="mt-3 text-5xl font-medium">Connect your account.</h1>
-          <p className="mt-4 text-sm leading-6 text-zinc-500">
-            Connect Discord to create or access your Raven Oracle profile. Your Gmail is
-            separate profile information and is never taken from Discord automatically.
-          </p>
-          <button
-            disabled={discordBusy}
-            onClick={() => void connectDiscord()}
-            className="mt-8 w-full rounded-xl bg-[#5865F2] py-4 text-sm font-black text-white"
-          >
-            {discordBusy ? "Connecting…" : "Continue with Discord"}
-          </button>
-          {message && (
-            <p className="mt-5 rounded-xl border border-violet-900/40 bg-violet-950/10 p-4 text-xs text-violet-200">
-              {message}
-            </p>
-          )}
+        <section className="mx-auto max-w-lg px-5 py-24 text-center">
+          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
+          <p className="mt-5 text-sm text-zinc-500">Loading your account…</p>
         </section>
       </main>
     );
+  }
 
-  const discord = socials.find((x) => x.provider === "DISCORD");
-  const xSocial = socials.find((x) => x.provider === "X");
+  const discord = socials.find((social) => social.provider === "DISCORD");
+  const xSocial = socials.find((social) => social.provider === "X");
 
   return (
     <main className="min-h-screen bg-[#06060a] text-zinc-100">
       <SiteHeader />
       <section className="mx-auto max-w-5xl px-5 py-14">
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col justify-between gap-5 md:flex-row md:items-start">
           <div>
-            <span className="text-[9px] font-black tracking-[.2em] text-violet-300/60">
-              MY PROFILE
-            </span>
+            <span className="text-[9px] font-black tracking-[.2em] text-violet-300/60">MY PROFILE</span>
             <h1 className="mt-3 text-5xl font-medium">Account settings.</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-500">
-              Connect your socials, add the Gmail where Raven Oracle should contact you, and keep
-              your prize addresses ready for raffles.
+              Manage your Raven Oracle profile, connected socials, and prize wallet addresses.
             </p>
           </div>
-          <button
-            onClick={() => void handleLogout()}
-            className="rounded-lg border border-white/10 px-4 py-2 text-xs font-bold text-zinc-400 hover:bg-white/5"
-          >
+          <button onClick={logout} className="rounded-lg border border-white/10 px-4 py-2 text-xs font-bold text-zinc-400 hover:bg-white/5">
             Log out
           </button>
         </div>
 
+        {message && <div className="mt-6 rounded-xl border border-violet-500/30 bg-violet-500/10 p-4 text-xs text-violet-200">{message}</div>}
+
         <div className="mt-10 grid gap-5 md:grid-cols-2">
           <article className="rounded-2xl border border-white/10 bg-[#0d0c11] p-6">
-            <span className="text-[9px] font-black tracking-[.18em] text-zinc-600">
-              PROFILE
-            </span>
+            <span className="text-[9px] font-black tracking-[.18em] text-zinc-600">PROFILE</span>
             <h2 className="mt-3 text-2xl font-semibold">Your profile.</h2>
-            <p className="mt-2 text-xs leading-5 text-zinc-500">
-              Update your username and display name visible to the community.
-            </p>
-            {editingProfile ? (
-              <div className="mt-5 space-y-3">
-                <div>
-                  <label className="block text-xs font-bold text-zinc-400">Username</label>
-                  <input
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="username"
-                    maxLength={32}
-                    className="mt-2 w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-xs outline-none"
-                  />
-                  <p className="mt-1 text-[10px] text-zinc-600">
-                    3-32 characters, letters, numbers, underscore, hyphen
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-zinc-400">Display Name</label>
-                  <input
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="Your Name"
-                    maxLength={80}
-                    className="mt-2 w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-xs outline-none"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      setEditingProfile(false);
-                      setUsername(user?.username ?? "");
-                      setDisplayName(user?.displayName ?? "");
-                    }}
-                    className="flex-1 rounded-lg border border-white/10 py-3 text-xs font-bold"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    disabled={busy}
-                    onClick={() => void updateProfile()}
-                    className="flex-1 rounded-lg bg-violet-500 py-3 text-xs font-black disabled:opacity-40"
-                  >
-                    {busy ? "Saving…" : "Save Changes"}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="mt-5">
-                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                  <div className="text-xs text-zinc-600">Username</div>
-                  <div className="mt-2 font-mono text-sm">
-                    {user?.username || <span className="text-zinc-600">Not set</span>}
-                  </div>
-                </div>
-                <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-4">
-                  <div className="text-xs text-zinc-600">Display Name</div>
-                  <div className="mt-2 text-sm">
-                    {user?.displayName || <span className="text-zinc-600">Not set</span>}
-                  </div>
-                </div>
-                <button
-                  onClick={() => setEditingProfile(true)}
-                  className="mt-3 w-full rounded-lg bg-white py-3 text-xs font-black text-black"
-                >
-                  Edit Profile
-                </button>
-              </div>
-            )}
-          </article>
-
-          <article className="rounded-2xl border border-white/10 bg-[#0d0c11] p-6">
-            <span className="text-[9px] font-black tracking-[.18em] text-zinc-600">
-              SOCIAL ACCOUNTS
-            </span>
             <div className="mt-5 space-y-3">
-              <div className="flex items-center justify-between rounded-xl border border-white/10 p-4">
-                <div>
-                  <b>Discord</b>
-                  <p className="mt-1 text-xs text-zinc-600">
-                    {discord?.providerUsername ? `@${discord.providerUsername}` : "Not connected"}
-                  </p>
-                </div>
-                <button
-                  onClick={() => void connectDiscord()}
-                  className="rounded-lg border border-white/10 px-3 py-2 text-[10px] font-bold"
-                >
-                  {discord ? "Reconnect" : "Connect"}
-                </button>
+              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                <div className="text-xs text-zinc-600">Email</div>
+                <div className="mt-2 break-all text-sm">{email || "Not set"}</div>
+                <div className="mt-1 text-[10px] text-emerald-400">{user.emailVerifiedAt ? "Verified" : "Not verified"}</div>
               </div>
-              <div className="flex items-center justify-between rounded-xl border border-white/10 p-4">
-                <div>
-                  <b>X</b>
-                  <p className="mt-1 text-xs text-zinc-600">
-                    {xSocial?.providerUsername ? `@${xSocial.providerUsername}` : "Not connected"}
-                  </p>
-                </div>
-                <button
-                  disabled={xBusy}
-                  onClick={() => void connectX()}
-                  className="rounded-lg border border-white/10 px-3 py-2 text-[10px] font-bold"
-                >
-                  {xBusy ? "Connecting…" : xSocial ? "Reconnect" : "Connect"}
-                </button>
-              </div>
+              {editing ? (
+                <>
+                  <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Username" maxLength={32} className="w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-xs outline-none" />
+                  <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Display name" maxLength={80} className="w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-xs outline-none" />
+                  <div className="flex gap-2">
+                    <button onClick={() => setEditing(false)} className="flex-1 rounded-lg border border-white/10 py-3 text-xs font-bold">Cancel</button>
+                    <button disabled={busy} onClick={() => void updateProfile()} className="flex-1 rounded-lg bg-violet-500 py-3 text-xs font-black disabled:opacity-40">{busy ? "Saving…" : "Save Changes"}</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                    <div className="text-xs text-zinc-600">Username</div>
+                    <div className="mt-2 font-mono text-sm">{username || <span className="text-zinc-600">Not set</span>}</div>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                    <div className="text-xs text-zinc-600">Display name</div>
+                    <div className="mt-2 text-sm">{displayName || <span className="text-zinc-600">Not set</span>}</div>
+                  </div>
+                  <button onClick={() => setEditing(true)} className="w-full rounded-lg bg-white py-3 text-xs font-black text-black">Edit Profile</button>
+                </>
+              )}
             </div>
           </article>
 
           <article className="rounded-2xl border border-white/10 bg-[#0d0c11] p-6">
-            <span className="text-[9px] font-black tracking-[.18em] text-zinc-600">
-              CONTACT EMAIL
-            </span>
-            <h2 className="mt-3 text-2xl font-semibold">Your Gmail.</h2>
-            <p className="mt-2 text-xs leading-5 text-zinc-500">
-              This is the email Raven Oracle uses for winner notifications and important account
-              messages. It is not your login.
-            </p>
-            <div className="mt-5 flex items-center gap-2">
-              <input
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                type="email"
-                placeholder="you@gmail.com"
-                className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black px-3 py-3 text-xs outline-none"
-              />
-              <span
-                className={`rounded-full px-2 py-1 text-[9px] font-black ${
-                  user.emailVerifiedAt
-                    ? "border border-emerald-500/20 text-emerald-300"
-                    : "border border-amber-500/20 text-amber-300"
-                }`}
-              >
-                {user.emailVerifiedAt ? "VERIFIED" : "UNVERIFIED"}
-              </span>
-            </div>
-            {!challenge ? (
-              <button
-                disabled={busy || !email.trim()}
-                onClick={() => void sendOtp()}
-                className="mt-3 w-full rounded-lg bg-violet-500 py-3 text-xs font-black"
-              >
-                {busy
-                  ? "Sending OTP…"
-                  : user.email === email && user.emailVerifiedAt
-                    ? "Change email"
-                    : "Send OTP"}
-              </button>
-            ) : (
-              <div className="mt-4 rounded-xl border border-violet-500/20 bg-violet-500/5 p-4">
-                <p className="text-xs text-violet-200">
-                  We sent a 6-digit code from Raven Oracle to <b>{email}</b>.
-                </p>
-                <input
-                  value={otp}
-                  onChange={(e) =>
-                    setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
-                  }
-                  inputMode="numeric"
-                  maxLength={6}
-                  autoFocus
-                  placeholder="000000"
-                  className="mt-3 w-full rounded-lg border border-white/10 bg-black px-3 py-4 text-center text-2xl font-black tracking-[.5em] outline-none"
-                />
-                <button
-                  disabled={busy || otp.length !== 6}
-                  onClick={() => void verifyOtp()}
-                  className="mt-3 w-full rounded-lg bg-white py-3 text-xs font-black text-black"
-                >
-                  {busy ? "Verifying…" : "Verify email"}
-                </button>
-                <button
-                  disabled={busy}
-                  onClick={() => void sendOtp()}
-                  className="mt-2 w-full py-2 text-[10px] font-bold text-zinc-500"
-                >
-                  Send a new code
-                </button>
+            <span className="text-[9px] font-black tracking-[.18em] text-zinc-600">CONNECTED ACCOUNTS</span>
+            <div className="mt-5 space-y-3">
+              <div className="rounded-xl border border-white/10 p-4">
+                <div className="flex items-center justify-between"><b>Discord</b><span className="text-[10px] text-zinc-600">Optional</span></div>
+                <p className="mt-2 text-xs text-zinc-500">{discord?.providerUsername ? `@${discord.providerUsername}` : "Not connected"}</p>
               </div>
-            )}
+              <div className="rounded-xl border border-white/10 p-4">
+                <div className="flex items-center justify-between"><b>X</b><span className="text-[10px] text-zinc-600">Optional</span></div>
+                <p className="mt-2 text-xs text-zinc-500">{xSocial?.providerUsername ? `@${xSocial.providerUsername}` : "Not connected"}</p>
+              </div>
+              <p className="text-[11px] leading-5 text-zinc-600">Your Raven Oracle login is your verified email and password. Discord/X are optional profile connections and are never required to open this page.</p>
+            </div>
+          </article>
+
+          <article className="rounded-2xl border border-white/10 bg-[#0d0c11] p-6 md:col-span-2">
+            <span className="text-[9px] font-black tracking-[.18em] text-zinc-600">PRIZE WALLETS</span>
+            <h2 className="mt-3 text-2xl font-semibold">Where should prizes go?</h2>
+            <div className="mt-5 grid gap-3 md:grid-cols-[1fr_auto_auto]">
+              <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder={chain === "EVM" ? "0x…" : "Solana address"} className="rounded-lg border border-white/10 bg-black px-3 py-3 text-xs outline-none" />
+              <select value={chain} onChange={(e) => setChain(e.target.value as "EVM" | "SOLANA")} className="rounded-lg border border-white/10 bg-black px-3 py-3 text-xs outline-none">
+                <option value="EVM">EVM</option>
+                <option value="SOLANA">Solana</option>
+              </select>
+              <button disabled={busy} onClick={() => void addWallet()} className="rounded-lg bg-violet-500 px-5 py-3 text-xs font-black disabled:opacity-40">Add Wallet</button>
+            </div>
+            {wallets.length > 0 && <div className="mt-5 space-y-2">{wallets.map((wallet) => <div key={wallet.id} className="rounded-xl border border-white/10 p-4"><div className="text-[10px] text-zinc-600">{wallet.chain} · {wallet.network}</div><div className="mt-1 break-all font-mono text-xs">{wallet.address}</div></div>)}</div>}
           </article>
         </div>
-
-        <article className="mt-5 rounded-2xl border border-white/10 bg-[#0d0c11] p-6">
-          <span className="text-[9px] font-black tracking-[.18em] text-zinc-600">
-            PRIZE ADDRESSES
-          </span>
-          <h2 className="mt-3 text-2xl font-semibold">Where should prizes go?</h2>
-          <p className="mt-2 text-xs text-zinc-500">
-            Keep your EVM or Solana address on your profile so you can select it when entering a
-            raffle.
-          </p>
-          <div className="mt-5 space-y-3">
-            {wallets.map((wallet) => (
-              <div
-                key={wallet.id}
-                className="flex items-center justify-between gap-4 rounded-xl border border-white/10 p-4"
-              >
-                <div>
-                  <div className="text-[9px] font-black text-violet-300">
-                    {wallet.chain} · {wallet.network}
-                  </div>
-                  <div className="mt-1 break-all text-xs text-zinc-400">{wallet.address}</div>
-                </div>
-                <span className="text-[9px] text-emerald-300">READY</span>
-              </div>
-            ))}
-          </div>
-          <div className="mt-5 flex gap-2">
-            <select
-              value={chain}
-              onChange={(e) => setChain(e.target.value as "EVM" | "SOLANA")}
-              className="rounded-lg border border-white/10 bg-black px-3 text-xs"
-            >
-              <option value="EVM">EVM</option>
-              <option value="SOLANA">Solana</option>
-            </select>
-            <input
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Paste wallet address"
-              className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black px-3 py-3 text-xs"
-            />
-            <button
-              disabled={busy || !address.trim()}
-              onClick={() => void addWallet()}
-              className="rounded-lg bg-violet-500 px-4 text-[10px] font-black"
-            >
-              Add address
-            </button>
-          </div>
-        </article>
-
-        {message && (
-          <div className="mt-5 rounded-xl border border-violet-900/40 bg-violet-950/10 p-4 text-xs text-violet-200">
-            {message}
-          </div>
-        )}
       </section>
     </main>
   );
