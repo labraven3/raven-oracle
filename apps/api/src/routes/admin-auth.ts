@@ -19,10 +19,7 @@ const adminLoginRateLimiter = rateLimit({
   skipSuccessfulRequests: true,
 });
 
-const credentials = z.object({
-  email: z.string().trim().toLowerCase().email(),
-  password: z.string().min(1).max(128),
-});
+const credentials = z.object({ email: z.string().trim().toLowerCase().email(), password: z.string().min(1).max(128) });
 
 async function verifyPassword(password: string, encoded: string) {
   const [scheme, saltHex, hashHex] = encoded.split("$");
@@ -32,17 +29,11 @@ async function verifyPassword(password: string, encoded: string) {
   return expected.length === derived.length && timingSafeEqual(expected, derived);
 }
 
-/**
- * Admin authentication is deliberately separate from normal user login.
- * A successful request issues an admin-scoped JWT only when the account has
- * both an ADMIN/MODERATOR role and explicit admin approval.
- */
+/** Admin login is separate from normal user login and always issues an admin-scoped JWT. */
 router.post("/login", adminLoginRateLimiter, async (req, res, next) => {
   try {
     const parsed = credentials.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ success: false, message: "Email and password are required." });
-    }
+    if (!parsed.success) return res.status(400).json({ success: false, message: "Email and password are required." });
 
     const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
     const validPassword = !!user?.passwordHash && await verifyPassword(parsed.data.password, user.passwordHash);
@@ -54,7 +45,7 @@ router.post("/login", adminLoginRateLimiter, async (req, res, next) => {
 
     if (!user.emailVerifiedAt) {
       logLoginFailed(parsed.data.email, "admin_email_not_verified", req).catch(console.error);
-      return res.status(403).json({ success: false, message: "Verify your email before signing in." });
+      return res.status(403).json({ success: false, message: "Verify your admin email before signing in." });
     }
 
     if (!["ADMIN", "MODERATOR"].includes(user.role)) {
@@ -62,12 +53,11 @@ router.post("/login", adminLoginRateLimiter, async (req, res, next) => {
       return res.status(403).json({ success: false, message: "Admin access required." });
     }
 
-    if (!user.isAdminApproved) {
+    // The bootstrap ADMIN account is the authority that approves moderators.
+    // Therefore an ADMIN does not need its own approval flag. MODERATOR accounts do.
+    if (user.role === "MODERATOR" && !user.isAdminApproved) {
       logLoginFailed(parsed.data.email, "admin_not_approved", req).catch(console.error);
-      return res.status(403).json({
-        success: false,
-        message: "Admin access pending approval. Please contact the administrator.",
-      });
+      return res.status(403).json({ success: false, message: "Moderator access pending approval." });
     }
 
     const token = await createAuthToken(user.id, "admin");
