@@ -24,20 +24,6 @@ import {
 const router = Router();
 const scrypt = promisify(scryptCallback);
 
-// IPv6-aware IP key generator for rate limiting
-const ipv6AwareKeyGenerator = (req: any): string => {
-  let ip = req.ip || req.socket?.remoteAddress || '';
-  
-  // Normalize IPv6 to /64 subnet to prevent bypass with multiple addresses
-  if (ip.includes(':')) {
-    // IPv6: take first 64 bits (4 groups of 16 bits)
-    const groups = ip.split(':').slice(0, 4).join(':');
-    return groups + ':';
-  }
-  
-  return ip;
-};
-
 // Rate limiting configurations
 const loginRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -46,7 +32,6 @@ const loginRateLimiter = rateLimit({
   legacyHeaders: false,
   message: { success: false, message: "Too many login attempts. Please try again later." },
   skipSuccessfulRequests: true, // Don't count successful logins
-  keyGenerator: ipv6AwareKeyGenerator, // Use IPv6-aware key generator
 });
 
 const registerRateLimiter = rateLimit({
@@ -55,7 +40,6 @@ const registerRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: "Too many registration attempts. Please try again later." },
-  keyGenerator: ipv6AwareKeyGenerator, // Use IPv6-aware key generator
 });
 
 const otpRequestRateLimiter = rateLimit({
@@ -64,10 +48,6 @@ const otpRequestRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: "Too many OTP requests. Please try again later." },
-  keyGenerator: (req) => {
-    // Rate limit by authenticated user ID instead of IP
-    return req.userId || ipKeyGenerator(req);
-  },
 });
 
 const otpVerifyRateLimiter = rateLimit({
@@ -76,11 +56,6 @@ const otpVerifyRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: "Too many verification attempts. Please request a new OTP." },
-  keyGenerator: (req) => {
-    // Rate limit by challenge token to prevent brute force of a specific OTP
-    const challenge = typeof req.body?.challenge === "string" ? req.body.challenge : "";
-    return challenge || ipKeyGenerator(req);
-  },
 });
 const credentials = z.object({
   email: z.string().trim().toLowerCase().email(),
