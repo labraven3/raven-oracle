@@ -56,6 +56,9 @@ export default function AccountPage() {
   const [xBusy, setXBusy] = useState(false);
   const [address, setAddress] = useState("");
   const [chain, setChain] = useState<"EVM" | "SOLANA">("EVM");
+  const [username, setUsername] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [editingProfile, setEditingProfile] = useState(false);
 
   const load = useCallback(async () => {
     const [meRes, socialsRes, walletsRes] = await Promise.all([
@@ -65,6 +68,8 @@ export default function AccountPage() {
     ]);
     setUser(meRes.user);
     setEmail(meRes.user.email ?? "");
+    setUsername(meRes.user.username ?? "");
+    setDisplayName(meRes.user.displayName ?? "");
     setSocials(socialsRes.accounts);
     setWallets(walletsRes.wallets.filter((x) => x.status !== "DELETED"));
   }, []);
@@ -197,6 +202,29 @@ export default function AccountPage() {
     }
   };
 
+  const updateProfile = async () => {
+    if (!username.trim() && !displayName.trim()) {
+      return setMessage("Username or display name required.");
+    }
+    setBusy(true);
+    try {
+      await api("/profile", {
+        method: "PATCH",
+        body: JSON.stringify({
+          username: username.trim() || undefined,
+          displayName: displayName.trim() || undefined,
+        }),
+      });
+      setMessage("Profile updated successfully.");
+      setEditingProfile(false);
+      await load();
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "Unable to update profile");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleLogout = async () => {
     // Clear token
     localStorage.removeItem("raven_token");
@@ -277,6 +305,83 @@ export default function AccountPage() {
         </div>
 
         <div className="mt-10 grid gap-5 md:grid-cols-2">
+          <article className="rounded-2xl border border-white/10 bg-[#0d0c11] p-6">
+            <span className="text-[9px] font-black tracking-[.18em] text-zinc-600">
+              PROFILE
+            </span>
+            <h2 className="mt-3 text-2xl font-semibold">Your profile.</h2>
+            <p className="mt-2 text-xs leading-5 text-zinc-500">
+              Update your username and display name visible to the community.
+            </p>
+            {editingProfile ? (
+              <div className="mt-5 space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400">Username</label>
+                  <input
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="username"
+                    maxLength={32}
+                    className="mt-2 w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-xs outline-none"
+                  />
+                  <p className="mt-1 text-[10px] text-zinc-600">
+                    3-32 characters, letters, numbers, underscore, hyphen
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400">Display Name</label>
+                  <input
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Your Name"
+                    maxLength={80}
+                    className="mt-2 w-full rounded-lg border border-white/10 bg-black px-3 py-3 text-xs outline-none"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setEditingProfile(false);
+                      setUsername(user?.username ?? "");
+                      setDisplayName(user?.displayName ?? "");
+                    }}
+                    className="flex-1 rounded-lg border border-white/10 py-3 text-xs font-bold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    disabled={busy}
+                    onClick={() => void updateProfile()}
+                    className="flex-1 rounded-lg bg-violet-500 py-3 text-xs font-black disabled:opacity-40"
+                  >
+                    {busy ? "Saving…" : "Save Changes"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-5">
+                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                  <div className="text-xs text-zinc-600">Username</div>
+                  <div className="mt-2 font-mono text-sm">
+                    {user?.username || <span className="text-zinc-600">Not set</span>}
+                  </div>
+                </div>
+                <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-4">
+                  <div className="text-xs text-zinc-600">Display Name</div>
+                  <div className="mt-2 text-sm">
+                    {user?.displayName || <span className="text-zinc-600">Not set</span>}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setEditingProfile(true)}
+                  className="mt-3 w-full rounded-lg bg-white py-3 text-xs font-black text-black"
+                >
+                  Edit Profile
+                </button>
+              </div>
+            )}
+          </article>
+
           <article className="rounded-2xl border border-white/10 bg-[#0d0c11] p-6">
             <span className="text-[9px] font-black tracking-[.18em] text-zinc-600">
               SOCIAL ACCOUNTS
