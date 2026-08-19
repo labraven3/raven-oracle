@@ -19,7 +19,10 @@ const adminLoginRateLimiter = rateLimit({
   skipSuccessfulRequests: true,
 });
 
-const credentials = z.object({ email: z.string().trim().toLowerCase().email(), password: z.string().min(1).max(128) });
+const credentials = z.object({
+  email: z.string().trim().toLowerCase().email(),
+  password: z.string().min(1).max(128),
+});
 
 async function verifyPassword(password: string, encoded: string) {
   const [scheme, saltHex, hashHex] = encoded.split("$");
@@ -33,7 +36,9 @@ async function verifyPassword(password: string, encoded: string) {
 router.post("/login", adminLoginRateLimiter, async (req, res, next) => {
   try {
     const parsed = credentials.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ success: false, message: "Email and password are required." });
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, message: "Email and password are required." });
+    }
 
     const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
     const validPassword = !!user?.passwordHash && await verifyPassword(parsed.data.password, user.passwordHash);
@@ -69,7 +74,14 @@ router.post("/login", adminLoginRateLimiter, async (req, res, next) => {
 
     const token = await createAuthToken(user.id, "admin");
     logLoginSuccess(user.id, req).catch(console.error);
-    return res.json({ success: true, token, user: { ...user, isAdminApproved: true } });
+
+    // Never send passwordHash (or any credential material) to the browser.
+    const safeUser = Object.fromEntries(
+      Object.entries(user).filter(([key]) => key !== "passwordHash")
+    );
+    safeUser.isAdminApproved = true;
+
+    return res.json({ success: true, token, user: safeUser });
   } catch (e) {
     next(e);
   }
