@@ -1,6 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
 import { verifyAuthToken } from "../services/auth.service.js";
 
+type AuthPortal = "user" | "admin";
+
 declare global {
   namespace Express {
     interface Request {
@@ -12,26 +14,19 @@ declare global {
 function cookieToken(req: Request) {
   const raw = req.headers.cookie;
   if (!raw) return null;
-  const match = raw.split(";").map((part) => part.trim()).find((part) => part.startsWith("raven_token="));
+  const match = raw
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith("raven_token="));
   return match ? decodeURIComponent(match.slice("raven_token=".length)) : null;
 }
 
-/**
- * Authentication middleware that requires a valid JWT token.
- * 
- * Extracts token from:
- * 1. Authorization header (Bearer token)
- * 2. Cookie (raven_token)
- * 
- * Security checks:
- * - Token signature validity
- * - Token expiration
- * - User existence
- * - User account status (not banned/deleted)
- * 
- * Returns generic error messages to prevent information leakage.
- */
-export async function requireAuth(req: Request, res: Response, next: NextFunction) {
+export async function requireAuth(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+  portal: AuthPortal = "user"
+) {
   try {
     const header = req.headers.authorization;
     const token = header?.startsWith("Bearer ")
@@ -42,27 +37,32 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
       return res.status(401).json({ success: false, message: "Authentication required" });
     }
 
-    // Verify token (throws on invalid/expired/malformed tokens)
-    const user = await verifyAuthToken(token);
-    
-    // Check if user exists and is in good standing
+    const user = await verifyAuthToken(token, portal);
+
     if (!user || user.status === "BANNED" || user.deletedAt) {
       return res.status(401).json({ success: false, message: "Invalid authentication" });
     }
 
     req.userId = user.id;
     next();
-  } catch (error) {
-    // Use generic error message to prevent information leakage
-    // (Don't reveal whether token is expired, malformed, wrong secret, etc.)
+  } catch {
     return res.status(401).json({ success: false, message: "Invalid authentication token" });
   }
 }
 
+/** Standard user-session middleware. */
+export async function requireUserAuth(req: Request, res: Response, next: NextFunction) {
+  return requireAuth(req, res, next, "user");
+}
+
+/** Admin-session middleware. Role/approval is still checked by requireAdmin. */
+export async function requireAdminAuth(req: Request, res: Response, next: NextFunction) {
+  return requireAuth(req, res, next, "admin");
+}
+
 /**
- * Middleware to check if user account is active
- * Must be used after requireAuth
- * Blocks SUSPENDED, PENDING users from accessing protected features
+ * Middleware to check if user account is active.
+ * Must be used after requireUserAuth/requireAdminAuth.
  */
 export async function requireActiveAccount(req: Request, res: Response, next: NextFunction) {
   try {
@@ -70,43 +70,34 @@ export async function requireActiveAccount(req: Request, res: Response, next: Ne
       return res.status(401).json({ success: false, message: "Authentication required" });
     }
 
-    const user = await verifyAuthToken(req.headers.authorization?.slice("Bearer ".length).trim() || cookieToken(req) || "");
+    const header = req.headers.authorization;
+    const token = header?.startsWith("Bearer ")
+      ? header.slice("Bearer ".length).trim()
+      : cookieToken(req);
+    if (!token) {
+      return res.status(401).json({ success: false, message: "Authentication required" });
+    }
+
+    const user = await verifyAuthToken(token, "user");
 
     if (!user) {
       return res.status(401).json({ success: false, message: "User not found" });
     }
-
-    // Check account status
     if (user.status === "SUSPENDED") {
-      return res.status(403).json({ 
-        success: false, 
-        message: "Your account has been suspended. Please contact support." 
-      });
+      return res.status(403).json({ success: false, message: "Your account has been suspended. Please contact support." });
     }
-
     if (user.status === "PENDING") {
-      return res.status(403).json({ 
-        success: false, 
-        message: "Please verify your email to access this feature." 
-      });
+      return res.status(403).json({ success: false, message: "Please verify your email to access this feature." });
     }
-
     if (user.status === "BANNED" || user.status === "DELETED") {
-      return res.status(403).json({ 
-        success: false, 
-        message: "Access denied." 
-      });
+      return res.status(403).json({ success: false, message: "Access denied." });
     }
-
     if (user.status !== "ACTIVE") {
-      return res.status(403).json({ 
-        success: false, 
-        message: "Your account is not active." 
-      });
+      return res.status(403).json({ success: false, message: "Your account is not active." });
     }
 
     next();
-  } catch (error) {
+  } catch {
     return res.status(401).json({ success: false, message: "Invalid authentication token" });
   }
 }
