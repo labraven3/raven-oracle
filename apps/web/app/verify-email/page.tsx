@@ -26,13 +26,15 @@ export default function VerifyEmailPage() {
       setEmail(email_param);
 
       try {
-        const response = await fetch(`${API_BASE_URL}/email/verify`, {
+        // The Express route is mounted at /api/auth/email/verify.
+        // API_BASE_URL is /api, so /auth must be included here.
+        const response = await fetch(`${API_BASE_URL}/auth/email/verify`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token }),
         });
 
-        const data = await response.json();
+        const data = await response.json().catch(() => ({}));
 
         if (!response.ok) {
           setStatus("error");
