@@ -33,6 +33,21 @@ router.use(
   requireAdmin
 );
 
+const activityRelations = {
+  submittedProjects: true,
+  projectRatings: true,
+  raffleEntries: true,
+  createdRaffles: true,
+  raffleWinners: true,
+  alphaSubmissions: true,
+  pointTransactions: true,
+  createdPointTxns: true,
+  chatMessages: true,
+  raffleTaskVerifications: true,
+  socialAccounts: true,
+  walletAddresses: true,
+} as const;
+
 router.get("/", async (_req, res, next) => {
   try {
     const users = await prisma.user.findMany({
@@ -49,14 +64,7 @@ router.get("/", async (_req, res, next) => {
         email: true,
         username: true,
         createdAt: true,
-        _count: {
-          select: {
-            raffleEntries: true,
-            alphaSubmissions: true,
-            chatMessages: true,
-            walletAddresses: true,
-          },
-        },
+        _count: { select: activityRelations },
       },
     });
 
@@ -78,14 +86,7 @@ router.delete("/:id", async (req, res, next) => {
         status: true,
         emailVerifiedAt: true,
         deletedAt: true,
-        _count: {
-          select: {
-            raffleEntries: true,
-            alphaSubmissions: true,
-            chatMessages: true,
-            walletAddresses: true,
-          },
-        },
+        _count: { select: activityRelations },
       },
     });
 
@@ -115,12 +116,8 @@ router.delete("/:id", async (req, res, next) => {
     const actorId = req.userId!;
 
     await prisma.$transaction(async (tx) => {
-      // Registration/login audit records are safe to remove with this disposable,
-      // unverified account and may otherwise prevent a hard delete on some schemas.
       await tx.authAuditLog.deleteMany({ where: { userId: user.id } });
-
       await tx.user.delete({ where: { id: user.id } });
-
       await tx.auditLog.create({
         data: {
           actorUserId: actorId,
