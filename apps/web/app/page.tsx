@@ -66,6 +66,7 @@ export default function Home() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("ALL");
   const [loading, setLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
     const initTheme = async () => {
@@ -75,6 +76,10 @@ export default function Home() {
       document.documentElement.classList.toggle("light", next === "light");
     };
     void initTheme();
+
+    // Check if user is logged in
+    const token = localStorage.getItem("raven_token");
+    setIsLoggedIn(!!token);
   }, []);
 
   useEffect(() => {
@@ -138,7 +143,18 @@ export default function Home() {
         </nav>
         <div style={{ marginTop: "auto" }}>
           <button onClick={toggleTheme} style={{ width: "100%", border: `1px solid ${colors.border}`, background: colors.panel, color: colors.text, borderRadius: 8, padding: 9, fontSize: 11, cursor: "pointer" }}>{theme === "dark" ? "☀  Light mode" : "☾  Dark mode"}</button>
-          <Link href="/account" style={{ display: "block", marginTop: 8, textAlign: "center", background: colors.text, color: theme === "dark" ? "#0b0a12" : "white", borderRadius: 8, padding: 10, fontSize: 11, fontWeight: 900 }}>Account →</Link>
+          
+          {isLoggedIn ? (
+            <>
+              <Link href="/account" style={{ display: "block", marginTop: 8, textAlign: "center", background: colors.text, color: theme === "dark" ? "#0b0a12" : "white", borderRadius: 8, padding: 10, fontSize: 11, fontWeight: 900 }}>Account →</Link>
+              <button onClick={() => { localStorage.removeItem("raven_token"); setIsLoggedIn(false); window.location.href = "/"; }} style={{ width: "100%", marginTop: 8, border: `1px solid ${colors.border}`, background: colors.panel, color: colors.muted, borderRadius: 8, padding: 10, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Logout</button>
+            </>
+          ) : (
+            <>
+              <Link href="/login" style={{ display: "block", marginTop: 8, textAlign: "center", border: `1px solid ${colors.border}`, background: colors.panel, color: colors.text, borderRadius: 8, padding: 10, fontSize: 11, fontWeight: 700 }}>Login</Link>
+              <Link href="/register" style={{ display: "block", marginTop: 8, textAlign: "center", background: `linear-gradient(135deg,${colors.accent},#5a27a9)`, color: "white", borderRadius: 8, padding: 10, fontSize: 11, fontWeight: 900 }}>Sign Up</Link>
+            </>
+          )}
         </div>
       </aside>
 
