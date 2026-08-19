@@ -53,8 +53,15 @@ router.post("/login", adminLoginRateLimiter, async (req, res, next) => {
       return res.status(403).json({ success: false, message: "Admin access required." });
     }
 
-    // The bootstrap ADMIN account is the authority that approves moderators.
-    // Therefore an ADMIN does not need its own approval flag. MODERATOR accounts do.
+    // ADMIN is the bootstrap authority and therefore is always approved.
+    // MODERATOR accounts still require explicit approval.
+    if (user.role === "ADMIN" && !user.isAdminApproved) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { isAdminApproved: true, adminApprovedAt: new Date() },
+      });
+    }
+
     if (user.role === "MODERATOR" && !user.isAdminApproved) {
       logLoginFailed(parsed.data.email, "admin_not_approved", req).catch(console.error);
       return res.status(403).json({ success: false, message: "Moderator access pending approval." });
@@ -62,7 +69,7 @@ router.post("/login", adminLoginRateLimiter, async (req, res, next) => {
 
     const token = await createAuthToken(user.id, "admin");
     logLoginSuccess(user.id, req).catch(console.error);
-    return res.json({ success: true, token, user });
+    return res.json({ success: true, token, user: { ...user, isAdminApproved: true } });
   } catch (e) {
     next(e);
   }
