@@ -27,11 +27,10 @@ export default function AdminLoginPage() {
         throw new Error(data.message || "Admin login failed");
       }
 
-      // The API has already authenticated the account and issued an admin-scoped JWT.
-      // Keep the token in both storage locations used by the app. Subsequent admin
-      // requests use the same-origin cookie, while client-side API calls can use localStorage.
-      localStorage.setItem("raven_token", data.token);
-      document.cookie = `raven_token=${encodeURIComponent(data.token)}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+      // Keep the admin session completely separate from the normal user session.
+      // A browser may legitimately have both sessions active at the same time.
+      localStorage.setItem("raven_admin_token", data.token);
+      document.cookie = `raven_admin_token=${encodeURIComponent(data.token)}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
 
       window.location.href = "/admin";
     } catch (err) {
