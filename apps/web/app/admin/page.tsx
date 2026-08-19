@@ -202,6 +202,20 @@ export default function AdminPage() {
               </span>
             </div>
           </Link>
+          <Link
+            href="/admin/audit-logs"
+            className="group rounded-xl border border-white/10 bg-[#0d0c11] p-6 transition-colors hover:border-violet-500/50"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <b className="text-lg">Audit Logs</b>
+                <p className="mt-1 text-xs text-zinc-600">View system activity and admin actions</p>
+              </div>
+              <span className="text-2xl opacity-50 transition-opacity group-hover:opacity-100">
+                →
+              </span>
+            </div>
+          </Link>
         </div>
         <div className="mt-10 flex flex-wrap gap-2">
           {["SUBMITTED", "APPROVED", "REJECTED"].map((item) => (
