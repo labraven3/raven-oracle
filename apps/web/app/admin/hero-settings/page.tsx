@@ -295,26 +295,6 @@ export default function AdminHeroSettingsPage() {
               </div>
             </div>
           </div>
-                </select>
-                <div className={`mt-2 h-8 rounded-lg bg-gradient-to-r ${settings.gradient1}`} />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-zinc-400">Line 2 Gradient</label>
-                <select
-                  value={settings.gradient2}
-                  onChange={(e) => setSettings({ ...settings, gradient2: e.target.value })}
-                  className="mt-2 w-full rounded-lg border border-white/10 bg-black px-4 py-3 text-sm outline-none"
-                >
-                  {gradientPresets.map((preset) => (
-                    <option key={preset.value} value={preset.value}>
-                      {preset.name}
-                    </option>
-                  ))}
-                </select>
-                <div className={`mt-2 h-8 rounded-lg bg-gradient-to-r ${settings.gradient2}`} />
-              </div>
-            </div>
-          </div>
 
           {/* Icon Sets - Now with Image URLs */}
           <div className="rounded-2xl border border-white/10 bg-[#0d0c11] p-6">
