@@ -41,6 +41,7 @@ export default function Home() {
   const [heroVisible, setHeroVisible] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [iconIndex, setIconIndex] = useState(0);
+  const [communityLinks, setCommunityLinks] = useState<any[]>([]);
 
   // Rotating icons for floating cards
   const iconSets = [
@@ -53,6 +54,14 @@ export default function Home() {
   useEffect(() => {
     const token = localStorage.getItem("raven_token");
     setIsLoggedIn(!!token);
+
+    // Load community links
+    const savedLinks = localStorage.getItem("community_links");
+    if (savedLinks) {
+      try {
+        setCommunityLinks(JSON.parse(savedLinks));
+      } catch {}
+    }
 
     // Load hero settings
     const savedSettings = localStorage.getItem("hero_settings");
@@ -84,9 +93,21 @@ export default function Home() {
       setIconIndex((prev) => (prev + 1) % 4);
     }, 3000);
 
-    // Hero visibility on scroll
+    // Hero visibility - show on load and when scrolling back to top
+    let lastScrollY = window.scrollY;
     const handleScroll = () => {
-      setHeroVisible(window.scrollY < 300);
+      const currentScrollY = window.scrollY;
+      
+      // Show hero when near top (< 300px)
+      if (currentScrollY < 300) {
+        setHeroVisible(true);
+      } 
+      // Hide hero when scrolling down past threshold
+      else if (currentScrollY > 300 && currentScrollY > lastScrollY) {
+        setHeroVisible(false);
+      }
+      
+      lastScrollY = currentScrollY;
     };
     
     window.addEventListener("scroll", handleScroll, { passive: true });
@@ -428,7 +449,7 @@ export default function Home() {
 
             <div>
               <h4 className="font-black text-sm mb-4">Community</h4>
-              <div className="flex gap-3">
+              <div className="flex gap-3 mb-6">
                 <a
                   href="https://twitter.com/RavenOracle"
                   target="_blank"
@@ -460,6 +481,32 @@ export default function Home() {
                   </svg>
                 </a>
               </div>
+              
+              {/* Community Links from Admin Panel */}
+              {communityLinks.length > 0 && (
+                <div className="mt-4">
+                  <h5 className="text-xs font-bold mb-3 text-zinc-400">Join Our Communities</h5>
+                  <div className="grid grid-cols-1 gap-3">
+                    {communityLinks
+                      .sort((a, b) => a.order - b.order)
+                      .map((link) => (
+                        <a
+                          key={link.id}
+                          href={link.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block rounded-lg overflow-hidden border border-white/10 hover:border-violet-500/50 transition-all hover:shadow-lg hover:shadow-violet-500/20"
+                        >
+                          <img
+                            src={link.imageUrl}
+                            alt={link.name}
+                            className="w-full h-20 object-cover"
+                          />
+                        </a>
+                      ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
