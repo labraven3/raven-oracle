@@ -25,6 +25,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       description: "Overview & statistics",
     },
     {
+      title: "Manage Admins",
+      icon: "🔐",
+      href: "/admin/manage-admins",
+      description: "Approve/remove admin access",
+    },
+    {
       title: "Hero Settings",
       icon: "🎨",
       href: "/admin/hero-settings",
