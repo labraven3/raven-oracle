@@ -4,6 +4,17 @@ import { useState } from "react";
 import Link from "next/link";
 import { API_BASE_URL } from "@/lib/api-config";
 
+function clearLegacyAdminToken() {
+  const legacy = localStorage.getItem("raven_token");
+  if (!legacy) return;
+  try {
+    const payload = JSON.parse(atob(legacy.split(".")[1] ?? ""));
+    if (payload?.portal === "admin") localStorage.removeItem("raven_token");
+  } catch {
+    // Leave an unreadable token alone; the API will reject it if it is used.
+  }
+}
+
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,8 +38,8 @@ export default function AdminLoginPage() {
         throw new Error(data.message || "Admin login failed");
       }
 
-      // Keep the admin session completely separate from the normal user session.
-      // A browser may legitimately have both sessions active at the same time.
+      // Keep admin authentication completely separate from the normal user session.
+      clearLegacyAdminToken();
       localStorage.setItem("raven_admin_token", data.token);
       document.cookie = `raven_admin_token=${encodeURIComponent(data.token)}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
 
