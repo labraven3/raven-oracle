@@ -174,36 +174,47 @@ export default function Home() {
       </nav>
 
       {/* Hero Section with Floating Elements */}
-      {heroVisible && (
-        <section className="relative overflow-hidden h-[600px] transition-opacity duration-700">
+      <section
+        className={`relative overflow-hidden transition-all duration-700 ${
+          heroVisible ? "h-[600px] opacity-100" : "h-0 opacity-0"
+        }`}
+      >
         <div className="absolute inset-0 flex items-center justify-center">
-          {/* Floating NFT Cards with rotating icons */}
-          <div className="absolute top-20 left-20 w-32 h-32 bg-gradient-to-br from-violet-500/20 to-purple-600/20 rounded-2xl border border-violet-500/30 backdrop-blur-sm animate-float shadow-2xl shadow-violet-500/20 transition-all duration-1000">
-            <div className="w-full h-full bg-gradient-to-br from-violet-400/10 to-purple-500/10 rounded-2xl flex items-center justify-center text-4xl">
-              {currentIcons[0]}
+          {/* Floating NFT Cards with orbit + rotation animation */}
+          <div className="absolute top-20 left-20 w-32 h-32 animate-orbit-1">
+            <div className="w-full h-full bg-gradient-to-br from-violet-500/20 to-purple-600/20 rounded-2xl border border-violet-500/30 backdrop-blur-sm shadow-2xl shadow-violet-500/20 transition-all duration-1000 animate-spin-slow">
+              <div className="w-full h-full bg-gradient-to-br from-violet-400/10 to-purple-500/10 rounded-2xl flex items-center justify-center text-4xl animate-counter-spin">
+                {currentIcons[0]}
+              </div>
             </div>
           </div>
 
-          <div className="absolute top-40 right-32 w-40 h-40 bg-gradient-to-br from-blue-500/20 to-cyan-600/20 rounded-2xl border border-blue-500/30 backdrop-blur-sm animate-float-delayed shadow-2xl shadow-blue-500/20 transition-all duration-1000">
-            <div className="w-full h-full bg-gradient-to-br from-blue-400/10 to-cyan-500/10 rounded-2xl flex items-center justify-center text-5xl">
-              {currentIcons[1]}
+          <div className="absolute top-40 right-32 w-40 h-40 animate-orbit-2">
+            <div className="w-full h-full bg-gradient-to-br from-blue-500/20 to-cyan-600/20 rounded-2xl border border-blue-500/30 backdrop-blur-sm shadow-2xl shadow-blue-500/20 transition-all duration-1000 animate-spin-slow">
+              <div className="w-full h-full bg-gradient-to-br from-blue-400/10 to-cyan-500/10 rounded-2xl flex items-center justify-center text-5xl animate-counter-spin">
+                {currentIcons[1]}
+              </div>
             </div>
           </div>
 
-          <div className="absolute bottom-32 left-40 w-36 h-36 bg-gradient-to-br from-pink-500/20 to-rose-600/20 rounded-2xl border border-pink-500/30 backdrop-blur-sm animate-float shadow-2xl shadow-pink-500/20 transition-all duration-1000">
-            <div className="w-full h-full bg-gradient-to-br from-pink-400/10 to-rose-500/10 rounded-2xl flex items-center justify-center text-4xl">
-              {currentIcons[2]}
+          <div className="absolute bottom-32 left-40 w-36 h-36 animate-orbit-3">
+            <div className="w-full h-full bg-gradient-to-br from-pink-500/20 to-rose-600/20 rounded-2xl border border-pink-500/30 backdrop-blur-sm shadow-2xl shadow-pink-500/20 transition-all duration-1000 animate-spin-slow">
+              <div className="w-full h-full bg-gradient-to-br from-pink-400/10 to-rose-500/10 rounded-2xl flex items-center justify-center text-4xl animate-counter-spin">
+                {currentIcons[2]}
+              </div>
             </div>
           </div>
 
-          <div className="absolute bottom-20 right-20 w-28 h-28 bg-gradient-to-br from-green-500/20 to-emerald-600/20 rounded-2xl border border-green-500/30 backdrop-blur-sm animate-float-delayed shadow-2xl shadow-green-500/20 transition-all duration-1000">
-            <div className="w-full h-full bg-gradient-to-br from-green-400/10 to-emerald-500/10 rounded-2xl flex items-center justify-center text-3xl">
-              {currentIcons[3]}
+          <div className="absolute bottom-20 right-20 w-28 h-28 animate-orbit-4">
+            <div className="w-full h-full bg-gradient-to-br from-green-500/20 to-emerald-600/20 rounded-2xl border border-green-500/30 backdrop-blur-sm shadow-2xl shadow-green-500/20 transition-all duration-1000 animate-spin-slow">
+              <div className="w-full h-full bg-gradient-to-br from-green-400/10 to-emerald-500/10 rounded-2xl flex items-center justify-center text-3xl animate-counter-spin">
+                {currentIcons[3]}
+              </div>
             </div>
           </div>
 
           {/* Hero Content */}
-          <div className="relative z-10 text-center px-6">
+          <div className="relative z-30 text-center px-6">
             <div className="inline-block mb-6 px-4 py-2 bg-violet-500/10 border border-violet-500/30 rounded-full text-xs font-black tracking-[.2em] text-violet-300">
               WEB3 NFT RAFFLE PLATFORM
             </div>
@@ -236,7 +247,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-      )}
 
       {/* Featured Section */}
       <section className="relative z-10 mx-auto max-w-7xl px-6 py-20">
@@ -471,29 +481,99 @@ export default function Home() {
       </footer>
 
       <style jsx>{`
-        @keyframes float {
-          0%,
-          100% {
-            transform: translateY(0px) rotate(0deg);
+        @keyframes orbit-1 {
+          0%, 100% {
+            transform: translate(0, 0) rotate(0deg);
+          }
+          25% {
+            transform: translate(15px, -10px) rotate(90deg);
           }
           50% {
-            transform: translateY(-20px) rotate(5deg);
+            transform: translate(0, -20px) rotate(180deg);
+          }
+          75% {
+            transform: translate(-15px, -10px) rotate(270deg);
           }
         }
-        @keyframes float-delayed {
-          0%,
-          100% {
-            transform: translateY(0px) rotate(0deg);
+        @keyframes orbit-2 {
+          0%, 100% {
+            transform: translate(0, 0) rotate(0deg);
+          }
+          25% {
+            transform: translate(-20px, 15px) rotate(90deg);
           }
           50% {
-            transform: translateY(-30px) rotate(-5deg);
+            transform: translate(-40px, 0) rotate(180deg);
+          }
+          75% {
+            transform: translate(-20px, -15px) rotate(270deg);
           }
         }
-        .animate-float {
-          animation: float 6s ease-in-out infinite;
+        @keyframes orbit-3 {
+          0%, 100% {
+            transform: translate(0, 0) rotate(0deg);
+          }
+          25% {
+            transform: translate(10px, 15px) rotate(90deg);
+          }
+          50% {
+            transform: translate(20px, 0) rotate(180deg);
+          }
+          75% {
+            transform: translate(10px, -15px) rotate(270deg);
+          }
         }
-        .animate-float-delayed {
-          animation: float-delayed 8s ease-in-out infinite;
+        @keyframes orbit-4 {
+          0%, 100% {
+            transform: translate(0, 0) rotate(0deg);
+          }
+          25% {
+            transform: translate(-15px, -10px) rotate(90deg);
+          }
+          50% {
+            transform: translate(0, -20px) rotate(180deg);
+          }
+          75% {
+            transform: translate(15px, -10px) rotate(270deg);
+          }
+        }
+        @keyframes spin-slow {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
+        }
+        @keyframes counter-spin {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(-360deg);
+          }
+        }
+        .animate-orbit-1 {
+          animation: orbit-1 8s ease-in-out infinite;
+          z-index: 20;
+        }
+        .animate-orbit-2 {
+          animation: orbit-2 10s ease-in-out infinite;
+          z-index: 20;
+        }
+        .animate-orbit-3 {
+          animation: orbit-3 9s ease-in-out infinite;
+          z-index: 20;
+        }
+        .animate-orbit-4 {
+          animation: orbit-4 7s ease-in-out infinite;
+          z-index: 20;
+        }
+        .animate-spin-slow {
+          animation: spin-slow 6s linear infinite;
+        }
+        .animate-counter-spin {
+          animation: counter-spin 6s linear infinite;
         }
       `}</style>
     </div>
