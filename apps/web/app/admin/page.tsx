@@ -19,17 +19,18 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true); const [busy, setBusy] = useState<string | null>(null); const [message, setMessage] = useState(""); const [error, setError] = useState("");
   const [flaggedMessages, setFlaggedMessages] = useState(0);
   
-  useEffect(() => {
-    async function loadFlagged() {
-      try {
-        const data = await api<{messages: unknown[]}>("/chat/messages/flagged");
-        setFlaggedMessages(data.messages.length);
-      } catch {
-        // Silent fail - not critical
-      }
-    }
-    void loadFlagged();
-  }, []);
+  // TODO: Implement /api/chat/messages/flagged endpoint
+  // useEffect(() => {
+  //   async function loadFlagged() {
+  //     try {
+  //       const data = await api<{messages: unknown[]}>("/chat/messages/flagged");
+  //       setFlaggedMessages(data.messages.length);
+  //     } catch {
+  //       // Silent fail - not critical
+  //     }
+  //   }
+  //   void loadFlagged();
+  // }, []);
   useEffect(() => {
     const init = async () => {
       setLoading(true);

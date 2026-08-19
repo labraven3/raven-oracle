@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "@/contexts/ThemeContext";
+import { API_BASE_URL } from "@/lib/api-config";
 
 type AdminLayoutProps = {
   children: React.ReactNode;
@@ -92,7 +93,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
       try {
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001/api"}/admin/overview`,
+          `${API_BASE_URL}/admin/overview`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
