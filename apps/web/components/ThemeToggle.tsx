@@ -7,11 +7,14 @@ export default function ThemeToggle() {
   const [light, setLight] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem("raven-theme");
-    const prefersLight = window.matchMedia("(prefers-color-scheme: light)").matches;
-    const next = saved ? saved === "light" : prefersLight;
-    setLight(next);
-    document.documentElement.classList.toggle("light", next);
+    const initTheme = async () => {
+      const saved = localStorage.getItem("raven-theme");
+      const prefersLight = window.matchMedia("(prefers-color-scheme: light)").matches;
+      const next = saved ? saved === "light" : prefersLight;
+      setLight(next);
+      document.documentElement.classList.toggle("light", next);
+    };
+    void initTheme();
   }, []);
 
   const toggle = () => {

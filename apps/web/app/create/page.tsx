@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { API_BASE_URL } from "@/lib/api-config";
 
 type Project = { id: string; name: string; slug: string; logoUrl?: string | null; category: string };
@@ -37,6 +39,7 @@ function localDateTimeValue(date: Date) {
 }
 
 export default function CreateRaffle() {
+  const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState("");
   const [loadingProjects, setLoadingProjects] = useState(true);
@@ -53,19 +56,24 @@ export default function CreateRaffle() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const requestedProjectId = params.get("projectId") ?? "";
-    void api<{ projects: Project[] }>("/projects/")
-      .then((data) => {
+    const init = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const requestedProjectId = params.get("projectId") ?? "";
+      try {
+        const data = await api<{ projects: Project[] }>("/projects/");
         setProjects(data.projects);
         if (requestedProjectId && data.projects.some((project) => project.id === requestedProjectId)) {
           setProjectId(requestedProjectId);
         } else if (data.projects.length === 1) {
           setProjectId(data.projects[0].id);
         }
-      })
-      .catch((error) => setMessage(error instanceof Error ? error.message : "Unable to load projects"))
-      .finally(() => setLoadingProjects(false));
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Unable to load projects");
+      } finally {
+        setLoadingProjects(false);
+      }
+    };
+    void init();
   }, []);
 
   const selectedProject = useMemo(
@@ -127,7 +135,7 @@ export default function CreateRaffle() {
         });
       }
 
-      window.location.href = `/raffles/${raffle.raffle.id}`;
+      router.push(`/raffles/${raffle.raffle.id}`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to create raffle");
     } finally {
@@ -139,11 +147,11 @@ export default function CreateRaffle() {
     <main className="min-h-screen bg-[#07070a] text-zinc-100">
       <header className="border-b border-white/10 bg-[#07070a]/90 px-5 py-5 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
-          <a href="/" className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3">
             <span className="grid h-9 w-9 place-items-center rounded-lg border border-violet-400/20 bg-violet-950/30 font-black text-violet-200">R</span>
             <span className="text-sm font-black tracking-[.18em]">RAVEN ORACLE</span>
-          </a>
-          <a href="/dashboard" className="text-xs text-zinc-500 hover:text-white">Creator Studio →</a>
+          </Link>
+          <Link href="/dashboard" className="text-xs text-zinc-500 hover:text-white">Creator Studio →</Link>
         </div>
       </header>
 
@@ -164,11 +172,11 @@ export default function CreateRaffle() {
                 {projects.map((project) => <option key={project.id} value={project.id}>{project.name} · {project.category}</option>)}
               </select>
             </label>
-            <a href="/projects/new" className="rounded-lg border border-white/10 px-4 py-3 text-xs font-bold text-zinc-300 hover:bg-white/5">+ New project</a>
+            <Link href="/projects/new" className="rounded-lg border border-white/10 px-4 py-3 text-xs font-bold text-zinc-300 hover:bg-white/5">+ New project</Link>
           </div>
           {selectedProject && (
             <div className="mt-4 rounded-xl border border-violet-500/20 bg-violet-500/5 px-4 py-3 text-xs text-zinc-400">
-              Creating this raffle under <strong className="text-zinc-200">{selectedProject.name}</strong>. Participants will see the project's context and its configured social requirements.
+              Creating this raffle under <strong className="text-zinc-200">{selectedProject.name}</strong>. Participants will see the project&apos;s context and its configured social requirements.
             </div>
           )}
         </section>

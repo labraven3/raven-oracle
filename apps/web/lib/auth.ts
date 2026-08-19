@@ -1,3 +1,6 @@
+"use client";
+
+import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "./api-config";
 
 const TOKEN_KEY = "raven_token";
@@ -17,7 +20,7 @@ export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY);
 }
 
-export async function logout(): Promise<void> {
+export async function logout(router: ReturnType<typeof useRouter>): Promise<void> {
   const token = getToken();
   
   // Clear token immediately (optimistic)
@@ -39,7 +42,5 @@ export async function logout(): Promise<void> {
   }
   
   // Redirect to home page
-  if (typeof window !== "undefined") {
-    window.location.href = "/";
-  }
+  router.push("/");
 }

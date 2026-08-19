@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import ThemeToggle from "../../../components/ThemeToggle";
 import { API_BASE_URL } from "@/lib/api-config";
 
@@ -52,37 +53,35 @@ export default function AdminChatPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const loadChannels = useCallback(async () => {
-    try {
-      const data = await api<{ success: boolean; channels: Channel[] }>("/admin/chat/channels");
-      setChannels(data.channels);
-    } catch (e) {
-      console.error("Failed to load channels:", e);
-    }
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const data = await api<{ success: boolean; channels: Channel[] }>("/admin/chat/channels");
+        setChannels(data.channels);
+      } catch (e) {
+        console.error("Failed to load channels:", e);
+      }
+    };
+    void init();
   }, []);
 
-  const loadMessages = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const data = await api<{ success: boolean; messages: Message[] }>(
-        `/admin/chat/messages?status=${filter}`
-      );
-      setMessages(data.messages);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Unable to load messages");
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    const init = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const data = await api<{ success: boolean; messages: Message[] }>(
+          `/admin/chat/messages?status=${filter}`
+        );
+        setMessages(data.messages);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Unable to load messages");
+      } finally {
+        setLoading(false);
+      }
+    };
+    void init();
   }, [filter]);
-
-  useEffect(() => {
-    void loadChannels();
-  }, [loadChannels]);
-
-  useEffect(() => {
-    void loadMessages();
-  }, [loadMessages]);
 
   const moderate = async (
     messageId: string,
@@ -100,7 +99,10 @@ export default function AdminChatPage() {
         }),
       });
       setMessage(`Message ${status.toLowerCase()} successfully`);
-      await loadMessages();
+      const data = await api<{ success: boolean; messages: Message[] }>(
+        `/admin/chat/messages?status=${filter}`
+      );
+      setMessages(data.messages);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Moderation failed");
     } finally {
@@ -117,7 +119,10 @@ export default function AdminChatPage() {
         method: "DELETE",
       });
       setMessage("Message deleted successfully");
-      await loadMessages();
+      const data = await api<{ success: boolean; messages: Message[] }>(
+        `/admin/chat/messages?status=${filter}`
+      );
+      setMessages(data.messages);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Delete failed");
     } finally {
@@ -132,7 +137,8 @@ export default function AdminChatPage() {
         body: JSON.stringify({ isActive: !isActive }),
       });
       setMessage(`Channel ${!isActive ? "activated" : "deactivated"}`);
-      await loadChannels();
+      const data = await api<{ success: boolean; channels: Channel[] }>("/admin/chat/channels");
+      setChannels(data.channels);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Channel update failed");
     }
@@ -142,17 +148,17 @@ export default function AdminChatPage() {
     <main className="min-h-screen bg-[#07070a] text-zinc-100">
       <header className="sticky top-0 z-30 border-b border-white/10 bg-[#07070a]/90 backdrop-blur-xl">
         <div className="mx-auto flex min-h-[72px] w-[min(1180px,calc(100%-32px))] items-center justify-between px-4">
-          <a href="/" className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3">
             <span className="grid h-9 w-9 place-items-center rounded-lg bg-violet-500 font-black text-black">
               R
             </span>
             <b className="text-sm tracking-[.18em]">RAVEN ORACLE</b>
-          </a>
+          </Link>
           <div className="flex items-center gap-3">
             <ThemeToggle />
-            <a href="/admin" className="rounded-lg border border-white/10 px-3 py-2 text-xs">
+            <Link href="/admin" className="rounded-lg border border-white/10 px-3 py-2 text-xs">
               Back to Admin
-            </a>
+            </Link>
           </div>
         </div>
       </header>
@@ -233,7 +239,23 @@ export default function AdminChatPage() {
             </button>
           ))}
           <button
-            onClick={() => void loadMessages()}
+            onClick={() => {
+              const init = async () => {
+                setLoading(true);
+                setError("");
+                try {
+                  const data = await api<{ success: boolean; messages: Message[] }>(
+                    `/admin/chat/messages?status=${filter}`
+                  );
+                  setMessages(data.messages);
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : "Unable to load messages");
+                } finally {
+                  setLoading(false);
+                }
+              };
+              void init();
+            }}
             className="ml-auto rounded-lg border border-white/10 px-4 py-2 text-[10px] font-bold"
           >
             Refresh

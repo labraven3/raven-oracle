@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import ThemeToggle from "../../../components/ThemeToggle";
 import { API_BASE_URL } from "@/lib/api-config";
 
@@ -70,22 +71,21 @@ export default function AdminRafflesPage() {
   const [cancelReason, setCancelReason] = useState("");
   const [viewWinners, setViewWinners] = useState<{ raffle: Raffle; winners: Winner[] } | null>(null);
 
-  const loadRaffles = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const data = await api<{ success: boolean; raffles: Raffle[] }>("/admin/raffles");
-      setRaffles(data.raffles);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Unable to load raffles");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    void loadRaffles();
-  }, [loadRaffles]);
+    const init = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const data = await api<{ success: boolean; raffles: Raffle[] }>("/admin/raffles");
+        setRaffles(data.raffles);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Unable to load raffles");
+      } finally {
+        setLoading(false);
+      }
+    };
+    void init();
+  }, []);
 
   const openCancel = (raffle: Raffle) => {
     setCancelRaffle(raffle);
@@ -112,7 +112,10 @@ export default function AdminRafflesPage() {
       });
       setMessage("Raffle cancelled successfully");
       closeCancel();
-      await loadRaffles();
+      setLoading(true);
+      const data = await api<{ success: boolean; raffles: Raffle[] }>("/admin/raffles");
+      setRaffles(data.raffles);
+      setLoading(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Cancel failed");
     } finally {
@@ -139,17 +142,17 @@ export default function AdminRafflesPage() {
     <main className="min-h-screen bg-[#07070a] text-zinc-100">
       <header className="sticky top-0 z-30 border-b border-white/10 bg-[#07070a]/90 backdrop-blur-xl">
         <div className="mx-auto flex min-h-[72px] w-[min(1180px,calc(100%-32px))] items-center justify-between px-4">
-          <a href="/" className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3">
             <span className="grid h-9 w-9 place-items-center rounded-lg bg-violet-500 font-black text-black">
               R
             </span>
             <b className="text-sm tracking-[.18em]">RAVEN ORACLE</b>
-          </a>
+          </Link>
           <div className="flex items-center gap-3">
             <ThemeToggle />
-            <a href="/admin" className="rounded-lg border border-white/10 px-3 py-2 text-xs">
+            <Link href="/admin" className="rounded-lg border border-white/10 px-3 py-2 text-xs">
               Back to Admin
-            </a>
+            </Link>
           </div>
         </div>
       </header>
@@ -177,7 +180,18 @@ export default function AdminRafflesPage() {
 
         <div className="mt-8 flex justify-end">
           <button
-            onClick={() => void loadRaffles()}
+            onClick={async () => {
+              setLoading(true);
+              setError("");
+              try {
+                const data = await api<{ success: boolean; raffles: Raffle[] }>("/admin/raffles");
+                setRaffles(data.raffles);
+              } catch (e) {
+                setError(e instanceof Error ? e.message : "Unable to load raffles");
+              } finally {
+                setLoading(false);
+              }
+            }}
             className="rounded-lg border border-white/10 px-4 py-2 text-[10px] font-bold"
           >
             Refresh
@@ -203,7 +217,7 @@ export default function AdminRafflesPage() {
                     <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-xl bg-black">
                       <img
                         src={raffle.project.logoUrl}
-                        alt=""
+                        alt={`${raffle.project.name} logo`}
                         className="h-full w-full object-cover"
                       />
                     </div>
@@ -254,14 +268,14 @@ export default function AdminRafflesPage() {
 
                 {/* Action Buttons */}
                 <div className="mt-4 flex flex-wrap gap-2 border-t border-white/5 pt-4">
-                  <a
+                  <Link
                     href={`/raffles/${raffle.id}`}
                     target="_blank"
                     rel="noreferrer"
                     className="rounded-lg border border-white/10 px-3 py-2 text-[10px] font-bold hover:bg-white/5"
                   >
                     View Public Page
-                  </a>
+                  </Link>
                   {raffle._count.winners > 0 && (
                     <button
                       disabled={busy === raffle.id}

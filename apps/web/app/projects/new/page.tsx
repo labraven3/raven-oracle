@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { API_BASE_URL } from "@/lib/api-config";
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 const ACCEPTED_LOGO_TYPES = ["image/png", "image/jpeg", "image/webp"];
@@ -17,6 +19,7 @@ async function api<T>(path: string, options: RequestInit = {}) {
 }
 
 export default function NewProject() {
+  const router = useRouter();
   const [form, setForm] = useState({ name: "", description: "", websiteUrl: "", xUrl: "", discordUrl: "", logoUrl: "", category: "OTHER" });
   const [logoName, setLogoName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -46,7 +49,7 @@ export default function NewProject() {
     try {
       const data = await api<{ project: { id: string; name: string } }>("/projects/", { method: "POST", body: JSON.stringify(form) });
       setMessage(`Project “${data.project.name}” created. You can now create its raffle.`);
-      setTimeout(() => { window.location.href = `/create?projectId=${data.project.id}`; }, 500);
+      setTimeout(() => { router.push(`/create?projectId=${data.project.id}`); }, 500);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to create project");
     } finally { setBusy(false); }
@@ -54,7 +57,7 @@ export default function NewProject() {
 
   return (
     <main className="min-h-screen bg-[#07070a] text-zinc-100">
-      <header className="border-b border-white/10 px-5 py-5"><div className="mx-auto flex max-w-5xl items-center justify-between"><a href="/" className="font-black tracking-[.18em]">RAVEN ORACLE</a><a href="/dashboard" className="text-xs text-zinc-500">Creator Studio →</a></div></header>
+      <header className="border-b border-white/10 px-5 py-5"><div className="mx-auto flex max-w-5xl items-center justify-between"><Link href="/" className="font-black tracking-[.18em]">RAVEN ORACLE</Link><Link href="/dashboard" className="text-xs text-zinc-500">Creator Studio →</Link></div></header>
       <div className="mx-auto max-w-5xl px-5 py-14">
         <div className="max-w-2xl"><span className="text-[9px] font-black tracking-[.2em] text-violet-300/60">PROJECT ONBOARDING</span><h1 className="mt-3 text-5xl font-medium tracking-tight">Add a project.</h1><p className="mt-4 text-sm leading-6 text-zinc-500">Create the project first. Its website, X and Discord become the context for the raffles you publish.</p></div>
         <section className="mt-10 rounded-2xl border border-white/10 bg-[#0d0c11] p-6"><div className="grid gap-5 md:grid-cols-2">

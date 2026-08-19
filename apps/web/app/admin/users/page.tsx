@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import ThemeToggle from "../../../components/ThemeToggle";
 import { API_BASE_URL } from "@/lib/api-config";
 
@@ -44,25 +45,24 @@ export default function AdminUsersPage() {
   const [actionReason, setActionReason] = useState("");
   const [pointsAmount, setPointsAmount] = useState(0);
 
-  const loadUsers = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const queryStatus = filter === "ALL" ? "" : `?status=${filter}`;
-      const data = await api<{ success: boolean; users: User[] }>(
-        `/admin/users${queryStatus}`
-      );
-      setUsers(data.users);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Unable to load users");
-    } finally {
-      setLoading(false);
-    }
-  }, [filter]);
-
   useEffect(() => {
-    void loadUsers();
-  }, [loadUsers]);
+    const init = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const queryStatus = filter === "ALL" ? "" : `?status=${filter}`;
+        const data = await api<{ success: boolean; users: User[] }>(
+          `/admin/users${queryStatus}`
+        );
+        setUsers(data.users);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Unable to load users");
+      } finally {
+        setLoading(false);
+      }
+    };
+    void init();
+  }, [filter]);
 
   const openAction = (user: User, type: "SUSPEND" | "BAN" | "ACTIVATE" | "POINTS") => {
     setActionUser(user);
@@ -97,7 +97,12 @@ export default function AdminUsersPage() {
       });
       setMessage(`User ${newStatus.toLowerCase()} successfully`);
       closeAction();
-      await loadUsers();
+      // Reload users
+      const queryStatus = filter === "ALL" ? "" : `?status=${filter}`;
+      const data = await api<{ success: boolean; users: User[] }>(
+        `/admin/users${queryStatus}`
+      );
+      setUsers(data.users);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Status change failed");
     } finally {
@@ -123,7 +128,12 @@ export default function AdminUsersPage() {
       });
       setMessage(`Points ${pointsAmount > 0 ? "awarded" : "deducted"} successfully`);
       closeAction();
-      await loadUsers();
+      // Reload users
+      const queryStatus = filter === "ALL" ? "" : `?status=${filter}`;
+      const data = await api<{ success: boolean; users: User[] }>(
+        `/admin/users${queryStatus}`
+      );
+      setUsers(data.users);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Points adjustment failed");
     } finally {
@@ -135,17 +145,17 @@ export default function AdminUsersPage() {
     <main className="min-h-screen bg-[#07070a] text-zinc-100">
       <header className="sticky top-0 z-30 border-b border-white/10 bg-[#07070a]/90 backdrop-blur-xl">
         <div className="mx-auto flex min-h-[72px] w-[min(1180px,calc(100%-32px))] items-center justify-between px-4">
-          <a href="/" className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3">
             <span className="grid h-9 w-9 place-items-center rounded-lg bg-violet-500 font-black text-black">
               R
             </span>
             <b className="text-sm tracking-[.18em]">RAVEN ORACLE</b>
-          </a>
+          </Link>
           <div className="flex items-center gap-3">
             <ThemeToggle />
-            <a href="/admin" className="rounded-lg border border-white/10 px-3 py-2 text-xs">
+            <Link href="/admin" className="rounded-lg border border-white/10 px-3 py-2 text-xs">
               Back to Admin
-            </a>
+            </Link>
           </div>
         </div>
       </header>
@@ -187,7 +197,24 @@ export default function AdminUsersPage() {
             </button>
           ))}
           <button
-            onClick={() => void loadUsers()}
+            onClick={() => {
+              const init = async () => {
+                setLoading(true);
+                setError("");
+                try {
+                  const queryStatus = filter === "ALL" ? "" : `?status=${filter}`;
+                  const data = await api<{ success: boolean; users: User[] }>(
+                    `/admin/users${queryStatus}`
+                  );
+                  setUsers(data.users);
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : "Unable to load users");
+                } finally {
+                  setLoading(false);
+                }
+              };
+              void init();
+            }}
             className="ml-auto rounded-lg border border-white/10 px-4 py-2 text-[10px] font-bold"
           >
             Refresh
