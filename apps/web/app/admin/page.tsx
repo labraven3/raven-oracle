@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import ThemeToggle from "../../components/ThemeToggle";
+import AdminLayout from "@/components/AdminLayout";
 import { API_BASE_URL } from "@/lib/api-config";
 type Project = { id: string; name: string; description?: string | null; logoUrl?: string | null; category: string; status: string; rejectionReason?: string | null; createdAt: string };
 type Stats = { submittedProjects: number; approvedProjects: number; activeRaffles: number; entries: number; users: number };
@@ -88,29 +88,15 @@ export default function AdminPage() {
     }
   };
   return (
-    <main className="min-h-screen bg-[#07070a] text-zinc-100">
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-[#07070a]/90 backdrop-blur-xl">
-        <div className="mx-auto flex min-h-[72px] w-[min(1180px,calc(100%-32px))] items-center justify-between px-4">
-          <Link href="/" className="flex items-center gap-3">
-            <span className="grid h-9 w-9 place-items-center rounded-lg bg-violet-500 font-black text-black">
-              R
-            </span>
-            <b className="text-sm tracking-[.18em]">RAVEN ORACLE</b>
-          </Link>
-          <div className="flex items-center gap-3">
-            <ThemeToggle />
-            <Link href="/dashboard" className="rounded-lg border border-white/10 px-3 py-2 text-xs">
-              Creator Studio
-            </Link>
-          </div>
+    <AdminLayout>
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-8">
+          <span className="text-[9px] font-black tracking-[.2em] text-violet-300/60">OPERATIONS</span>
+          <h1 className="mt-2 text-5xl font-medium tracking-tight">Moderation center.</h1>
+          <p className="mt-3 text-sm text-zinc-600">
+            Approve NFT communities before they become visible to participants.
+          </p>
         </div>
-      </header>
-      <section className="mx-auto w-[min(1180px,calc(100%-32px))] px-4 py-12">
-        <span className="text-[9px] font-black tracking-[.2em] text-violet-300/60">OPERATIONS</span>
-        <h1 className="mt-2 text-5xl font-medium tracking-tight">Moderation center.</h1>
-        <p className="mt-3 text-sm text-zinc-600">
-          Approve NFT communities before they become visible to participants.
-        </p>
         {error && (
           <div className="mt-6 rounded-xl border border-red-900/50 bg-red-950/20 p-4 text-sm text-red-300">
             {error}
@@ -347,7 +333,7 @@ export default function AdminPage() {
             ))}
           </div>
         )}
-      </section>
-    </main>
+      </div>
+    </AdminLayout>
   );
 }
