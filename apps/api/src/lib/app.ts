@@ -32,6 +32,8 @@ export function createApp() {
   app.use("/api/auth/discord", discordAuthRouter);
   app.use("/api/wallets", walletsRouter);
   app.use("/api/projects", projectsRouter);
+  // NOTE: Public raffles route MUST come before general raffles route
+  // because Express matches routes in order and /raffles/:id would catch /raffles/public
   app.use("/api/raffles/public", publicRafflesRouter);
   app.use("/api/raffles", rafflesRouter);
   app.use("/api/raffles", raffleEntriesRouter);

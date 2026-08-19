@@ -106,6 +106,58 @@ router.get("/", async (req, res, next) => {
   }
 });
 
+/**
+ * GET /api/projects/public
+ * Returns only APPROVED projects (public discovery)
+ * Must be defined BEFORE /:id route to prevent 'public' being caught as UUID
+ */
+router.get("/public", async (req, res, next) => {
+  try {
+    const category = req.query.category as string | undefined;
+    const search = req.query.search as string | undefined;
+    const limit = Math.min(parseInt(req.query.limit as string) || 100, 100);
+
+    const where: any = {
+      deletedAt: null,
+      status: "APPROVED",
+    };
+
+    if (category && ["NFT", "TOKEN", "GAME", "TOOL", "DEFI", "COMMUNITY", "OTHER"].includes(category)) {
+      where.category = category;
+    }
+
+    if (search && search.trim()) {
+      where.OR = [
+        { name: { contains: search.trim(), mode: "insensitive" } },
+        { description: { contains: search.trim(), mode: "insensitive" } },
+      ];
+    }
+
+    const projects = await prisma.project.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        description: true,
+        websiteUrl: true,
+        xUrl: true,
+        discordUrl: true,
+        logoUrl: true,
+        category: true,
+        status: true,
+        createdAt: true,
+      },
+    });
+    
+    return res.json({ success: true, projects, total: projects.length });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.post("/", requireAuth, async (req, res, next) => {
   try {
     if (!req.userId) {
