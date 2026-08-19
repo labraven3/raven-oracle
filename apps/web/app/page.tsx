@@ -54,6 +54,23 @@ export default function Home() {
     const token = localStorage.getItem("raven_token");
     setIsLoggedIn(!!token);
 
+    // Load hero settings
+    const savedSettings = localStorage.getItem("hero_settings");
+    if (savedSettings) {
+      try {
+        const parsed = JSON.parse(savedSettings);
+        if (parsed.iconSets) iconSets.splice(0, iconSets.length, ...parsed.iconSets);
+        if (parsed.animationSpeed) {
+          const speed = parsed.animationSpeed;
+          const iconInterval = setInterval(() => {
+            setIconIndex((prev) => (prev + 1) % 4);
+          }, speed);
+          
+          return () => clearInterval(iconInterval);
+        }
+      } catch {}
+    }
+
     void Promise.all([
       api<{ projects: Project[] }>("/projects/public").catch(() => ({ projects: [] })),
       api<{ raffles: Raffle[] }>("/raffles/public").catch(() => ({ raffles: [] })),
@@ -62,7 +79,7 @@ export default function Home() {
       setRaffles(r.raffles.filter((x) => ["ACTIVE", "SCHEDULED"].includes(x.status)));
     });
 
-    // Icon rotation every 4 seconds
+    // Default icon rotation
     const iconInterval = setInterval(() => {
       setIconIndex((prev) => (prev + 1) % 4);
     }, 4000);
