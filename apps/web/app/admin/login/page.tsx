@@ -30,8 +30,10 @@ export default function AdminLoginPage() {
         throw new Error(data.message || "Login failed");
       }
 
-      // Store token first
+      // Store token in both localStorage and cookies
       localStorage.setItem("raven_token", data.token);
+      // Set cookie with 7 day expiry (same as JWT)
+      document.cookie = `raven_token=${data.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
 
       // Check if user is admin
       const adminResponse = await fetch(`${API_BASE_URL}/admin/overview`, {
