@@ -16,8 +16,6 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
-      // Admin login is a separate backend authentication flow.
-      // The server only issues an admin-scoped token to an approved ADMIN/MODERATOR.
       const response = await fetch(`${API_BASE_URL}/auth/admin/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -25,22 +23,15 @@ export default function AdminLoginPage() {
       });
 
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.message || "Admin login failed");
+      if (!response.ok || !data.token) {
+        throw new Error(data.message || "Admin login failed");
+      }
 
+      // The API has already authenticated the account and issued an admin-scoped JWT.
+      // Keep the token in both storage locations used by the app. Subsequent admin
+      // requests use the same-origin cookie, while client-side API calls can use localStorage.
       localStorage.setItem("raven_token", data.token);
       document.cookie = `raven_token=${encodeURIComponent(data.token)}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
-
-      // Defense-in-depth: verify the newly issued admin token against an admin-only route.
-      const adminResponse = await fetch(`${API_BASE_URL}/admin/overview`, {
-        headers: { Authorization: `Bearer ${data.token}` },
-      });
-
-      if (!adminResponse.ok) {
-        localStorage.removeItem("raven_token");
-        document.cookie = "raven_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax";
-        const adminData = await adminResponse.json().catch(() => ({}));
-        throw new Error(adminData.message || "You do not have admin access.");
-      }
 
       window.location.href = "/admin";
     } catch (err) {
