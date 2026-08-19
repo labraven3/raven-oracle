@@ -1,35 +1,25 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { API_BASE_URL } from "@/lib/api-config";
-
-type Raffle = {
-  id: string;
-  title: string;
-  description?: string | null;
-  prizeName: string;
-  prizeQuantity: number;
-  startsAt: string;
-  endsAt: string;
-  status: string;
-  project?: { id?: string; name?: string | null; logoUrl?: string | null } | null;
-};
 
 type Project = {
   id: string;
   name: string;
   description?: string | null;
   logoUrl?: string | null;
-  status?: string;
   category?: string;
+  status?: string;
 };
 
-type Leader = {
-  userId: string;
-  username?: string | null;
-  displayName?: string | null;
-  points: number;
+type Raffle = {
+  id: string;
+  title: string;
+  prizeName: string;
+  endsAt: string;
+  status: string;
+  project?: { name?: string | null; logoUrl?: string | null } | null;
 };
 
 async function api<T>(path: string): Promise<T> {
@@ -44,156 +34,429 @@ async function api<T>(path: string): Promise<T> {
   return data as T;
 }
 
-function initials(value?: string | null) {
-  return (value || "RO").replace(/[^a-zA-Z0-9 ]/g, "").split(" ").filter(Boolean).slice(0, 2).map((x) => x[0]).join("").toUpperCase() || "RO";
-}
-
-function timeLabel(value: string) {
-  const diff = new Date(value).getTime() - Date.now();
-  if (diff <= 0) return "Ended";
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ${minutes % 60}m`;
-  return `${Math.floor(hours / 24)}d ${hours % 24}h`;
-}
-
 export default function Home() {
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
-  const [raffles, setRaffles] = useState<Raffle[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [leaders, setLeaders] = useState<Leader[]>([]);
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("ALL");
-  const [loading, setLoading] = useState(true);
+  const [raffles, setRaffles] = useState<Raffle[]>([]);
+  const [tab, setTab] = useState<"upcoming" | "trending">("trending");
+  const [heroVisible, setHeroVisible] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
-    const initTheme = async () => {
-      const saved = localStorage.getItem("raven-theme") as "dark" | "light" | null;
-      const next = saved ?? (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
-      setTheme(next);
-      document.documentElement.classList.toggle("light", next === "light");
-    };
-    void initTheme();
-
-    // Check if user is logged in
     const token = localStorage.getItem("raven_token");
     setIsLoggedIn(!!token);
-  }, []);
 
-  useEffect(() => {
     void Promise.all([
-      api<{ raffles: Raffle[] }>("/raffles/public").catch(() => ({ raffles: [] })),
       api<{ projects: Project[] }>("/projects/public").catch(() => ({ projects: [] })),
-      api<{ leaderboard: Leader[] }>("/alpha/leaderboard").catch(() => ({ leaderboard: [] })),
-    ]).then(([r, p, l]) => {
+      api<{ raffles: Raffle[] }>("/raffles/public").catch(() => ({ raffles: [] })),
+    ]).then(([p, r]) => {
+      setProjects(p.projects.filter((x) => x.status === "APPROVED"));
       setRaffles(r.raffles.filter((x) => ["ACTIVE", "SCHEDULED"].includes(x.status)));
-      setProjects(p.projects.filter((x) => !x.category || x.category === "NFT"));
-      setLeaders(l.leaderboard.slice(0, 5));
-    }).finally(() => setLoading(false));
+    });
+
+    const handleScroll = () => {
+      setHeroVisible(window.scrollY < 100);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const colors = theme === "dark"
-    ? { bg: "#0b0a12", sidebar: "#0e0d16", panel: "#15131f", panel2: "#191724", border: "#302c40", text: "#f5f3fa", muted: "#8f8a9e", accent: "#9b63ff", green: "#56d79b" }
-    : { bg: "#f5f4f8", sidebar: "#ffffff", panel: "#ffffff", panel2: "#f0eef5", border: "#ded9e8", text: "#1b1822", muted: "#746d80", accent: "#7040d9", green: "#159967" };
-
-  const toggleTheme = () => {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    localStorage.setItem("raven-theme", next);
-    document.documentElement.classList.toggle("light", next === "light");
-  };
-
-  const filteredProjects = useMemo(() => projects.filter((p) => {
-    const matchesSearch = !search || `${p.name} ${p.description ?? ""}`.toLowerCase().includes(search.toLowerCase());
-    const matchesCategory = category === "ALL" || (p.category ?? "NFT") === category;
-    return matchesSearch && matchesCategory;
-  }), [projects, search, category]);
-
-  const featured = filteredProjects[0];
-  const trendingProjects = filteredProjects.slice(0, 4);
-  const trendingRaffles = raffles.slice(0, 6);
-
-  const card: React.CSSProperties = { background: colors.panel, border: `1px solid ${colors.border}`, borderRadius: 12 };
-  const nav = (active?: boolean): React.CSSProperties => ({ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, color: active ? colors.text : colors.muted, background: active ? colors.panel2 : "transparent", fontSize: 12, fontWeight: active ? 800 : 600 });
+  const trending = projects.slice(0, 6);
+  const upcoming = raffles.slice(0, 6);
 
   return (
-    <main style={{ minHeight: "100vh", background: colors.bg, color: colors.text, display: "flex", fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif" }}>
-      <aside style={{ width: 220, flexShrink: 0, minHeight: "100vh", background: colors.sidebar, borderRight: `1px solid ${colors.border}`, padding: "22px 14px", position: "sticky", top: 0, height: "100vh", display: "flex", flexDirection: "column" }}>
-        <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 8px 24px", color: colors.text }}>
-          <span style={{ width: 32, height: 32, borderRadius: 9, display: "grid", placeItems: "center", background: `linear-gradient(135deg,${colors.accent},#5a27a9)`, color: "white", fontWeight: 900 }}>R</span>
-          <span><b style={{ display: "block", fontSize: 13, letterSpacing: ".14em" }}>RAVEN</b><small style={{ color: colors.muted, fontSize: 8, letterSpacing: ".12em" }}>ORACLE</small></span>
-        </Link>
-        <label style={{ position: "relative", display: "block", marginBottom: 18 }}>
-          <span style={{ position: "absolute", left: 11, top: 10, color: colors.muted, fontSize: 12 }}>⌕</span>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search projects" style={{ width: "100%", boxSizing: "border-box", background: colors.panel, border: `1px solid ${colors.border}`, color: colors.text, borderRadius: 8, padding: "9px 10px 9px 30px", outline: "none", fontSize: 11 }} />
-        </label>
-        <nav style={{ display: "grid", gap: 3 }}>
-          <Link href="/" style={nav(true)}>⌂ <span>Home</span></Link>
-          <Link href="/dashboard" style={nav()}>▦ <span>Creator Studio</span></Link>
-          <Link href="/account" style={nav()}>◎ <span>Account</span></Link>
-        </nav>
-        <div style={{ margin: "22px 7px 9px", color: colors.muted, fontSize: 8, letterSpacing: ".16em", fontWeight: 900 }}>EXPLORE</div>
-        <nav style={{ display: "grid", gap: 3 }}>
-          <Link href="/projects" style={nav()}>◈ <span>NFT Projects</span></Link>
-          <Link href="/raffles" style={nav()}>🎟 <span>Raffles</span></Link>
-          <Link href="/alpha" style={nav()}>♛ <span>King of Alpha</span></Link>
-          <Link href="/how-it-works" style={nav()}>ⓘ <span>How it works</span></Link>
-        </nav>
-        <div style={{ marginTop: "auto" }}>
-          <button onClick={toggleTheme} style={{ width: "100%", border: `1px solid ${colors.border}`, background: colors.panel, color: colors.text, borderRadius: 8, padding: 9, fontSize: 11, cursor: "pointer" }}>{theme === "dark" ? "☀  Light mode" : "☾  Dark mode"}</button>
-          
-          {isLoggedIn ? (
-            <>
-              <Link href="/account" style={{ display: "block", marginTop: 8, textAlign: "center", background: colors.text, color: theme === "dark" ? "#0b0a12" : "white", borderRadius: 8, padding: 10, fontSize: 11, fontWeight: 900 }}>Account →</Link>
-              <button onClick={() => { localStorage.removeItem("raven_token"); setIsLoggedIn(false); window.location.href = "/"; }} style={{ width: "100%", marginTop: 8, border: `1px solid ${colors.border}`, background: colors.panel, color: colors.muted, borderRadius: 8, padding: 10, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Logout</button>
-            </>
-          ) : (
-            <>
-              <Link href="/login" style={{ display: "block", marginTop: 8, textAlign: "center", border: `1px solid ${colors.border}`, background: colors.panel, color: colors.text, borderRadius: 8, padding: 10, fontSize: 11, fontWeight: 700 }}>Login</Link>
-              <Link href="/register" style={{ display: "block", marginTop: 8, textAlign: "center", background: `linear-gradient(135deg,${colors.accent},#5a27a9)`, color: "white", borderRadius: 8, padding: 10, fontSize: 11, fontWeight: 900 }}>Sign Up</Link>
-            </>
-          )}
-        </div>
-      </aside>
-
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <header style={{ height: 64, borderBottom: `1px solid ${colors.border}`, display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "0 28px", gap: 18, background: colors.bg }}>
-          <span style={{ color: colors.muted, fontSize: 10 }}>NFT RAFFLE PLATFORM</span>
-          <Link href="/projects/new" style={{ border: `1px solid ${colors.border}`, background: colors.panel, color: colors.text, borderRadius: 8, padding: "9px 13px", fontSize: 10, fontWeight: 800 }}>Create project</Link>
-        </header>
-
-        <div style={{ maxWidth: 1240, margin: "0 auto", padding: "28px 28px 60px" }}>
-          <section style={{ display: "flex", alignItems: "end", justifyContent: "space-between", gap: 20, marginBottom: 18 }}>
-            <div><div style={{ color: colors.muted, fontSize: 9, letterSpacing: ".16em", fontWeight: 900 }}>DISCOVER</div><h1 style={{ margin: "6px 0 0", fontSize: 32, letterSpacing: "-.04em" }}>NFT projects & raffles</h1><p style={{ margin: "8px 0 0", color: colors.muted, fontSize: 12 }}>Discover approved projects and upcoming whitelist opportunities.</p></div>
-            <Link href="/raffles" style={{ color: colors.accent, fontSize: 11, fontWeight: 900 }}>View all raffles →</Link>
-          </section>
-
-          <section style={{ ...card, padding: 14, marginBottom: 28 }}>
-            <div style={{ display: "flex", gap: 8, overflowX: "auto" }}>
-              {["ALL", "NFT"].map((item) => <button key={item} onClick={() => setCategory(item)} style={{ border: `1px solid ${category === item ? colors.accent : colors.border}`, background: category === item ? `${colors.accent}18` : "transparent", color: category === item ? colors.accent : colors.muted, borderRadius: 7, padding: "7px 14px", fontSize: 10, fontWeight: 800, cursor: "pointer" }}>{item}</button>)}
-            </div>
-          </section>
-
-          <section style={{ marginBottom: 30 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}><h2 style={{ fontSize: 15, margin: 0 }}>Trending projects</h2><Link href="/projects" style={{ color: colors.muted, fontSize: 10 }}>View all →</Link></div>
-            {loading ? <div style={{ ...card, padding: 28, color: colors.muted, fontSize: 11 }}>Loading projects…</div> : trendingProjects.length === 0 ? <div style={{ ...card, padding: 28, color: colors.muted, fontSize: 11 }}>No approved NFT projects yet.</div> : <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 10 }}>{trendingProjects.map((p) => <Link href={`/projects/${p.id}`} key={p.id} style={{ ...card, padding: 13, minWidth: 0 }}><div style={{ display: "flex", alignItems: "center", gap: 9 }}><div style={{ width: 34, height: 34, flexShrink: 0, borderRadius: 8, background: colors.panel2, display: "grid", placeItems: "center", color: colors.accent, fontWeight: 900, fontSize: 10, overflow: "hidden" }}>{p.logoUrl ? <img src={p.logoUrl} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initials(p.name)}</div><div style={{ minWidth: 0 }}><b style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 11 }}>{p.name}</b><span style={{ color: colors.muted, fontSize: 9 }}>NFT · {p.status ?? "APPROVED"}</span></div></div><div style={{ marginTop: 14, display: "flex", justifyContent: "space-between", color: colors.muted, fontSize: 9 }}><span>Raffles</span><span style={{ color: colors.text }}>Explore →</span></div></Link>)}</div>}
-          </section>
-
-          {featured && <section style={{ marginBottom: 30 }}><div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}><h2 style={{ fontSize: 15, margin: 0 }}>Raven Oracle pick</h2><span style={{ color: colors.green, fontSize: 9, fontWeight: 900 }}>APPROVED</span></div><Link href={`/projects/${featured.id}`} style={{ ...card, padding: 20, display: "grid", gridTemplateColumns: "1fr 230px", gap: 20, background: `linear-gradient(120deg,${colors.panel},${colors.panel2})` }}><div><div style={{ color: colors.accent, fontSize: 9, letterSpacing: ".15em", fontWeight: 900 }}>FEATURED NFT PROJECT</div><h2 style={{ margin: "9px 0 7px", fontSize: 24 }}>{featured.name}</h2><p style={{ color: colors.muted, fontSize: 11, lineHeight: 1.7, maxWidth: 650 }}>{featured.description || "Explore this approved NFT community and its upcoming whitelist opportunities."}</p><span style={{ display: "inline-block", marginTop: 12, color: colors.text, fontSize: 10, fontWeight: 900 }}>View project →</span></div><div style={{ minHeight: 120, borderRadius: 10, background: colors.bg, border: `1px solid ${colors.border}`, display: "grid", placeItems: "center", overflow: "hidden" }}>{featured.logoUrl ? <img src={featured.logoUrl} alt={featured.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: 34, fontWeight: 900, color: colors.accent }}>{initials(featured.name)}</span>}</div></Link></section>}
-
-          <section style={{ marginBottom: 30 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}><div><h2 style={{ fontSize: 15, margin: 0 }}>Trending raffles</h2><span style={{ color: colors.muted, fontSize: 9 }}>Live and scheduled whitelist opportunities</span></div><Link href="/raffles" style={{ color: colors.muted, fontSize: 10 }}>View all →</Link></div>
-            {loading ? <div style={{ ...card, padding: 28, color: colors.muted, fontSize: 11 }}>Loading raffles…</div> : trendingRaffles.length === 0 ? <div style={{ ...card, padding: 28, color: colors.muted, fontSize: 11 }}>No active raffles yet.</div> : <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 10 }}>{trendingRaffles.map((r) => <Link href={`/raffles/${r.id}`} key={r.id} style={{ ...card, padding: 14 }}><div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}><span style={{ color: colors.green, fontSize: 8, fontWeight: 900 }}>{r.status}</span><span style={{ color: colors.muted, fontSize: 9 }}>{timeLabel(r.endsAt)}</span></div><b style={{ display: "block", marginTop: 16, fontSize: 13 }}>{r.title}</b><span style={{ display: "block", marginTop: 5, color: colors.muted, fontSize: 9 }}>{r.project?.name ?? "NFT Project"}</span><div style={{ marginTop: 16, paddingTop: 11, borderTop: `1px solid ${colors.border}`, display: "flex", justifyContent: "space-between", fontSize: 9 }}><span style={{ color: colors.muted }}>Prize</span><strong>{r.prizeQuantity} × {r.prizeName}</strong></div></Link>)}</div>}
-          </section>
-
-          <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div style={{ ...card, padding: 18 }}><div style={{ display: "flex", justifyContent: "space-between", marginBottom: 15 }}><h2 style={{ fontSize: 14, margin: 0 }}>King of Alpha</h2><Link href="/alpha" style={{ color: colors.muted, fontSize: 9 }}>Leaderboard →</Link></div>{leaders.length === 0 ? <span style={{ color: colors.muted, fontSize: 10 }}>No leaderboard data yet.</span> : leaders.map((l, i) => <div key={l.userId} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderTop: i ? `1px solid ${colors.border}` : "none" }}><span style={{ width: 20, color: colors.muted, fontSize: 9 }}>#{i + 1}</span><div style={{ flex: 1 }}><b style={{ fontSize: 10 }}>{l.displayName || l.username || "Anonymous"}</b></div><strong style={{ color: colors.accent, fontSize: 10 }}>{l.points} pts</strong></div>)}</div>
-            <div style={{ ...card, padding: 18 }}><h2 style={{ fontSize: 14, margin: "0 0 15px" }}>For creators</h2><p style={{ color: colors.muted, fontSize: 10, lineHeight: 1.7, margin: 0 }}>Launch an NFT whitelist raffle, configure eligibility tasks, draw verified winners and export the final whitelist.</p><div style={{ display: "flex", gap: 8, marginTop: 18 }}><Link href="/projects/new" style={{ background: colors.accent, color: "white", borderRadius: 7, padding: "9px 12px", fontSize: 9, fontWeight: 900 }}>Create project</Link><Link href="/dashboard" style={{ border: `1px solid ${colors.border}`, color: colors.text, borderRadius: 7, padding: "9px 12px", fontSize: 9, fontWeight: 800 }}>Creator Studio</Link></div></div>
-          </section>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-[#0a0a0f] via-[#0f0a1f] to-[#0a0a0f] text-white">
+      {/* Animated Background */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none opacity-30">
+        <div className="absolute top-20 left-10 w-64 h-64 bg-violet-500/20 rounded-full blur-[120px] animate-pulse" />
+        <div className="absolute bottom-40 right-20 w-96 h-96 bg-blue-500/10 rounded-full blur-[140px] animate-pulse delay-1000" />
+        <div className="absolute top-1/2 left-1/2 w-80 h-80 bg-purple-500/10 rounded-full blur-[100px] animate-pulse delay-500" />
       </div>
-    </main>
+
+      {/* Navigation */}
+      <nav className="relative z-50 border-b border-white/10 bg-black/20 backdrop-blur-xl">
+        <div className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center font-black text-lg shadow-lg shadow-violet-500/50">
+              R
+            </div>
+            <div>
+              <div className="font-black text-sm tracking-[.2em]">RAVEN</div>
+              <div className="text-[8px] text-violet-300 tracking-[.15em]">ORACLE</div>
+            </div>
+          </Link>
+
+          <div className="hidden md:flex items-center gap-8 text-sm">
+            <Link href="/projects" className="text-zinc-400 hover:text-white transition-colors">
+              NFT Projects
+            </Link>
+            <Link href="/raffles" className="text-zinc-400 hover:text-white transition-colors">
+              Raffles
+            </Link>
+            <Link href="/alpha" className="text-zinc-400 hover:text-white transition-colors">
+              King of Alpha
+            </Link>
+            <Link href="/how-it-works" className="text-zinc-400 hover:text-white transition-colors">
+              How it Works
+            </Link>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {isLoggedIn ? (
+              <>
+                <Link
+                  href="/dashboard"
+                  className="px-4 py-2 text-xs font-bold border border-white/10 rounded-lg hover:bg-white/5"
+                >
+                  Creator Studio
+                </Link>
+                <Link
+                  href="/account"
+                  className="px-4 py-2 text-xs font-black bg-gradient-to-r from-violet-500 to-purple-600 rounded-lg shadow-lg shadow-violet-500/30"
+                >
+                  Account
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="px-4 py-2 text-xs font-bold border border-white/10 rounded-lg hover:bg-white/5"
+                >
+                  Login
+                </Link>
+                <Link
+                  href="/register"
+                  className="px-4 py-2 text-xs font-black bg-gradient-to-r from-violet-500 to-purple-600 rounded-lg shadow-lg shadow-violet-500/30"
+                >
+                  Sign Up
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section with Floating Elements */}
+      <section
+        className={`relative overflow-hidden transition-all duration-700 ${
+          heroVisible ? "h-[600px] opacity-100" : "h-0 opacity-0"
+        }`}
+      >
+        <div className="absolute inset-0 flex items-center justify-center">
+          {/* Floating NFT Cards */}
+          <div className="absolute top-20 left-20 w-32 h-32 bg-gradient-to-br from-violet-500/20 to-purple-600/20 rounded-2xl border border-violet-500/30 backdrop-blur-sm animate-float shadow-2xl shadow-violet-500/20">
+            <div className="w-full h-full bg-gradient-to-br from-violet-400/10 to-purple-500/10 rounded-2xl flex items-center justify-center text-4xl">
+              🎨
+            </div>
+          </div>
+
+          <div className="absolute top-40 right-32 w-40 h-40 bg-gradient-to-br from-blue-500/20 to-cyan-600/20 rounded-2xl border border-blue-500/30 backdrop-blur-sm animate-float-delayed shadow-2xl shadow-blue-500/20">
+            <div className="w-full h-full bg-gradient-to-br from-blue-400/10 to-cyan-500/10 rounded-2xl flex items-center justify-center text-5xl">
+              💎
+            </div>
+          </div>
+
+          <div className="absolute bottom-32 left-40 w-36 h-36 bg-gradient-to-br from-pink-500/20 to-rose-600/20 rounded-2xl border border-pink-500/30 backdrop-blur-sm animate-float shadow-2xl shadow-pink-500/20">
+            <div className="w-full h-full bg-gradient-to-br from-pink-400/10 to-rose-500/10 rounded-2xl flex items-center justify-center text-4xl">
+              🎮
+            </div>
+          </div>
+
+          <div className="absolute bottom-20 right-20 w-28 h-28 bg-gradient-to-br from-green-500/20 to-emerald-600/20 rounded-2xl border border-green-500/30 backdrop-blur-sm animate-float-delayed shadow-2xl shadow-green-500/20">
+            <div className="w-full h-full bg-gradient-to-br from-green-400/10 to-emerald-500/10 rounded-2xl flex items-center justify-center text-3xl">
+              ⛓️
+            </div>
+          </div>
+
+          {/* Hero Content */}
+          <div className="relative z-10 text-center px-6">
+            <div className="inline-block mb-6 px-4 py-2 bg-violet-500/10 border border-violet-500/30 rounded-full text-xs font-black tracking-[.2em] text-violet-300">
+              WEB3 NFT RAFFLE PLATFORM
+            </div>
+            <h1 className="text-6xl md:text-7xl font-black tracking-tight mb-6 bg-gradient-to-r from-white via-violet-200 to-purple-300 bg-clip-text text-transparent">
+              The Future of
+              <br />
+              NFT Whitelists
+            </h1>
+            <p className="text-xl text-zinc-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+              Join verified NFT communities, complete tasks, and win whitelist spots through provably fair raffles powered by blockchain technology.
+            </p>
+            <div className="flex items-center justify-center gap-4">
+              <Link
+                href="/raffles"
+                className="px-8 py-4 text-sm font-black bg-gradient-to-r from-violet-500 to-purple-600 rounded-xl shadow-2xl shadow-violet-500/50 hover:shadow-violet-500/70 transition-all"
+              >
+                Explore Raffles
+              </Link>
+              <Link
+                href="/projects/new"
+                className="px-8 py-4 text-sm font-bold border border-white/20 rounded-xl hover:bg-white/5 transition-all"
+              >
+                Launch Project
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Section */}
+      <section className="relative z-10 mx-auto max-w-7xl px-6 py-20">
+        <div className="flex items-center justify-between mb-10">
+          <div>
+            <div className="text-xs font-black tracking-[.2em] text-violet-400 mb-2">
+              DISCOVER
+            </div>
+            <h2 className="text-4xl font-black">Featured NFT Projects</h2>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setTab("trending")}
+              className={`px-6 py-3 text-xs font-black rounded-lg transition-all ${
+                tab === "trending"
+                  ? "bg-violet-500 text-white shadow-lg shadow-violet-500/50"
+                  : "border border-white/10 text-zinc-400 hover:border-white/20"
+              }`}
+            >
+              🔥 TRENDING
+            </button>
+            <button
+              onClick={() => setTab("upcoming")}
+              className={`px-6 py-3 text-xs font-black rounded-lg transition-all ${
+                tab === "upcoming"
+                  ? "bg-violet-500 text-white shadow-lg shadow-violet-500/50"
+                  : "border border-white/10 text-zinc-400 hover:border-white/20"
+              }`}
+            >
+              🚀 UPCOMING
+            </button>
+          </div>
+        </div>
+
+        {tab === "trending" && (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {trending.length === 0 ? (
+              <div className="col-span-full text-center py-20 text-zinc-600">
+                No approved projects yet.
+              </div>
+            ) : (
+              trending.map((p) => (
+                <Link
+                  key={p.id}
+                  href={`/projects/${p.id}`}
+                  className="group relative rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] p-6 hover:border-violet-500/50 transition-all hover:shadow-2xl hover:shadow-violet-500/20"
+                >
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-600/20 border border-violet-500/30 flex items-center justify-center overflow-hidden">
+                      {p.logoUrl ? (
+                        <img
+                          src={p.logoUrl}
+                          alt={p.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-2xl font-black text-violet-300">
+                          {p.name[0]}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-black text-lg mb-1 group-hover:text-violet-300 transition-colors">
+                        {p.name}
+                      </h3>
+                      <span className="text-xs text-zinc-500 font-bold">
+                        {p.category || "NFT"} · VERIFIED
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-zinc-400 leading-relaxed line-clamp-2">
+                    {p.description || "Explore this NFT project and upcoming raffles."}
+                  </p>
+                  <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between text-xs">
+                    <span className="text-zinc-500">View Project</span>
+                    <span className="text-violet-400 font-black group-hover:translate-x-1 transition-transform">
+                      →
+                    </span>
+                  </div>
+                </Link>
+              ))
+            )}
+          </div>
+        )}
+
+        {tab === "upcoming" && (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {upcoming.length === 0 ? (
+              <div className="col-span-full text-center py-20 text-zinc-600">
+                No upcoming raffles yet.
+              </div>
+            ) : (
+              upcoming.map((r) => (
+                <Link
+                  key={r.id}
+                  href={`/raffles/${r.id}`}
+                  className="group relative rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] p-6 hover:border-violet-500/50 transition-all hover:shadow-2xl hover:shadow-violet-500/20"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="px-3 py-1 bg-green-500/10 border border-green-500/30 rounded-full text-[9px] font-black text-green-300">
+                      {r.status}
+                    </span>
+                    <span className="text-xs text-zinc-500 font-bold">
+                      {new Date(r.endsAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <h3 className="font-black text-lg mb-2 group-hover:text-violet-300 transition-colors">
+                    {r.title}
+                  </h3>
+                  <p className="text-sm text-zinc-500 mb-4">
+                    {r.project?.name || "NFT Project"}
+                  </p>
+                  <div className="pt-4 border-t border-white/10">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-zinc-500">Prize</span>
+                      <span className="text-white font-bold">{r.prizeName}</span>
+                    </div>
+                  </div>
+                </Link>
+              ))
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* Footer */}
+      <footer className="relative border-t border-white/10 bg-black/20 backdrop-blur-xl mt-20">
+        <div className="mx-auto max-w-7xl px-6 py-12">
+          <div className="grid md:grid-cols-4 gap-10 mb-10">
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center font-black text-lg">
+                  R
+                </div>
+                <div>
+                  <div className="font-black text-sm tracking-[.2em]">RAVEN</div>
+                  <div className="text-[8px] text-violet-300 tracking-[.15em]">
+                    ORACLE
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-zinc-500 leading-relaxed">
+                Web3's most trusted NFT whitelist raffle platform. Provably fair draws powered by blockchain.
+              </p>
+            </div>
+
+            <div>
+              <h4 className="font-black text-sm mb-4">Platform</h4>
+              <div className="space-y-2 text-xs text-zinc-400">
+                <Link href="/projects" className="block hover:text-white transition-colors">
+                  NFT Projects
+                </Link>
+                <Link href="/raffles" className="block hover:text-white transition-colors">
+                  Raffles
+                </Link>
+                <Link href="/alpha" className="block hover:text-white transition-colors">
+                  King of Alpha
+                </Link>
+                <Link href="/how-it-works" className="block hover:text-white transition-colors">
+                  How it Works
+                </Link>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-black text-sm mb-4">Creators</h4>
+              <div className="space-y-2 text-xs text-zinc-400">
+                <Link href="/dashboard" className="block hover:text-white transition-colors">
+                  Creator Studio
+                </Link>
+                <Link href="/projects/new" className="block hover:text-white transition-colors">
+                  Launch Project
+                </Link>
+                <Link href="/create" className="block hover:text-white transition-colors">
+                  Create Raffle
+                </Link>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-black text-sm mb-4">Community</h4>
+              <div className="flex gap-3">
+                <a
+                  href="https://twitter.com/RavenOracle"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:border-violet-500/50 hover:bg-violet-500/10 transition-all"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                  </svg>
+                </a>
+                <a
+                  href="https://discord.gg/raveoracle"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:border-violet-500/50 hover:bg-violet-500/10 transition-all"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M20.317 4.37a19.791 19.791 0 00-4.885-1.515.074.074 0 00-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 00-5.487 0 12.64 12.64 0 00-.617-1.25.077.077 0 00-.079-.037A19.736 19.736 0 003.677 4.37a.07.07 0 00-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 00.031.057 19.9 19.9 0 005.993 3.03.078.078 0 00.084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 01-1.872-.892.077.077 0 01-.008-.128 10.2 10.2 0 00.372-.292.074.074 0 01.077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 01.078.01c.12.098.246.198.373.292a.077.077 0 01-.006.127 12.299 12.299 0 01-1.873.892.077.077 0 00-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 00.084.028 19.839 19.839 0 006.002-3.03.077.077 0 00.032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 00-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
+                  </svg>
+                </a>
+                <a
+                  href="https://t.me/RavenOracle"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center hover:border-violet-500/50 hover:bg-violet-500/10 transition-all"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.054 5.56-5.022c.24-.213-.054-.334-.373-.121l-6.869 4.326-2.96-.924c-.64-.203-.654-.64.135-.954l11.566-4.458c.538-.196 1.006.128.832.941z" />
+                  </svg>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row items-center justify-between text-xs text-zinc-500">
+            <p>© 2024 Raven Oracle. All rights reserved.</p>
+            <div className="flex gap-6 mt-4 md:mt-0">
+              <Link href="/terms" className="hover:text-white transition-colors">
+                Terms
+              </Link>
+              <Link href="/privacy" className="hover:text-white transition-colors">
+                Privacy
+              </Link>
+              <Link href="/contact" className="hover:text-white transition-colors">
+                Contact
+              </Link>
+            </div>
+          </div>
+        </div>
+      </footer>
+
+      <style jsx>{`
+        @keyframes float {
+          0%,
+          100% {
+            transform: translateY(0px) rotate(0deg);
+          }
+          50% {
+            transform: translateY(-20px) rotate(5deg);
+          }
+        }
+        @keyframes float-delayed {
+          0%,
+          100% {
+            transform: translateY(0px) rotate(0deg);
+          }
+          50% {
+            transform: translateY(-30px) rotate(-5deg);
+          }
+        }
+        .animate-float {
+          animation: float 6s ease-in-out infinite;
+        }
+        .animate-float-delayed {
+          animation: float-delayed 8s ease-in-out infinite;
+        }
+      `}</style>
+    </div>
   );
 }
