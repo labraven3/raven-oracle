@@ -9,19 +9,12 @@
 
 const { randomBytes, scrypt } = require('crypto');
 const { promisify } = require('util');
-require('dotenv').config({ path: '.env' });
 require('dotenv').config({ path: 'apps/api/.env' });
 
-const { PrismaClient } = require('@prisma/client');
+// Import Prisma from api app
+const { PrismaClient } = require('./apps/api/node_modules/@prisma/client');
 
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: process.env.DATABASE_URL,
-    },
-  },
-});
-
+const prisma = new PrismaClient();
 const scryptAsync = promisify(scrypt);
 
 async function hashPassword(password) {
@@ -49,8 +42,8 @@ async function createAdmin() {
   const password = process.argv[3];
 
   if (!email || !password) {
-    console.error('❌ Usage: node scripts/create-admin.js <email> <password>');
-    console.error('Example: node scripts/create-admin.js admin@example.com "SecurePass123"');
+    console.error('❌ Usage: npm run create:admin <email> <password>');
+    console.error('Example: npm run create:admin admin@example.com "SecurePass123"');
     process.exit(1);
   }
 
@@ -70,7 +63,7 @@ async function createAdmin() {
         if (existing.isAdminApproved) {
           console.log('✅ User is already approved');
         } else {
-          console.log('⏳ User needs approval - approving now...');
+          console.log('⏳ Approving user...');
           await prisma.user.update({
             where: { id: existing.id },
             data: {
@@ -109,21 +102,20 @@ async function createAdmin() {
         passwordHash,
         role: 'ADMIN',
         status: 'ACTIVE',
-        emailVerifiedAt: new Date(), // Pre-verified
-        isAdminApproved: true, // Pre-approved
+        emailVerifiedAt: new Date(),
+        isAdminApproved: true,
         adminApprovedAt: new Date(),
       },
     });
 
     console.log('\n✅ Admin user created successfully!\n');
     console.log('📋 User Details:');
-    console.log(`  ID: ${user.id}`);
     console.log(`  Email: ${user.email}`);
     console.log(`  Username: ${user.username}`);
     console.log(`  Role: ${user.role}`);
     console.log(`  Status: ${user.status}`);
-    console.log(`  Approved: ${user.isAdminApproved}`);
     console.log('\n🎉 Ready to login at /admin/login');
+    process.exit(0);
   } catch (error) {
     console.error('❌ Error:', error.message);
     process.exit(1);
