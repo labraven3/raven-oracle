@@ -45,7 +45,6 @@ export default function AdminHeroSettingsPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    // Load settings from localStorage
     const saved = localStorage.getItem("hero_settings");
     if (saved) {
       try {
@@ -137,7 +136,7 @@ export default function AdminHeroSettingsPage() {
                   value={settings.tagline1}
                   onChange={(e) => setSettings({ ...settings, tagline1: e.target.value })}
                   maxLength={50}
-                  className="mt-2 w-full rounded-lg border border-white/10 bg-black px-4 py-3 text-sm outline-none"
+                  className="mt-2 w-full rounded-lg border border-white/10 bg-black px-4 py-3 text-sm outline-none text-white"
                   placeholder="The Future of"
                 />
               </div>
@@ -147,7 +146,7 @@ export default function AdminHeroSettingsPage() {
                   value={settings.tagline2}
                   onChange={(e) => setSettings({ ...settings, tagline2: e.target.value })}
                   maxLength={50}
-                  className="mt-2 w-full rounded-lg border border-white/10 bg-black px-4 py-3 text-sm outline-none"
+                  className="mt-2 w-full rounded-lg border border-white/10 bg-black px-4 py-3 text-sm outline-none text-white"
                   placeholder="NFT Whitelists"
                 />
               </div>
@@ -177,7 +176,7 @@ export default function AdminHeroSettingsPage() {
                         type="text"
                         value={settings.gradient1Color1}
                         onChange={(e) => setSettings({ ...settings, gradient1Color1: e.target.value })}
-                        className="flex-1 rounded-lg border border-white/10 bg-black px-3 py-2 text-xs outline-none"
+                        className="flex-1 rounded-lg border border-white/10 bg-black px-3 py-2 text-xs outline-none text-white"
                         placeholder="#a78bfa"
                       />
                     </div>
@@ -195,7 +194,7 @@ export default function AdminHeroSettingsPage() {
                         type="text"
                         value={settings.gradient1Color2}
                         onChange={(e) => setSettings({ ...settings, gradient1Color2: e.target.value })}
-                        className="flex-1 rounded-lg border border-white/10 bg-black px-3 py-2 text-xs outline-none"
+                        className="flex-1 rounded-lg border border-white/10 bg-black px-3 py-2 text-xs outline-none text-white"
                         placeholder="#c084fc"
                       />
                     </div>
@@ -213,7 +212,7 @@ export default function AdminHeroSettingsPage() {
                         type="text"
                         value={settings.gradient1Color3}
                         onChange={(e) => setSettings({ ...settings, gradient1Color3: e.target.value })}
-                        className="flex-1 rounded-lg border border-white/10 bg-black px-3 py-2 text-xs outline-none"
+                        className="flex-1 rounded-lg border border-white/10 bg-black px-3 py-2 text-xs outline-none text-white"
                         placeholder="#f0abfc"
                       />
                     </div>
@@ -244,7 +243,7 @@ export default function AdminHeroSettingsPage() {
                         type="text"
                         value={settings.gradient2Color1}
                         onChange={(e) => setSettings({ ...settings, gradient2Color1: e.target.value })}
-                        className="flex-1 rounded-lg border border-white/10 bg-black px-3 py-2 text-xs outline-none"
+                        className="flex-1 rounded-lg border border-white/10 bg-black px-3 py-2 text-xs outline-none text-white"
                         placeholder="#60a5fa"
                       />
                     </div>
@@ -262,7 +261,7 @@ export default function AdminHeroSettingsPage() {
                         type="text"
                         value={settings.gradient2Color2}
                         onChange={(e) => setSettings({ ...settings, gradient2Color2: e.target.value })}
-                        className="flex-1 rounded-lg border border-white/10 bg-black px-3 py-2 text-xs outline-none"
+                        className="flex-1 rounded-lg border border-white/10 bg-black px-3 py-2 text-xs outline-none text-white"
                         placeholder="#67e8f9"
                       />
                     </div>
@@ -280,7 +279,7 @@ export default function AdminHeroSettingsPage() {
                         type="text"
                         value={settings.gradient2Color3}
                         onChange={(e) => setSettings({ ...settings, gradient2Color3: e.target.value })}
-                        className="flex-1 rounded-lg border border-white/10 bg-black px-3 py-2 text-xs outline-none"
+                        className="flex-1 rounded-lg border border-white/10 bg-black px-3 py-2 text-xs outline-none text-white"
                         placeholder="#a78bfa"
                       />
                     </div>
@@ -317,7 +316,7 @@ export default function AdminHeroSettingsPage() {
                         <input
                           value={imageUrl}
                           onChange={(e) => updateIcon(setIndex, iconIndex, e.target.value)}
-                          className="w-full rounded-lg border border-white/10 bg-black px-3 py-2 text-xs outline-none"
+                          className="w-full rounded-lg border border-white/10 bg-black px-3 py-2 text-xs outline-none text-white"
                           placeholder="https://example.com/image.png"
                         />
                         {imageUrl && (
@@ -351,12 +350,12 @@ export default function AdminHeroSettingsPage() {
                 type="number"
                 value={settings.animationSpeed}
                 onChange={(e) =>
-                  setSettings({ ...settings, animationSpeed: parseInt(e.target.value) || 4000 })
+                  setSettings({ ...settings, animationSpeed: parseInt(e.target.value) || 3000 })
                 }
                 min={1000}
                 max={10000}
                 step={1000}
-                className="mt-2 w-full rounded-lg border border-white/10 bg-black px-4 py-3 text-sm outline-none"
+                className="mt-2 w-full rounded-lg border border-white/10 bg-black px-4 py-3 text-sm outline-none text-white"
               />
               <p className="mt-2 text-xs text-zinc-600">
                 Current: {settings.animationSpeed / 1000} seconds per rotation
@@ -368,14 +367,14 @@ export default function AdminHeroSettingsPage() {
           <div className="flex gap-3">
             <button
               onClick={resetToDefault}
-              className="flex-1 rounded-lg border border-white/10 py-3 text-sm font-bold"
+              className="flex-1 rounded-lg border border-white/10 py-3 text-sm font-bold hover:bg-white/5"
             >
               Reset to Default
             </button>
             <button
               disabled={busy}
               onClick={saveSettings}
-              className="flex-1 rounded-lg bg-violet-500 py-3 text-sm font-black disabled:opacity-50"
+              className="flex-1 rounded-lg bg-violet-500 py-3 text-sm font-black disabled:opacity-50 text-black"
             >
               {busy ? "Saving…" : "Save Changes"}
             </button>
