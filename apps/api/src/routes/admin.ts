@@ -52,7 +52,10 @@ async function requireAdmin(
   next();
 }
 
-router.use(requireAuth, requireAdmin);
+router.use(
+  (req, res, next) => requireAuth(req, res, next, "admin"),
+  requireAdmin
+);
 
 router.get("/overview", async (_req, res, next) => {
   try {
