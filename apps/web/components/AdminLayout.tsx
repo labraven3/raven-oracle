@@ -26,6 +26,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { title: "Alpha Moderation", icon: "⚡", href: "/admin/alpha", description: "Review alpha submissions" },
     { title: "Chat Moderation", icon: "💬", href: "/admin/chat", description: "Moderate chat messages" },
     { title: "User Management", icon: "👥", href: "/admin/users", description: "Manage users & bans" },
+    { title: "Pending User Cleanup", icon: "🧹", href: "/admin/pending-users", description: "Remove unverified test accounts" },
     { title: "Raffle Management", icon: "🎟️", href: "/admin/raffles", description: "Cancel & review raffles" },
   ];
 
