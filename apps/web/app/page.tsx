@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { API_BASE_URL } from "@/lib/api-config";
+import { useTheme } from "@/contexts/ThemeContext";
 
 type Project = {
   id: string;
@@ -43,6 +44,7 @@ export default function Home() {
   const [iconIndex, setIconIndex] = useState(0);
   const [communityLinks, setCommunityLinks] = useState<any[]>([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { theme, toggleTheme } = useTheme();
 
   // Rotating icons for floating cards
   const iconSets = [
@@ -123,54 +125,101 @@ export default function Home() {
   const currentIcons = iconSets[iconIndex];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0a0a0f] via-[#0f0a1f] to-[#0a0a0f] text-white">
+    <div className={`min-h-screen transition-colors duration-300 ${
+      theme === "dark"
+        ? "bg-gradient-to-br from-[#0a0a0f] via-[#0f0a1f] to-[#0a0a0f] text-white"
+        : "bg-gradient-to-br from-gray-50 via-white to-gray-100 text-gray-900"
+    }`}>
       {/* Animated Background */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none opacity-30">
-        <div className="absolute top-20 left-10 w-64 h-64 bg-violet-500/20 rounded-full blur-[120px] animate-pulse" />
-        <div className="absolute bottom-40 right-20 w-96 h-96 bg-blue-500/10 rounded-full blur-[140px] animate-pulse delay-1000" />
-        <div className="absolute top-1/2 left-1/2 w-80 h-80 bg-purple-500/10 rounded-full blur-[100px] animate-pulse delay-500" />
+        <div className={`absolute top-20 left-10 w-64 h-64 rounded-full blur-[120px] animate-pulse ${
+          theme === "dark" ? "bg-violet-500/20" : "bg-violet-500/30"
+        }`} />
+        <div className={`absolute bottom-40 right-20 w-96 h-96 rounded-full blur-[140px] animate-pulse delay-1000 ${
+          theme === "dark" ? "bg-blue-500/10" : "bg-blue-500/20"
+        }`} />
+        <div className={`absolute top-1/2 left-1/2 w-80 h-80 rounded-full blur-[100px] animate-pulse delay-500 ${
+          theme === "dark" ? "bg-purple-500/10" : "bg-purple-500/20"
+        }`} />
       </div>
 
       {/* Navigation - Fixed Header */}
-      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-black/40 backdrop-blur-xl">
+      <nav className={`fixed top-0 left-0 right-0 z-50 border-b backdrop-blur-xl transition-colors ${
+        theme === "dark" 
+          ? "border-white/10 bg-black/40" 
+          : "border-gray-200 bg-white/40"
+      }`}>
         <div className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center font-black text-lg shadow-lg shadow-violet-500/50">
               R
             </div>
             <div>
-              <div className="font-black text-sm tracking-[.2em]">RAVEN</div>
+              <div className={`font-black text-sm tracking-[.2em] ${theme === "dark" ? "text-white" : "text-gray-900"}`}>RAVEN</div>
               <div className="text-[8px] text-violet-300 tracking-[.15em]">ORACLE</div>
             </div>
           </Link>
 
           <div className="hidden md:flex items-center gap-8 text-sm">
-            <Link href="/projects" className="text-zinc-400 hover:text-white transition-colors">
+            <Link href="/projects" className={`transition-colors ${
+              theme === "dark" ? "text-zinc-400 hover:text-white" : "text-gray-600 hover:text-gray-900"
+            }`}>
               NFT Projects
             </Link>
-            <Link href="/raffles" className="text-zinc-400 hover:text-white transition-colors">
+            <Link href="/raffles" className={`transition-colors ${
+              theme === "dark" ? "text-zinc-400 hover:text-white" : "text-gray-600 hover:text-gray-900"
+            }`}>
               Raffles
             </Link>
-            <Link href="/alpha" className="text-zinc-400 hover:text-white transition-colors">
+            <Link href="/alpha" className={`transition-colors ${
+              theme === "dark" ? "text-zinc-400 hover:text-white" : "text-gray-600 hover:text-gray-900"
+            }`}>
               King of Alpha
             </Link>
-            <Link href="/how-it-works" className="text-zinc-400 hover:text-white transition-colors">
+            <Link href="/how-it-works" className={`transition-colors ${
+              theme === "dark" ? "text-zinc-400 hover:text-white" : "text-gray-600 hover:text-gray-900"
+            }`}>
               How it Works
             </Link>
           </div>
 
           <div className="hidden md:flex items-center gap-3">
+            {/* Theme Toggle Button */}
+            <button
+              onClick={toggleTheme}
+              className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
+                theme === "dark"
+                  ? "border border-white/10 hover:bg-white/5"
+                  : "border border-gray-300 hover:bg-gray-100"
+              }`}
+              title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            >
+              {theme === "dark" ? (
+                <svg className="w-5 h-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              )}
+            </button>
+
             {isLoggedIn ? (
               <>
                 <Link
                   href="/dashboard"
-                  className="px-4 py-2 text-xs font-bold border border-white/10 rounded-lg hover:bg-white/5"
+                  className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors ${
+                    theme === "dark"
+                      ? "border border-white/10 hover:bg-white/5"
+                      : "border border-gray-300 hover:bg-gray-100"
+                  }`}
                 >
                   Creator Studio
                 </Link>
                 <Link
                   href="/account"
-                  className="px-4 py-2 text-xs font-black bg-gradient-to-r from-violet-500 to-purple-600 rounded-lg shadow-lg shadow-violet-500/30"
+                  className="px-4 py-2 text-xs font-black bg-gradient-to-r from-violet-500 to-purple-600 rounded-lg shadow-lg shadow-violet-500/30 text-white"
                 >
                   Account
                 </Link>
@@ -179,13 +228,17 @@ export default function Home() {
               <>
                 <Link
                   href="/login"
-                  className="px-4 py-2 text-xs font-bold border border-white/10 rounded-lg hover:bg-white/5"
+                  className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors ${
+                    theme === "dark"
+                      ? "border border-white/10 hover:bg-white/5"
+                      : "border border-gray-300 hover:bg-gray-100"
+                  }`}
                 >
                   Login
                 </Link>
                 <Link
                   href="/register"
-                  className="px-4 py-2 text-xs font-black bg-gradient-to-r from-violet-500 to-purple-600 rounded-lg shadow-lg shadow-violet-500/30"
+                  className="px-4 py-2 text-xs font-black bg-gradient-to-r from-violet-500 to-purple-600 rounded-lg shadow-lg shadow-violet-500/30 text-white"
                 >
                   Sign Up
                 </Link>
@@ -196,62 +249,116 @@ export default function Home() {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden w-10 h-10 flex items-center justify-center rounded-lg border border-white/10 hover:bg-white/5"
+            className={`md:hidden w-10 h-10 flex items-center justify-center rounded-lg transition-colors ${
+              theme === "dark"
+                ? "border border-white/10 hover:bg-white/5"
+                : "border border-gray-300 hover:bg-gray-100"
+            }`}
           >
             <div className="w-5 h-4 flex flex-col justify-between">
-              <span className={`block h-0.5 w-full bg-white transition-all ${mobileMenuOpen ? 'rotate-45 translate-y-1.5' : ''}`} />
-              <span className={`block h-0.5 w-full bg-white transition-all ${mobileMenuOpen ? 'opacity-0' : ''}`} />
-              <span className={`block h-0.5 w-full bg-white transition-all ${mobileMenuOpen ? '-rotate-45 -translate-y-2' : ''}`} />
+              <span className={`block h-0.5 w-full transition-all ${
+                theme === "dark" ? "bg-white" : "bg-gray-900"
+              } ${mobileMenuOpen ? 'rotate-45 translate-y-1.5' : ''}`} />
+              <span className={`block h-0.5 w-full transition-all ${
+                theme === "dark" ? "bg-white" : "bg-gray-900"
+              } ${mobileMenuOpen ? 'opacity-0' : ''}`} />
+              <span className={`block h-0.5 w-full transition-all ${
+                theme === "dark" ? "bg-white" : "bg-gray-900"
+              } ${mobileMenuOpen ? '-rotate-45 -translate-y-2' : ''}`} />
             </div>
           </button>
         </div>
 
         {/* Mobile Menu Dropdown */}
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-white/10 bg-black/95 backdrop-blur-xl">
+          <div className={`md:hidden border-t backdrop-blur-xl ${
+            theme === "dark" 
+              ? "border-white/10 bg-black/95" 
+              : "border-gray-200 bg-white/95"
+          }`}>
             <div className="px-6 py-4 space-y-3">
               <Link
                 href="/projects"
-                className="block py-2 text-sm text-zinc-400 hover:text-white transition-colors"
+                className={`block py-2 text-sm transition-colors ${
+                  theme === "dark" ? "text-zinc-400 hover:text-white" : "text-gray-600 hover:text-gray-900"
+                }`}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 NFT Projects
               </Link>
               <Link
                 href="/raffles"
-                className="block py-2 text-sm text-zinc-400 hover:text-white transition-colors"
+                className={`block py-2 text-sm transition-colors ${
+                  theme === "dark" ? "text-zinc-400 hover:text-white" : "text-gray-600 hover:text-gray-900"
+                }`}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Raffles
               </Link>
               <Link
                 href="/alpha"
-                className="block py-2 text-sm text-zinc-400 hover:text-white transition-colors"
+                className={`block py-2 text-sm transition-colors ${
+                  theme === "dark" ? "text-zinc-400 hover:text-white" : "text-gray-600 hover:text-gray-900"
+                }`}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 King of Alpha
               </Link>
               <Link
                 href="/how-it-works"
-                className="block py-2 text-sm text-zinc-400 hover:text-white transition-colors"
+                className={`block py-2 text-sm transition-colors ${
+                  theme === "dark" ? "text-zinc-400 hover:text-white" : "text-gray-600 hover:text-gray-900"
+                }`}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 How it Works
               </Link>
               
-              <div className="pt-3 border-t border-white/10 space-y-2">
+              {/* Mobile Theme Toggle */}
+              <button
+                onClick={toggleTheme}
+                className={`w-full py-2 text-sm font-bold rounded-lg flex items-center justify-center gap-2 transition-colors ${
+                  theme === "dark"
+                    ? "border border-white/10 hover:bg-white/5 text-zinc-400"
+                    : "border border-gray-300 hover:bg-gray-100 text-gray-600"
+                }`}
+              >
+                {theme === "dark" ? (
+                  <>
+                    <svg className="w-5 h-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    Light Mode
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                    Dark Mode
+                  </>
+                )}
+              </button>
+              
+              <div className={`pt-3 border-t space-y-2 ${
+                theme === "dark" ? "border-white/10" : "border-gray-200"
+              }`}>
                 {isLoggedIn ? (
                   <>
                     <Link
                       href="/dashboard"
-                      className="block px-4 py-2 text-xs font-bold border border-white/10 rounded-lg hover:bg-white/5 text-center"
+                      className={`block px-4 py-2 text-xs font-bold rounded-lg text-center transition-colors ${
+                        theme === "dark"
+                          ? "border border-white/10 hover:bg-white/5"
+                          : "border border-gray-300 hover:bg-gray-100"
+                      }`}
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       Creator Studio
                     </Link>
                     <Link
                       href="/account"
-                      className="block px-4 py-2 text-xs font-black bg-gradient-to-r from-violet-500 to-purple-600 rounded-lg shadow-lg shadow-violet-500/30 text-center"
+                      className="block px-4 py-2 text-xs font-black bg-gradient-to-r from-violet-500 to-purple-600 rounded-lg shadow-lg shadow-violet-500/30 text-center text-white"
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       Account
@@ -261,14 +368,18 @@ export default function Home() {
                   <>
                     <Link
                       href="/login"
-                      className="block px-4 py-2 text-xs font-bold border border-white/10 rounded-lg hover:bg-white/5 text-center"
+                      className={`block px-4 py-2 text-xs font-bold rounded-lg text-center transition-colors ${
+                        theme === "dark"
+                          ? "border border-white/10 hover:bg-white/5"
+                          : "border border-gray-300 hover:bg-gray-100"
+                      }`}
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       Login
                     </Link>
                     <Link
                       href="/register"
-                      className="block px-4 py-2 text-xs font-black bg-gradient-to-r from-violet-500 to-purple-600 rounded-lg shadow-lg shadow-violet-500/30 text-center"
+                      className="block px-4 py-2 text-xs font-black bg-gradient-to-r from-violet-500 to-purple-600 rounded-lg shadow-lg shadow-violet-500/30 text-center text-white"
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       Sign Up
@@ -327,7 +438,11 @@ export default function Home() {
 
           {/* Hero Content */}
           <div className="relative z-30 text-center px-6">
-            <div className="inline-block mb-6 px-4 py-2 bg-violet-500/10 border border-violet-500/30 rounded-full text-xs font-black tracking-[.2em] text-violet-300">
+            <div className={`inline-block mb-6 px-4 py-2 rounded-full text-xs font-black tracking-[.2em] ${
+              theme === "dark"
+                ? "bg-violet-500/10 border border-violet-500/30 text-violet-300"
+                : "bg-violet-500/20 border border-violet-500/40 text-violet-600"
+            }`}>
               WEB3 NFT RAFFLE PLATFORM
             </div>
             <h1 className="text-6xl md:text-7xl font-black tracking-tight mb-6">
@@ -339,19 +454,25 @@ export default function Home() {
                 NFT Whitelists
               </span>
             </h1>
-            <p className="text-xl text-zinc-400 max-w-2xl mx-auto mb-10 leading-relaxed">
+            <p className={`text-xl max-w-2xl mx-auto mb-10 leading-relaxed ${
+              theme === "dark" ? "text-zinc-400" : "text-gray-600"
+            }`}>
               Join verified NFT communities, complete tasks, and win whitelist spots through provably fair raffles powered by blockchain technology.
             </p>
             <div className="flex items-center justify-center gap-4">
               <Link
                 href="/raffles"
-                className="px-8 py-4 text-sm font-black bg-gradient-to-r from-violet-500 to-purple-600 rounded-xl shadow-2xl shadow-violet-500/50 hover:shadow-violet-500/70 transition-all"
+                className="px-8 py-4 text-sm font-black bg-gradient-to-r from-violet-500 to-purple-600 rounded-xl shadow-2xl shadow-violet-500/50 hover:shadow-violet-500/70 transition-all text-white"
               >
                 Explore Raffles
               </Link>
               <Link
                 href="/projects/new"
-                className="px-8 py-4 text-sm font-bold border border-white/20 rounded-xl hover:bg-white/5 transition-all"
+                className={`px-8 py-4 text-sm font-bold rounded-xl transition-all ${
+                  theme === "dark"
+                    ? "border border-white/20 hover:bg-white/5"
+                    : "border border-gray-300 hover:bg-gray-100"
+                }`}
               >
                 Launch Project
               </Link>
@@ -367,7 +488,9 @@ export default function Home() {
             <div className="text-xs font-black tracking-[.2em] text-violet-400 mb-2">
               DISCOVER
             </div>
-            <h2 className="text-4xl font-black">Featured NFT Projects</h2>
+            <h2 className={`text-4xl font-black ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+              Featured NFT Projects
+            </h2>
           </div>
           <div className="flex gap-2">
             <button
@@ -375,7 +498,9 @@ export default function Home() {
               className={`px-6 py-3 text-xs font-black rounded-lg transition-all ${
                 tab === "trending"
                   ? "bg-violet-500 text-white shadow-lg shadow-violet-500/50"
-                  : "border border-white/10 text-zinc-400 hover:border-white/20"
+                  : theme === "dark"
+                  ? "border border-white/10 text-zinc-400 hover:border-white/20"
+                  : "border border-gray-300 text-gray-600 hover:border-gray-400"
               }`}
             >
               🔥 TRENDING
@@ -385,7 +510,9 @@ export default function Home() {
               className={`px-6 py-3 text-xs font-black rounded-lg transition-all ${
                 tab === "upcoming"
                   ? "bg-violet-500 text-white shadow-lg shadow-violet-500/50"
-                  : "border border-white/10 text-zinc-400 hover:border-white/20"
+                  : theme === "dark"
+                  ? "border border-white/10 text-zinc-400 hover:border-white/20"
+                  : "border border-gray-300 text-gray-600 hover:border-gray-400"
               }`}
             >
               🚀 UPCOMING
@@ -396,7 +523,9 @@ export default function Home() {
         {tab === "trending" && (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {trending.length === 0 ? (
-              <div className="col-span-full text-center py-20 text-zinc-600">
+              <div className={`col-span-full text-center py-20 ${
+                theme === "dark" ? "text-zinc-600" : "text-gray-400"
+              }`}>
                 No approved projects yet.
               </div>
             ) : (
@@ -404,7 +533,11 @@ export default function Home() {
                 <Link
                   key={p.id}
                   href={`/projects/${p.id}`}
-                  className="group relative rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] p-6 hover:border-violet-500/50 transition-all hover:shadow-2xl hover:shadow-violet-500/20"
+                  className={`group relative rounded-2xl border p-6 transition-all hover:shadow-2xl ${
+                    theme === "dark"
+                      ? "border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] hover:border-violet-500/50 hover:shadow-violet-500/20"
+                      : "border-gray-200 bg-white hover:border-violet-500/50 hover:shadow-violet-500/20"
+                  }`}
                 >
                   <div className="flex items-start gap-4 mb-4">
                     <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-600/20 border border-violet-500/30 flex items-center justify-center overflow-hidden">
@@ -485,7 +618,11 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="relative border-t border-white/10 bg-black/20 backdrop-blur-xl mt-20">
+      <footer className={`relative border-t backdrop-blur-xl mt-20 ${
+        theme === "dark"
+          ? "border-white/10 bg-black/20"
+          : "border-gray-200 bg-white/20"
+      }`}>
         <div className="mx-auto max-w-7xl px-6 py-12">
           <div className="grid md:grid-cols-4 gap-10 mb-10">
             <div>
