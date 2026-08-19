@@ -4,6 +4,7 @@ import { errorHandler, notFoundHandler } from "../middleware/error-handler.js";
 import { healthRouter } from "../routes/health.js";
 import usersRouter from "../routes/users.js";
 import authRouter from "../routes/auth.js";
+import adminAuthRouter from "../routes/admin-auth.js";
 import profileRouter from "../routes/profile.js";
 import socialAccountsRouter from "../routes/social-accounts.js";
 import xAuthRouter from "../routes/x-auth.js";
@@ -26,14 +27,13 @@ export function createApp() {
   app.use("/api/health", healthRouter);
   app.use("/api/users", usersRouter);
   app.use("/api/auth", authRouter);
+  app.use("/api/auth/admin", adminAuthRouter);
   app.use("/api/profile", profileRouter);
   app.use("/api/social-accounts", socialAccountsRouter);
   app.use("/api/auth/x", xAuthRouter);
   app.use("/api/auth/discord", discordAuthRouter);
   app.use("/api/wallets", walletsRouter);
   app.use("/api/projects", projectsRouter);
-  // NOTE: Public raffles route MUST come before general raffles route
-  // because Express matches routes in order and /raffles/:id would catch /raffles/public
   app.use("/api/raffles/public", publicRafflesRouter);
   app.use("/api/raffles", rafflesRouter);
   app.use("/api/raffles", raffleEntriesRouter);
@@ -42,12 +42,7 @@ export function createApp() {
   app.use("/api/alpha", alphaRouter);
   app.use("/api/chat", chatRouter);
   app.use("/api/admin", adminRouter);
-  
-  // 404 handler - must be after all routes
   app.use(notFoundHandler);
-  
-  // Global error handler - must be last
   app.use(errorHandler);
-  
   return app;
 }
