@@ -79,10 +79,10 @@ export default function Home() {
       setRaffles(r.raffles.filter((x) => ["ACTIVE", "SCHEDULED"].includes(x.status)));
     });
 
-    // Default icon rotation
+    // Icon flip animation every 3 seconds
     const iconInterval = setInterval(() => {
       setIconIndex((prev) => (prev + 1) % 4);
-    }, 4000);
+    }, 3000);
 
     // Hero visibility on scroll
     const handleScroll = () => {
@@ -180,34 +180,34 @@ export default function Home() {
         }`}
       >
         <div className="absolute inset-0 flex items-center justify-center">
-          {/* Floating NFT Cards with orbit + rotation animation */}
-          <div className="absolute top-20 left-20 w-32 h-32 animate-orbit-1">
-            <div className="w-full h-full bg-gradient-to-br from-violet-500/20 to-purple-600/20 rounded-2xl border border-violet-500/30 backdrop-blur-sm shadow-2xl shadow-violet-500/20 transition-all duration-1000 animate-spin-slow">
-              <div className="w-full h-full bg-gradient-to-br from-violet-400/10 to-purple-500/10 rounded-2xl flex items-center justify-center text-4xl animate-counter-spin">
+          {/* Floating NFT Cards with coin flip animation */}
+          <div className="absolute top-20 left-20 w-32 h-32 animate-coin-flip-1">
+            <div className="w-full h-full bg-gradient-to-br from-violet-500/20 to-purple-600/20 rounded-2xl border border-violet-500/30 backdrop-blur-sm shadow-2xl shadow-violet-500/20 transition-all duration-300">
+              <div className="w-full h-full bg-gradient-to-br from-violet-400/10 to-purple-500/10 rounded-2xl flex items-center justify-center text-4xl">
                 {currentIcons[0]}
               </div>
             </div>
           </div>
 
-          <div className="absolute top-40 right-32 w-40 h-40 animate-orbit-2">
-            <div className="w-full h-full bg-gradient-to-br from-blue-500/20 to-cyan-600/20 rounded-2xl border border-blue-500/30 backdrop-blur-sm shadow-2xl shadow-blue-500/20 transition-all duration-1000 animate-spin-slow">
-              <div className="w-full h-full bg-gradient-to-br from-blue-400/10 to-cyan-500/10 rounded-2xl flex items-center justify-center text-5xl animate-counter-spin">
+          <div className="absolute top-40 right-32 w-40 h-40 animate-coin-flip-2">
+            <div className="w-full h-full bg-gradient-to-br from-blue-500/20 to-cyan-600/20 rounded-2xl border border-blue-500/30 backdrop-blur-sm shadow-2xl shadow-blue-500/20 transition-all duration-300">
+              <div className="w-full h-full bg-gradient-to-br from-blue-400/10 to-cyan-500/10 rounded-2xl flex items-center justify-center text-5xl">
                 {currentIcons[1]}
               </div>
             </div>
           </div>
 
-          <div className="absolute bottom-32 left-40 w-36 h-36 animate-orbit-3">
-            <div className="w-full h-full bg-gradient-to-br from-pink-500/20 to-rose-600/20 rounded-2xl border border-pink-500/30 backdrop-blur-sm shadow-2xl shadow-pink-500/20 transition-all duration-1000 animate-spin-slow">
-              <div className="w-full h-full bg-gradient-to-br from-pink-400/10 to-rose-500/10 rounded-2xl flex items-center justify-center text-4xl animate-counter-spin">
+          <div className="absolute bottom-32 left-40 w-36 h-36 animate-coin-flip-3">
+            <div className="w-full h-full bg-gradient-to-br from-pink-500/20 to-rose-600/20 rounded-2xl border border-pink-500/30 backdrop-blur-sm shadow-2xl shadow-pink-500/20 transition-all duration-300">
+              <div className="w-full h-full bg-gradient-to-br from-pink-400/10 to-rose-500/10 rounded-2xl flex items-center justify-center text-4xl">
                 {currentIcons[2]}
               </div>
             </div>
           </div>
 
-          <div className="absolute bottom-20 right-20 w-28 h-28 animate-orbit-4">
-            <div className="w-full h-full bg-gradient-to-br from-green-500/20 to-emerald-600/20 rounded-2xl border border-green-500/30 backdrop-blur-sm shadow-2xl shadow-green-500/20 transition-all duration-1000 animate-spin-slow">
-              <div className="w-full h-full bg-gradient-to-br from-green-400/10 to-emerald-500/10 rounded-2xl flex items-center justify-center text-3xl animate-counter-spin">
+          <div className="absolute bottom-20 right-20 w-28 h-28 animate-coin-flip-4">
+            <div className="w-full h-full bg-gradient-to-br from-green-500/20 to-emerald-600/20 rounded-2xl border border-green-500/30 backdrop-blur-sm shadow-2xl shadow-green-500/20 transition-all duration-300">
+              <div className="w-full h-full bg-gradient-to-br from-green-400/10 to-emerald-500/10 rounded-2xl flex items-center justify-center text-3xl">
                 {currentIcons[3]}
               </div>
             </div>
@@ -481,99 +481,65 @@ export default function Home() {
       </footer>
 
       <style jsx>{`
-        @keyframes orbit-1 {
-          0%, 100% {
-            transform: translate(0, 0) rotate(0deg);
+        @keyframes coin-flip {
+          0% {
+            transform: translateY(0) rotateX(0deg) scale(1);
+            z-index: 20;
           }
           25% {
-            transform: translate(15px, -10px) rotate(90deg);
+            transform: translateY(-60px) rotateX(180deg) scale(1.2);
+            z-index: 50;
           }
           50% {
-            transform: translate(0, -20px) rotate(180deg);
+            transform: translateY(-80px) rotateX(360deg) scale(1.3);
+            z-index: 50;
           }
           75% {
-            transform: translate(-15px, -10px) rotate(270deg);
+            transform: translateY(-60px) rotateX(540deg) scale(1.2);
+            z-index: 50;
+          }
+          100% {
+            transform: translateY(0) rotateX(720deg) scale(1);
+            z-index: 20;
           }
         }
-        @keyframes orbit-2 {
-          0%, 100% {
-            transform: translate(0, 0) rotate(0deg);
+        @keyframes coin-flip-delayed {
+          0% {
+            transform: translateY(0) rotateY(0deg) scale(1);
+            z-index: 20;
           }
           25% {
-            transform: translate(-20px, 15px) rotate(90deg);
+            transform: translateY(-70px) rotateY(180deg) scale(1.2);
+            z-index: 50;
           }
           50% {
-            transform: translate(-40px, 0) rotate(180deg);
+            transform: translateY(-90px) rotateY(360deg) scale(1.3);
+            z-index: 50;
           }
           75% {
-            transform: translate(-20px, -15px) rotate(270deg);
+            transform: translateY(-70px) rotateY(540deg) scale(1.2);
+            z-index: 50;
+          }
+          100% {
+            transform: translateY(0) rotateY(720deg) scale(1);
+            z-index: 20;
           }
         }
-        @keyframes orbit-3 {
-          0%, 100% {
-            transform: translate(0, 0) rotate(0deg);
-          }
-          25% {
-            transform: translate(10px, 15px) rotate(90deg);
-          }
-          50% {
-            transform: translate(20px, 0) rotate(180deg);
-          }
-          75% {
-            transform: translate(10px, -15px) rotate(270deg);
-          }
+        .animate-coin-flip-1 {
+          animation: coin-flip 3s ease-in-out infinite;
+          transform-style: preserve-3d;
         }
-        @keyframes orbit-4 {
-          0%, 100% {
-            transform: translate(0, 0) rotate(0deg);
-          }
-          25% {
-            transform: translate(-15px, -10px) rotate(90deg);
-          }
-          50% {
-            transform: translate(0, -20px) rotate(180deg);
-          }
-          75% {
-            transform: translate(15px, -10px) rotate(270deg);
-          }
+        .animate-coin-flip-2 {
+          animation: coin-flip-delayed 3s ease-in-out infinite 0.3s;
+          transform-style: preserve-3d;
         }
-        @keyframes spin-slow {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
+        .animate-coin-flip-3 {
+          animation: coin-flip 3s ease-in-out infinite 0.6s;
+          transform-style: preserve-3d;
         }
-        @keyframes counter-spin {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(-360deg);
-          }
-        }
-        .animate-orbit-1 {
-          animation: orbit-1 8s ease-in-out infinite;
-          z-index: 20;
-        }
-        .animate-orbit-2 {
-          animation: orbit-2 10s ease-in-out infinite;
-          z-index: 20;
-        }
-        .animate-orbit-3 {
-          animation: orbit-3 9s ease-in-out infinite;
-          z-index: 20;
-        }
-        .animate-orbit-4 {
-          animation: orbit-4 7s ease-in-out infinite;
-          z-index: 20;
-        }
-        .animate-spin-slow {
-          animation: spin-slow 6s linear infinite;
-        }
-        .animate-counter-spin {
-          animation: counter-spin 6s linear infinite;
+        .animate-coin-flip-4 {
+          animation: coin-flip-delayed 3s ease-in-out infinite 0.9s;
+          transform-style: preserve-3d;
         }
       `}</style>
     </div>
