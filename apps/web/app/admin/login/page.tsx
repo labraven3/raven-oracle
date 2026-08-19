@@ -29,7 +29,7 @@ export default function AdminLoginPage() {
       });
       if (response.ok) {
         setIsAuthenticated(true);
-        router.push("/admin");
+        window.location.href = "/admin";
       }
     } catch {
       // Not admin, continue to login
@@ -66,7 +66,9 @@ export default function AdminLoginPage() {
 
       localStorage.setItem("raven_token", data.token);
       setIsAuthenticated(true);
-      router.push("/admin");
+      
+      // Force redirect using window.location
+      window.location.href = "/admin";
     } catch (err: any) {
       setError(err.message || "Login failed");
     } finally {
