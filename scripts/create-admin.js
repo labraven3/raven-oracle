@@ -9,9 +9,19 @@
 
 const { randomBytes, scrypt } = require('crypto');
 const { promisify } = require('util');
+require('dotenv').config({ path: '.env' });
+require('dotenv').config({ path: 'apps/api/.env' });
+
 const { PrismaClient } = require('@prisma/client');
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL,
+    },
+  },
+});
+
 const scryptAsync = promisify(scrypt);
 
 async function hashPassword(password) {
