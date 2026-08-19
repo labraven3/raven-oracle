@@ -11,14 +11,15 @@ declare global {
   }
 }
 
-function cookieToken(req: Request) {
+function cookieToken(req: Request, portal: AuthPortal) {
   const raw = req.headers.cookie;
   if (!raw) return null;
+  const cookieName = portal === "admin" ? "raven_admin_token" : "raven_token";
   const match = raw
     .split(";")
     .map((part) => part.trim())
-    .find((part) => part.startsWith("raven_token="));
-  return match ? decodeURIComponent(match.slice("raven_token=".length)) : null;
+    .find((part) => part.startsWith(`${cookieName}=`));
+  return match ? decodeURIComponent(match.slice(`${cookieName}=`.length)) : null;
 }
 
 function portalForRequest(req: Request): AuthPortal {
@@ -33,19 +34,16 @@ export async function requireAuth(
   portal?: AuthPortal
 ) {
   try {
+    const expectedPortal = portal ?? portalForRequest(req);
     const header = req.headers.authorization;
     const token = header?.startsWith("Bearer ")
       ? header.slice("Bearer ".length).trim()
-      : cookieToken(req);
+      : cookieToken(req, expectedPortal);
 
     if (!token) {
       return res.status(401).json({ success: false, message: "Authentication required" });
     }
 
-    // Admin routes require an admin-scoped token; all other protected routes
-    // require a normal user-scoped token. Role + approval is checked separately
-    // by the admin router, so a normal USER token can never reach admin data.
-    const expectedPortal = portal ?? portalForRequest(req);
     const user = await verifyAuthToken(token, expectedPortal);
 
     if (!user || user.status === "BANNED" || user.deletedAt) {
@@ -76,7 +74,7 @@ export async function requireActiveAccount(req: Request, res: Response, next: Ne
     const header = req.headers.authorization;
     const token = header?.startsWith("Bearer ")
       ? header.slice("Bearer ".length).trim()
-      : cookieToken(req);
+      : cookieToken(req, "user");
     if (!token) {
       return res.status(401).json({ success: false, message: "Authentication required" });
     }
