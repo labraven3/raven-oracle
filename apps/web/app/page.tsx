@@ -39,6 +39,7 @@ export default function Home() {
   const [raffles, setRaffles] = useState<Raffle[]>([]);
   const [tab, setTab] = useState<"upcoming" | "trending">("trending");
   const [heroVisible, setHeroVisible] = useState(true);
+  const [heroHidden, setHeroHidden] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
@@ -53,26 +54,23 @@ export default function Home() {
       setRaffles(r.raffles.filter((x) => ["ACTIVE", "SCHEDULED"].includes(x.status)));
     });
 
-    let lastScrollY = 0;
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       
-      // Hero visible only when at top (scrollY < 100) AND scrolling up
-      if (currentScrollY < 100) {
-        setHeroVisible(true);
-      } else if (currentScrollY > lastScrollY) {
-        // Scrolling down - hide hero
+      // Once user scrolls past 200px, permanently hide hero
+      if (currentScrollY > 200 && !heroHidden) {
         setHeroVisible(false);
+        setHeroHidden(true);
       }
-      // Note: We don't show hero when scrolling up from below
-      // It only shows when user reaches top (scrollY < 100)
-      
-      lastScrollY = currentScrollY;
+      // Only show hero again if user is at very top AND hadn't hidden it before
+      else if (currentScrollY < 50 && !heroHidden) {
+        setHeroVisible(true);
+      }
     };
     
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  }, [heroHidden]);
 
   const trending = projects.slice(0, 6);
   const upcoming = raffles.slice(0, 6);
@@ -151,11 +149,8 @@ export default function Home() {
       </nav>
 
       {/* Hero Section with Floating Elements */}
-      <section
-        className={`relative overflow-hidden transition-all duration-700 ${
-          heroVisible ? "h-[600px] opacity-100" : "h-0 opacity-0"
-        }`}
-      >
+      {heroVisible && !heroHidden && (
+        <section className="relative overflow-hidden h-[600px]">
         <div className="absolute inset-0 flex items-center justify-center">
           {/* Floating NFT Cards */}
           <div className="absolute top-20 left-20 w-32 h-32 bg-gradient-to-br from-violet-500/20 to-purple-600/20 rounded-2xl border border-violet-500/30 backdrop-blur-sm animate-float shadow-2xl shadow-violet-500/20">
@@ -210,8 +205,8 @@ export default function Home() {
               </Link>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Featured Section */}
       <section className="relative z-10 mx-auto max-w-7xl px-6 py-20">
