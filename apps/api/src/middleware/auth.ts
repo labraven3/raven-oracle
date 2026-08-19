@@ -21,11 +21,16 @@ function cookieToken(req: Request) {
   return match ? decodeURIComponent(match.slice("raven_token=".length)) : null;
 }
 
+function portalForRequest(req: Request): AuthPortal {
+  const url = req.originalUrl || req.baseUrl || req.url;
+  return url === "/api/admin" || url.startsWith("/api/admin/") ? "admin" : "user";
+}
+
 export async function requireAuth(
   req: Request,
   res: Response,
   next: NextFunction,
-  portal: AuthPortal = "user"
+  portal?: AuthPortal
 ) {
   try {
     const header = req.headers.authorization;
@@ -37,7 +42,11 @@ export async function requireAuth(
       return res.status(401).json({ success: false, message: "Authentication required" });
     }
 
-    const user = await verifyAuthToken(token, portal);
+    // Admin routes require an admin-scoped token; all other protected routes
+    // require a normal user-scoped token. Role + approval is checked separately
+    // by the admin router, so a normal USER token can never reach admin data.
+    const expectedPortal = portal ?? portalForRequest(req);
+    const user = await verifyAuthToken(token, expectedPortal);
 
     if (!user || user.status === "BANNED" || user.deletedAt) {
       return res.status(401).json({ success: false, message: "Invalid authentication" });
@@ -50,20 +59,14 @@ export async function requireAuth(
   }
 }
 
-/** Standard user-session middleware. */
 export async function requireUserAuth(req: Request, res: Response, next: NextFunction) {
   return requireAuth(req, res, next, "user");
 }
 
-/** Admin-session middleware. Role/approval is still checked by requireAdmin. */
 export async function requireAdminAuth(req: Request, res: Response, next: NextFunction) {
   return requireAuth(req, res, next, "admin");
 }
 
-/**
- * Middleware to check if user account is active.
- * Must be used after requireUserAuth/requireAdminAuth.
- */
 export async function requireActiveAccount(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.userId) {
@@ -80,21 +83,11 @@ export async function requireActiveAccount(req: Request, res: Response, next: Ne
 
     const user = await verifyAuthToken(token, "user");
 
-    if (!user) {
-      return res.status(401).json({ success: false, message: "User not found" });
-    }
-    if (user.status === "SUSPENDED") {
-      return res.status(403).json({ success: false, message: "Your account has been suspended. Please contact support." });
-    }
-    if (user.status === "PENDING") {
-      return res.status(403).json({ success: false, message: "Please verify your email to access this feature." });
-    }
-    if (user.status === "BANNED" || user.status === "DELETED") {
-      return res.status(403).json({ success: false, message: "Access denied." });
-    }
-    if (user.status !== "ACTIVE") {
-      return res.status(403).json({ success: false, message: "Your account is not active." });
-    }
+    if (!user) return res.status(401).json({ success: false, message: "User not found" });
+    if (user.status === "SUSPENDED") return res.status(403).json({ success: false, message: "Your account has been suspended. Please contact support." });
+    if (user.status === "PENDING") return res.status(403).json({ success: false, message: "Please verify your email to access this feature." });
+    if (user.status === "BANNED" || user.status === "DELETED") return res.status(403).json({ success: false, message: "Access denied." });
+    if (user.status !== "ACTIVE") return res.status(403).json({ success: false, message: "Your account is not active." });
 
     next();
   } catch {
