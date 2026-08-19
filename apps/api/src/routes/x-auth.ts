@@ -1,113 +1,39 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth.js";
-import {
-  connectXAccount,
-  createXAuthorizationUrl,
-} from "../services/x-oauth.service.js";
+import { connectXAccount, createXAuthorizationUrl } from "../services/x-oauth.service.js";
 import { env } from "../config/env.js";
 import { logOAuthLoginSuccess, logOAuthLoginFailed } from "../services/auth-audit.service.js";
 
 const router = Router();
 
-/**
- * GET /api/auth/x/start
- *
- * Starts X OAuth for the currently authenticated Raven Oracle user.
- */
 router.get("/start", requireAuth, async (req, res, next) => {
   try {
-    if (!req.userId) {
-      return res.status(401).json({
-        success: false,
-        message: "Authentication required",
-      });
-    }
-
-    const authorizationUrl = createXAuthorizationUrl(req.userId);
-
-    return res.json({
-      success: true,
-      authorizationUrl,
-    });
-  } catch (error) {
-    next(error);
-  }
+    if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
+    return res.json({ success: true, authorizationUrl: createXAuthorizationUrl(req.userId) });
+  } catch (error) { next(error); }
 });
 
-/**
- * GET /api/auth/x/callback
- *
- * X redirects here after authorization.
- */
 router.get("/callback", async (req, res) => {
   try {
-    const code =
-      typeof req.query.code === "string"
-        ? req.query.code
-        : null;
-
-    const state =
-      typeof req.query.state === "string"
-        ? req.query.state
-        : null;
-
-    const error =
-      typeof req.query.error === "string"
-        ? req.query.error
-        : null;
-
+    const code = typeof req.query.code === "string" ? req.query.code : null;
+    const state = typeof req.query.state === "string" ? req.query.state : null;
+    const error = typeof req.query.error === "string" ? req.query.error : null;
     if (error) {
-      const reason =
-        typeof req.query.error_description === "string"
-          ? req.query.error_description
-          : error;
-
-      // Audit log: OAuth login failed
+      const reason = typeof req.query.error_description === "string" ? req.query.error_description : error;
       logOAuthLoginFailed("X", reason, req).catch(console.error);
-
-      return res.redirect(
-        `${env.WEB_ORIGIN}/?social=x&status=error&message=${encodeURIComponent(reason)}`,
-      );
+      return res.redirect(`${env.WEB_ORIGIN}/account#social=x&status=error&message=${encodeURIComponent(reason)}`);
     }
-
     if (!code || !state) {
-      // Audit log: OAuth login failed
       logOAuthLoginFailed("X", "Missing code or state", req).catch(console.error);
-      
-      return res.redirect(
-        `${env.WEB_ORIGIN}/?social=x&status=error&message=${encodeURIComponent(
-          "Missing X OAuth code or state",
-        )}`,
-      );
+      return res.redirect(`${env.WEB_ORIGIN}/account#social=x&status=error&message=${encodeURIComponent("Missing X OAuth code or state")}`);
     }
-
-    const account = await connectXAccount(
-      code,
-      state,
-    );
-
-    // Audit log: OAuth login success
+    const account = await connectXAccount(code, state);
     logOAuthLoginSuccess(account.userId, "X", req).catch(console.error);
-
-    return res.redirect(
-      `${env.WEB_ORIGIN}/?social=x&status=connected&account=${encodeURIComponent(
-        account.providerUsername ?? account.providerAccountId,
-      )}`,
-    );
+    return res.redirect(`${env.WEB_ORIGIN}/account#social=x&status=connected&account=${encodeURIComponent(account.providerUsername ?? account.providerAccountId)}`);
   } catch (error) {
-    console.error("X OAuth callback failed:", error);
-
-    const message =
-      error instanceof Error
-        ? error.message
-        : "X connection failed";
-
-    // Audit log: OAuth login failed
+    const message = error instanceof Error ? error.message : "X connection failed";
     logOAuthLoginFailed("X", message, req).catch(console.error);
-
-    return res.redirect(
-      `${env.WEB_ORIGIN}/?social=x&status=error&message=${encodeURIComponent(message)}`,
-    );
+    return res.redirect(`${env.WEB_ORIGIN}/account#social=x&status=error&message=${encodeURIComponent(message)}`);
   }
 });
 
