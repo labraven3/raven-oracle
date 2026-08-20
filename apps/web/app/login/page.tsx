@@ -28,17 +28,20 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
+    localStorage.removeItem("raven_token");
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
+        cache: "no-store",
         body: JSON.stringify({ email, password }),
       });
       const data = await readResponse(response);
       if (!response.ok) throw new Error(data.message || "Login failed");
+      if (typeof data.token !== "string" || !data.token) throw new Error("Login succeeded but no session token was returned.");
 
-      if (data.token) localStorage.setItem("raven_token", data.token);
+      localStorage.setItem("raven_token", data.token);
       const destination = next.startsWith("/") && !next.startsWith("/admin") ? next : "/dashboard";
       router.replace(destination);
     } catch (err) {
