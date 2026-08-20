@@ -43,7 +43,6 @@ function upstreamHeaders(response: Response) {
 
 async function proxy(request: NextRequest) {
   const incoming = new URL(request.url);
-  // Keep /api because the Express API mounts every application route under /api/*.
   const upstream = new URL(`${API_URL}${incoming.pathname}`);
   upstream.search = incoming.search;
 
@@ -62,10 +61,37 @@ async function proxy(request: NextRequest) {
       cache: "no-store",
     });
 
+    const responseHeaders = upstreamHeaders(response);
+    responseHeaders.set("cache-control", "no-store, max-age=0");
+
+    // The API normally sets the HttpOnly session cookie itself. Keep a
+    // defensive fallback here because some Node/Next runtimes do not expose
+    // Set-Cookie consistently through the Fetch Headers API. This guarantees
+    // a successful login establishes a same-origin session through the proxy.
+    if (
+      request.method === "POST" &&
+      incoming.pathname === "/api/auth/login" &&
+      !responseHeaders.has("set-cookie")
+    ) {
+      const cloned = response.clone();
+      try {
+        const data = (await cloned.json()) as { token?: string };
+        if (typeof data.token === "string" && data.token.length > 0) {
+          const secure = incoming.protocol === "https:" ? "; Secure" : "";
+          responseHeaders.append(
+            "set-cookie",
+            `raven_token=${encodeURIComponent(data.token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800${secure}`,
+          );
+        }
+      } catch {
+        // Preserve the upstream response unchanged if it is not JSON.
+      }
+    }
+
     return new NextResponse(response.body, {
       status: response.status,
       statusText: response.statusText,
-      headers: upstreamHeaders(response),
+      headers: responseHeaders,
     });
   } catch {
     return NextResponse.json(
