@@ -11,6 +11,28 @@ declare global {
   }
 }
 
+function authorizationHeader(req: Request) {
+  const direct = req.get("authorization")?.trim();
+  if (direct) return direct;
+
+  // Node/Express normally exposes Authorization through req.headers, but keep
+  // a raw-header fallback for VPS/proxy combinations that preserve the header
+  // while it is not exposed on the normalized headers object.
+  const rawHeaders = req.rawHeaders ?? [];
+  for (let i = 0; i < rawHeaders.length - 1; i += 2) {
+    if (rawHeaders[i]?.toLowerCase() === "authorization") {
+      return rawHeaders[i + 1]?.trim() || null;
+    }
+  }
+
+  return null;
+}
+
+function bearerToken(req: Request) {
+  const header = authorizationHeader(req);
+  return header?.startsWith("Bearer ") ? header.slice("Bearer ".length).trim() || null : null;
+}
+
 function cookieToken(req: Request, portal: AuthPortal) {
   const raw = req.headers.cookie;
   if (!raw) return null;
@@ -28,15 +50,9 @@ function portalForRequest(req: Request): AuthPortal {
 }
 
 async function resolveUserFromRequest(req: Request, portal: AuthPortal) {
-  const header = req.headers.authorization;
-  const bearer = header?.startsWith("Bearer ")
-    ? header.slice("Bearer ".length).trim()
-    : null;
+  const bearer = bearerToken(req);
   const cookie = cookieToken(req, portal);
 
-  // Prefer the explicit bearer token, but fall back to the same-origin session
-  // cookie. This keeps auth stable when a browser has an old local token while
-  // the server has already issued a fresh session cookie.
   if (bearer) {
     try {
       const user = await verifyAuthToken(bearer, portal);
@@ -65,7 +81,9 @@ export async function requireAuth(
 ) {
   try {
     const expectedPortal = portal ?? portalForRequest(req);
-    const hasCredentials = Boolean(req.headers.authorization?.startsWith("Bearer ")) || Boolean(cookieToken(req, expectedPortal));
+    const bearer = bearerToken(req);
+    const cookie = cookieToken(req, expectedPortal);
+    const hasCredentials = Boolean(bearer || cookie);
 
     if (!hasCredentials) {
       return res.status(401).json({ success: false, message: "Authentication required" });
@@ -98,10 +116,7 @@ export async function requireActiveAccount(req: Request, res: Response, next: Ne
       return res.status(401).json({ success: false, message: "Authentication required" });
     }
 
-    const header = req.headers.authorization;
-    const bearer = header?.startsWith("Bearer ")
-      ? header.slice("Bearer ".length).trim()
-      : null;
+    const bearer = bearerToken(req);
     const token = bearer || cookieToken(req, "user");
     if (!token) {
       return res.status(401).json({ success: false, message: "Authentication required" });
