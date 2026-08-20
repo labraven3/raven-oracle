@@ -109,12 +109,6 @@ export default function AccountPage() {
       window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
     }
 
-    const token = localStorage.getItem("raven_token");
-    if (!token) {
-      router.replace("/login?next=/account");
-      return;
-    }
-
     void load().catch(() => {
       localStorage.removeItem("raven_token");
       router.replace("/login?next=/account");
@@ -226,9 +220,15 @@ export default function AccountPage() {
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem("raven_token");
-    router.replace("/");
+  const logout = async () => {
+    try {
+      await api("/auth/logout", { method: "POST" });
+    } catch {
+      // Clear the local compatibility token even if the API is unavailable.
+    } finally {
+      localStorage.removeItem("raven_token");
+      router.replace("/");
+    }
   };
 
   const discord = socials.find((social) => social.provider === "DISCORD");
@@ -258,189 +258,3 @@ export default function AccountPage() {
         <aside className="hidden w-56 shrink-0 border-r border-slate-200 bg-white px-4 py-5 lg:block">
           <div className="px-3 pb-5 text-xs font-bold text-slate-900">My Profile</div>
           <nav className="space-y-1">
-            <a href="#profile" className="flex items-center gap-3 rounded-lg bg-violet-50 px-3 py-2.5 text-xs font-bold text-violet-700">
-              <span>♙</span> Profile
-            </a>
-            <a href="#security" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-xs font-medium text-slate-500 hover:bg-slate-50">
-              <span>♢</span> Security
-            </a>
-            <a href="#socials" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-xs font-medium text-slate-500 hover:bg-slate-50">
-              <span>◉</span> Social Accounts
-            </a>
-            <a href="#wallets" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-xs font-medium text-slate-500 hover:bg-slate-50">
-              <span>▣</span> Wallets
-            </a>
-            <a href="#notifications" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-xs font-medium text-slate-500 hover:bg-slate-50">
-              <span>♧</span> Notifications
-            </a>
-            <a href="#referrals" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-xs font-medium text-slate-500 hover:bg-slate-50">
-              <span>♧</span> Referrals
-            </a>
-            <a href="#activity" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-xs font-medium text-slate-500 hover:bg-slate-50">
-              <span>↶</span> Activity
-            </a>
-            <a href="#api-keys" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-xs font-medium text-slate-500 hover:bg-slate-50">
-              <span>⚿</span> API Keys
-            </a>
-          </nav>
-          <button onClick={logout} className="mt-16 flex w-full items-center justify-center gap-2 rounded-lg border border-red-200 px-3 py-2.5 text-xs font-bold text-red-500 hover:bg-red-50">
-            ⇥ Log out
-          </button>
-        </aside>
-
-        <section className="min-w-0 flex-1 bg-white px-4 py-5 sm:px-7 lg:px-8">
-          <div className="flex items-center justify-between border-b border-slate-200 pb-5">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-violet-600 text-base font-black text-white">{initials}</div>
-              <div>
-                <h1 className="text-sm font-bold text-slate-900">Welcome back, {username || displayName || "Raven"}</h1>
-                <p className="text-[10px] text-slate-500">Manage your account, socials &amp; wallets</p>
-              </div>
-            </div>
-            <button onClick={logout} className="rounded-lg border border-red-400 px-4 py-2 text-[10px] font-bold text-red-500 hover:bg-red-50">Log out</button>
-          </div>
-
-          {(error || message) && (
-            <div className="mt-5 space-y-2">
-              {error && <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-600">{error}</div>}
-              {message && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-600">{message}</div>}
-            </div>
-          )}
-
-          <div id="profile" className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-[0_2px_10px_rgba(15,23,42,0.04)]">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900">Profile Information</h2>
-                <p className="mt-1 text-[10px] text-slate-500">Update your personal details and how others see you.</p>
-              </div>
-              {!editing && <button onClick={() => setEditing(true)} className="rounded-lg bg-violet-600 px-4 py-2 text-[10px] font-bold text-white hover:bg-violet-700">Edit</button>}
-            </div>
-
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <div className="md:col-span-2">
-                <label className="text-[10px] font-bold text-slate-700">Email address</label>
-                <div className="mt-1 flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
-                  <span className="min-w-0 truncate text-xs text-slate-600">{user.email || "—"}</span>
-                  <span className={`ml-3 shrink-0 rounded-md px-2 py-1 text-[9px] font-bold ${user.emailVerifiedAt ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
-                    {user.emailVerifiedAt ? "✓ Verified" : "Not verified"}
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-700">Username</label>
-                {editing ? (
-                  <input value={username} onChange={(event) => setUsername(event.target.value)} maxLength={32} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-xs outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
-                ) : (
-                  <div className="mt-1 rounded-lg border border-slate-200 px-3 py-2.5 text-xs text-slate-700">{username || "Not set"}</div>
-                )}
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-700">Display name</label>
-                {editing ? (
-                  <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength={80} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-xs outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
-                ) : (
-                  <div className="mt-1 rounded-lg border border-slate-200 px-3 py-2.5 text-xs text-slate-700">{displayName || "Not set"}</div>
-                )}
-              </div>
-            </div>
-
-            {editing && (
-              <div className="mt-4 flex justify-end gap-2">
-                <button onClick={() => { setEditing(false); setUsername(user.username ?? ""); setDisplayName(user.displayName ?? ""); }} className="rounded-lg border border-slate-200 px-4 py-2 text-[10px] font-bold text-slate-600">Cancel</button>
-                <button disabled={busy} onClick={() => void updateProfile()} className="rounded-lg bg-violet-600 px-4 py-2 text-[10px] font-bold text-white disabled:opacity-50">Save changes</button>
-              </div>
-            )}
-          </div>
-
-          <div id="socials" className="mt-5 rounded-xl border border-slate-200 bg-white p-5 shadow-[0_2px_10px_rgba(15,23,42,0.04)]">
-            <div>
-              <h2 className="text-sm font-bold text-slate-900">Social accounts</h2>
-              <p className="mt-1 text-[10px] text-slate-500">Verify your identity so we can easily message you about a giveaway or allowlist.</p>
-            </div>
-
-            <div className="mt-4 space-y-2">
-              <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white"><SocialIcon provider="DISCORD" /></div>
-                  <div className="min-w-0"><div className="text-[10px] font-bold text-slate-700">Discord account</div><div className="truncate text-[10px] text-slate-500">{discord?.providerUsername || "Not connected"}</div></div>
-                </div>
-                {discord ? <button disabled={busy} onClick={() => void disconnectSocial(discord.id)} className="shrink-0 rounded-lg border border-red-300 px-3 py-2 text-[10px] font-bold text-red-500 disabled:opacity-50">Unlink</button> : <button disabled={busy} onClick={() => void connectSocial("discord")} className="shrink-0 rounded-lg bg-[#5865f2] px-3 py-2 text-[10px] font-bold text-white disabled:opacity-50">Connect</button>}
-              </div>
-
-              <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white"><SocialIcon provider="X" /></div>
-                  <div className="min-w-0"><div className="text-[10px] font-bold text-slate-700">X account</div><div className="truncate text-[10px] text-slate-500">{xSocial?.providerUsername ? `@${xSocial.providerUsername}` : "Not connected"}</div>{!xSocial && <div className="text-[9px] text-slate-400">Reconnect your X account to support giveaway verification.</div>}</div>
-                </div>
-                <div className="flex shrink-0 gap-2">{xSocial && <button disabled={busy} onClick={() => void disconnectSocial(xSocial.id)} className="rounded-lg border border-red-300 px-3 py-2 text-[10px] font-bold text-red-500 disabled:opacity-50">Disconnect</button>}<button disabled={busy} onClick={() => void connectSocial("x")} className="rounded-lg border border-violet-300 px-3 py-2 text-[10px] font-bold text-violet-700 disabled:opacity-50">{xSocial ? "Reconnect" : "Connect X"}</button></div>
-              </div>
-
-              <div id="telegram" className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white"><SocialIcon provider="TELEGRAM" /></div>
-                  <div className="min-w-0"><div className="text-[10px] font-bold text-slate-700">Telegram account</div><div className="text-[10px] text-slate-500">Telegram connection is not configured in the current account API.</div></div>
-                </div>
-                <button disabled className="shrink-0 cursor-not-allowed rounded-lg border border-slate-200 px-3 py-2 text-[10px] font-bold text-slate-400">Connect Telegram</button>
-              </div>
-            </div>
-          </div>
-
-          <div id="wallets" className="mt-5 rounded-xl border border-slate-200 bg-white p-5 shadow-[0_2px_10px_rgba(15,23,42,0.04)]">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-sm font-bold text-slate-900">Wallets</h2>
-                <p className="mt-1 text-[10px] text-slate-500">Add multiple wallets to verify token ownership. All of these wallets can also access your profile.</p>
-              </div>
-              <button onClick={() => document.getElementById("wallet-address")?.focus()} className="rounded-lg bg-violet-600 px-4 py-2 text-[10px] font-bold text-white hover:bg-violet-700">Add wallet +</button>
-            </div>
-
-            <div className="mt-4 grid gap-2 md:grid-cols-[1fr_auto_auto]">
-              <input id="wallet-address" value={address} onChange={(event) => setAddress(event.target.value)} placeholder={chain === "EVM" ? "0x… wallet address" : "Solana wallet address"} className="rounded-lg border border-slate-200 px-3 py-2.5 text-xs outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100" />
-              <select value={chain} onChange={(event) => setChain(event.target.value as "EVM" | "SOLANA")} className="rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs outline-none">
-                <option value="EVM">EVM</option>
-                <option value="SOLANA">Solana</option>
-              </select>
-              <button disabled={busy} onClick={() => void addWallet()} className="rounded-lg bg-violet-600 px-5 py-2.5 text-[10px] font-bold text-white disabled:opacity-50">Add</button>
-            </div>
-
-            <h3 className="mt-6 text-[10px] font-bold text-slate-700">Primary wallets</h3>
-            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
-              {primaryWallets.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-slate-200 p-5 text-center text-[10px] text-slate-400 sm:col-span-2 xl:col-span-4">No primary wallets yet.</div>
-              ) : primaryWallets.map((wallet) => (
-                <div key={wallet.id} className="rounded-xl border border-slate-200 bg-white p-3 shadow-[0_2px_8px_rgba(15,23,42,0.04)]">
-                  <div className="flex items-center justify-between gap-2"><ChainBadge chain={wallet.chain} /><span className="rounded-full bg-sky-500 px-2 py-1 text-[8px] font-bold text-white">● Primary</span></div>
-                  <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-[10px] text-slate-600">{shortenAddress(wallet.address)}</div>
-                  <div className="mt-2 flex items-center justify-between"><span className="text-[8px] text-slate-400">{wallet.network}</span><button disabled={busy} onClick={() => void removeWallet(wallet.id)} className="text-[9px] font-bold text-red-500">Remove</button></div>
-                </div>
-              ))}
-            </div>
-
-            <h3 className="mt-6 text-[10px] font-bold text-slate-700">Other wallets</h3>
-            <div className="mt-2 space-y-2">
-              {otherWallets.length === 0 ? <p className="rounded-lg border border-dashed border-slate-200 p-4 text-center text-[10px] text-slate-400">No other wallets.</p> : otherWallets.map((wallet) => (
-                <div key={wallet.id} className="flex flex-col gap-2 rounded-lg border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div><div className="flex items-center gap-2"><ChainBadge chain={wallet.chain} /><span className="text-[9px] text-slate-400">{wallet.network}</span></div><div className="mt-1 font-mono text-[10px] text-slate-600">{shortenAddress(wallet.address)}</div></div>
-                  <div className="flex gap-2"><button disabled={busy} onClick={() => void makePrimary(wallet.id)} className="rounded-lg border border-violet-200 px-3 py-2 text-[9px] font-bold text-violet-700">Make Primary</button><button disabled={busy} onClick={() => void removeWallet(wallet.id)} className="rounded-lg border border-red-200 px-3 py-2 text-[9px] font-bold text-red-500">Remove</button></div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div id="security" className="mt-5 grid gap-5 md:grid-cols-2">
-            <div id="notifications" className="rounded-xl border border-slate-200 bg-white p-5"><h2 className="text-sm font-bold">Notifications</h2><p className="mt-1 text-[10px] text-slate-500">Notification preferences are managed by the current account system.</p></div>
-            <div id="activity" className="rounded-xl border border-slate-200 bg-white p-5"><h2 className="text-sm font-bold">Activity</h2><p className="mt-1 text-[10px] text-slate-500">Account activity will appear here when the activity API is enabled.</p></div>
-            <div id="referrals" className="rounded-xl border border-slate-200 bg-white p-5"><h2 className="text-sm font-bold">Referrals</h2><p className="mt-1 text-[10px] text-slate-500">Referral tools are ready to be connected to the referral backend.</p></div>
-            <div id="api-keys" className="rounded-xl border border-slate-200 bg-white p-5"><h2 className="text-sm font-bold">API Keys</h2><p className="mt-1 text-[10px] text-slate-500">API key management is not exposed by the current account API.</p></div>
-          </div>
-
-          <div className="mt-8 border-t border-slate-200 pt-5 text-[9px] text-slate-400">
-            <Link href="/" className="font-bold text-violet-600 hover:text-violet-700">Raven Oracle</Link> · Account settings
-          </div>
-        </section>
-      </div>
-    </main>
-  );
-}
