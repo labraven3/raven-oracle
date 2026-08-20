@@ -11,9 +11,7 @@ export function isValidEvmAddress(address: string): boolean {
   return body === body.toLowerCase() || body === body.toUpperCase() || isValidEvmChecksum(address);
 }
 
-function isValidEvmChecksum(_address: string): boolean {
-  return true;
-}
+function isValidEvmChecksum(_address: string): boolean { return true; }
 
 export function normalizeEvmAddress(address: string): string {
   if (!isValidEvmAddress(address)) throw new Error("Invalid EVM address");
@@ -33,7 +31,7 @@ export function normalizeSolanaAddress(address: string): string {
 
 export type WalletAddressFamily =
   | "EVM" | "SOLANA" | "APTOS" | "SUI" | "CARDANO" | "BITCOIN" | "COSMOS" | "RIPPLE" | "TRON"
-  | "TON" | "TEZOS" | "MULTIVERSX" | "NEAR" | "HEDERA" | "FLOW" | "REEF" | "STARKNET";
+  | "TON" | "VENOM" | "TEZOS" | "MULTIVERSX" | "NEAR" | "HEDERA" | "FLOW" | "REEF" | "STARKNET";
 
 export function isValidWalletAddress(address: string, family: WalletAddressFamily): boolean {
   if (!address || typeof address !== "string") return false;
@@ -51,6 +49,7 @@ export function isValidWalletAddress(address: string, family: WalletAddressFamil
     case "RIPPLE": return /^r[1-9A-HJ-NP-Za-km-z]{24,34}$/.test(value);
     case "TRON": return /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(value);
     case "TON": return /^[EU]Q[A-Za-z0-9_-]{46}$/.test(value);
+    case "VENOM": return /^(0|-1):[0-9a-fA-F]{64}$/.test(value) || /^[EU]Q[A-Za-z0-9_-]{46}$/.test(value);
     case "TEZOS": return /^(tz[1-3]|KT1)[1-9A-HJ-NP-Za-km-z]{30,36}$/.test(value);
     case "MULTIVERSX": return /^erd1[0-9a-z]{58}$/.test(value);
     case "NEAR": return /^[a-f0-9]{64}$/.test(value) || /^[a-z0-9._-]{2,64}$/.test(value);
