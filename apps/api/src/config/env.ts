@@ -18,6 +18,9 @@ const envSchema = z.object({
   DISCORD_CLIENT_ID: z.string().min(1).optional(),
   DISCORD_CLIENT_SECRET: z.string().min(1).optional(),
   DISCORD_REDIRECT_URI: z.string().url().optional(),
+  TELEGRAM_BOT_TOKEN: z.string().min(1).optional(),
+  TELEGRAM_BOT_USERNAME: z.string().min(1).optional(),
+  TELEGRAM_WEBHOOK_SECRET: z.string().min(1).optional(),
   GMAIL_USER: z.string().email().optional(),
   GMAIL_APP_PASSWORD: z.string().min(1).optional(),
   EMAIL_FROM_NAME: z.string().min(1).default("Raven Oracle"),
@@ -62,5 +65,6 @@ console.log(`  • DATABASE_URL: ${env.DATABASE_URL ? "configured" : "not config
 console.log(`  • JWT_SECRET: ${env.JWT_SECRET ? "configured" : "missing"}`);
 console.log(`  • X OAuth: ${env.X_CLIENT_ID && env.X_CLIENT_SECRET ? "configured" : "not configured"}`);
 console.log(`  • Discord OAuth: ${env.DISCORD_CLIENT_ID && env.DISCORD_CLIENT_SECRET ? "configured" : "not configured"}`);
+console.log(`  • Telegram Bot: ${env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_BOT_USERNAME ? "configured" : "not configured"}`);
 console.log(`  • Email: ${env.GMAIL_USER && env.GMAIL_APP_PASSWORD ? "configured" : "not configured"}`);
 console.log("");
