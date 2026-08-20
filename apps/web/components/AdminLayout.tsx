@@ -34,29 +34,22 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   useEffect(() => {
     const verifyAccess = async () => {
-      const token = localStorage.getItem("raven_admin_token");
-      if (!token) {
-        router.push("/admin/login");
-        return;
-      }
-
       try {
         const response = await fetch(`${API_BASE_URL}/admin/overview`, {
-          headers: { Authorization: `Bearer ${token}` },
+          credentials: "include",
+          cache: "no-store",
         });
 
         if (!response.ok) {
           setIsAuthorized(false);
-          localStorage.removeItem("raven_admin_token");
-          document.cookie = "raven_admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
-          router.push("/admin/login");
+          router.replace("/admin/login");
           return;
         }
 
         setIsAuthorized(true);
       } catch {
         setIsAuthorized(false);
-        router.push("/admin/login");
+        router.replace("/admin/login");
       } finally {
         setLoading(false);
       }
@@ -89,10 +82,16 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     );
   }
 
-  const handleLogout = () => {
-    localStorage.removeItem("raven_admin_token");
-    document.cookie = "raven_admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
-    router.push("/admin/login");
+  const handleLogout = async () => {
+    try {
+      await fetch(`${API_BASE_URL}/auth/admin/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } finally {
+      localStorage.removeItem("raven_admin_token");
+      router.replace("/admin/login");
+    }
   };
 
   return (
