@@ -20,33 +20,9 @@ import raffleWinnersRouter from "../routes/raffle-winners.js";
 import alphaRouter from "../routes/alpha.js";
 import chatRouter from "../routes/chat.js";
 import adminRouter from "../routes/admin.js";
+import adminLoginMethodsRouter from "../routes/admin-login-methods.js";
 import pendingUserCleanupRouter from "../routes/pending-user-cleanup.js";
-
 export function createApp() {
-  const app = express();
-  app.use(securityMiddleware);
-  app.use(express.json({ limit: "4mb" }));
-  app.use("/api/health", healthRouter);
-  app.use("/api/users", usersRouter);
-  app.use("/api/auth", authRouter);
-  app.use("/api/auth/admin", adminAuthRouter);
-  app.use("/api/profile", profileRouter);
-  app.use("/api/social-accounts", socialAccountsRouter);
-  app.use("/api/auth/x", xAuthRouter);
-  app.use("/api/auth/discord", discordAuthRouter);
-  app.use("/api/auth/telegram", telegramAuthRouter);
-  app.use("/api/wallets", walletsRouter);
-  app.use("/api/projects", projectsRouter);
-  app.use("/api/raffles/public", publicRafflesRouter);
-  app.use("/api/raffles", rafflesRouter);
-  app.use("/api/raffles", raffleEntriesRouter);
-  app.use("/api/raffles", raffleTasksRouter);
-  app.use("/api/raffles", raffleWinnersRouter);
-  app.use("/api/alpha", alphaRouter);
-  app.use("/api/chat", chatRouter);
-  app.use("/api/admin", adminRouter);
-  app.use("/api/admin/pending-users", pendingUserCleanupRouter);
-  app.use(notFoundHandler);
-  app.use(errorHandler);
-  return app;
+  const app = express(); app.use(securityMiddleware); app.use(express.json({ limit: "4mb" }));
+  app.use("/api/health", healthRouter); app.use("/api/users", usersRouter); app.use("/api/auth", authRouter); app.use("/api/auth/admin", adminAuthRouter); app.use("/api/profile", profileRouter); app.use("/api/social-accounts", socialAccountsRouter); app.use("/api/auth/x", xAuthRouter); app.use("/api/auth/discord", discordAuthRouter); app.use("/api/auth/telegram", telegramAuthRouter); app.use("/api/wallets", walletsRouter); app.use("/api/projects", projectsRouter); app.use("/api/raffles/public", publicRafflesRouter); app.use("/api/raffles", rafflesRouter); app.use("/api/raffles", raffleEntriesRouter); app.use("/api/raffles", raffleTasksRouter); app.use("/api/raffles", raffleWinnersRouter); app.use("/api/alpha", alphaRouter); app.use("/api/chat", chatRouter); app.use("/api/admin", adminRouter); app.use("/api/admin/login-methods", adminLoginMethodsRouter); app.use("/api/admin/pending-users", pendingUserCleanupRouter); app.use(notFoundHandler); app.use(errorHandler); return app;
 }
