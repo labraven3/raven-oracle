@@ -22,7 +22,10 @@ function upstreamHeaders(response: Response) {
   const headers = new Headers();
 
   response.headers.forEach((value, key) => {
-    if (!HOP_BY_HOP_HEADERS.has(key.toLowerCase())) headers.set(key, value);
+    const normalized = key.toLowerCase();
+    if (!HOP_BY_HOP_HEADERS.has(normalized) && normalized !== "set-cookie") {
+      headers.set(key, value);
+    }
   });
 
   const getSetCookie = (response.headers as Headers & { getSetCookie?: () => string[] }).getSetCookie;
