@@ -6,7 +6,6 @@ cd "$ROOT_DIR"
 
 echo "==> Raven Oracle deployment"
 echo "==> Root: $ROOT_DIR"
-
 echo "==> Syncing main branch"
 git checkout main
 git pull --ff-only origin main
@@ -17,10 +16,12 @@ npm install
 echo "==> Building API + web"
 npm run build
 
-echo "==> Restarting PM2 services"
-pm2 restart raven-api --update-env
-pm2 restart raven-frontend --update-env
+echo "==> Recreating PM2 services with clean process environments"
+pm2 delete raven-api >/dev/null 2>&1 || true
+pm2 delete raven-frontend >/dev/null 2>&1 || true
+pm2 start npm --name raven-api -- run start:api
+pm2 start npm --name raven-frontend -- run start:web
 pm2 save
 
-echo "==> Deployment complete"
+echo "==> Verifying PM2 services"
 pm2 status
