@@ -5,6 +5,16 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { API_BASE_URL } from "@/lib/api-config";
 
+async function readResponse(response: Response) {
+  const text = await response.text();
+  if (!text) return {} as { message?: string; token?: string };
+  try {
+    return JSON.parse(text) as { message?: string; token?: string };
+  } catch {
+    return { message: response.ok ? "Unexpected server response." : `Server error (${response.status}).` };
+  }
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const params = useSearchParams();
@@ -15,15 +25,27 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   async function handleLogin(e: React.FormEvent) {
-    e.preventDefault(); setError(""); setLoading(true);
+    e.preventDefault();
+    setError("");
+    setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });
-      const data = await response.json();
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await readResponse(response);
       if (!response.ok) throw new Error(data.message || "Login failed");
-      localStorage.setItem("raven_token", data.token);
-      router.replace(data.user?.role === "ADMIN" || data.user?.role === "MODERATOR" ? "/admin" : next.startsWith("/") && !next.startsWith("/admin") ? next : "/dashboard");
-    } catch (err) { setError(err instanceof Error ? err.message : "Login failed"); }
-    finally { setLoading(false); }
+
+      if (data.token) localStorage.setItem("raven_token", data.token);
+      const destination = next.startsWith("/") && !next.startsWith("/admin") ? next : "/dashboard";
+      router.replace(destination);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0a0a0f] via-[#0f0a1f] to-[#0a0a0f] px-4"><div className="w-full max-w-md"><div className="rounded-2xl border border-white/10 bg-[#0e0d16] p-8 shadow-2xl">

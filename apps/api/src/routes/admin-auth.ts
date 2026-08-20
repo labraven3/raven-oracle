@@ -6,9 +6,12 @@ import rateLimit from "express-rate-limit";
 import { prisma } from "../lib/prisma.js";
 import { createAuthToken } from "../services/auth.service.js";
 import { logLoginFailed, logLoginSuccess } from "../services/auth-audit.service.js";
+import { env } from "../config/env.js";
 
 const router = Router();
 const scrypt = promisify(scryptCallback);
+const ADMIN_SESSION_COOKIE = "raven_admin_token";
+const SESSION_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 
 const adminLoginRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -30,6 +33,25 @@ async function verifyPassword(password: string, encoded: string) {
   const derived = (await scrypt(password, Buffer.from(saltHex, "hex"), 64)) as Buffer;
   const expected = Buffer.from(hashHex, "hex");
   return expected.length === derived.length && timingSafeEqual(expected, derived);
+}
+
+function setAdminSessionCookie(res: import("express").Response, token: string) {
+  res.cookie(ADMIN_SESSION_COOKIE, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: env.NODE_ENV === "production" && env.WEB_ORIGIN.startsWith("https://"),
+    maxAge: SESSION_MAX_AGE,
+    path: "/",
+  });
+}
+
+function clearAdminSessionCookie(res: import("express").Response) {
+  res.clearCookie(ADMIN_SESSION_COOKIE, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: env.NODE_ENV === "production" && env.WEB_ORIGIN.startsWith("https://"),
+    path: "/",
+  });
 }
 
 /** Admin login is separate from normal user login and always issues an admin-scoped JWT. */
@@ -58,8 +80,6 @@ router.post("/login", adminLoginRateLimiter, async (req, res, next) => {
       return res.status(403).json({ success: false, message: "Admin access required." });
     }
 
-    // ADMIN is the bootstrap authority and therefore is always approved.
-    // MODERATOR accounts still require explicit approval.
     if (user.role === "ADMIN" && !user.isAdminApproved) {
       await prisma.user.update({
         where: { id: user.id },
@@ -73,9 +93,9 @@ router.post("/login", adminLoginRateLimiter, async (req, res, next) => {
     }
 
     const token = await createAuthToken(user.id, "admin");
+    setAdminSessionCookie(res, token);
     logLoginSuccess(user.id, req).catch(console.error);
 
-    // Never send passwordHash (or any credential material) to the browser.
     const safeUser = Object.fromEntries(
       Object.entries(user).filter(([key]) => key !== "passwordHash")
     );
@@ -85,6 +105,11 @@ router.post("/login", adminLoginRateLimiter, async (req, res, next) => {
   } catch (e) {
     next(e);
   }
+});
+
+router.post("/logout", async (_req, res) => {
+  clearAdminSessionCookie(res);
+  return res.json({ success: true, message: "Logged out successfully" });
 });
 
 export default router;

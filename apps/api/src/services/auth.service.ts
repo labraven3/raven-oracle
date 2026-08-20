@@ -12,11 +12,6 @@ export async function createAuthToken(userId: string, portal: AuthPortal = "user
   });
 }
 
-/**
- * Verifies a JWT. When expectedPortal is "any", the signature and portal claim
- * are still mandatory, but either valid portal is accepted. Admin authorization
- * remains enforced separately by the /api/admin route's role + approval checks.
- */
 export async function verifyAuthToken(
   token: string,
   expectedPortal: AuthPortal | "any" = "any"
@@ -35,9 +30,9 @@ export async function verifyAuthToken(
 
     return prisma.user.findUnique({ where: { id: payload.sub } });
   } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError) throw new Error("Invalid authentication token");
     if (error instanceof jwt.TokenExpiredError) throw new Error("Authentication token expired");
     if (error instanceof jwt.NotBeforeError) throw new Error("Authentication token not yet valid");
+    if (error instanceof jwt.JsonWebTokenError) throw new Error("Invalid authentication token");
     throw error;
   }
 }

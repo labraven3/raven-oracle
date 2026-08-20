@@ -10,7 +10,7 @@ env:
   DATABASE_URL: postgresql://ci:ci@localhost:5432/raven_oracle
 
 jobs:
-  typecheck:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,5 +19,5 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npx prisma generate
+      - run: npm run build
       - run: npm run typecheck
