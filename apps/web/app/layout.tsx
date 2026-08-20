@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
-import SiteFooter from "@/components/SiteFooter";
+import BrandSync from "@/components/BrandSync";
 
 export const metadata: Metadata = {
   title: "Raven Oracle",
@@ -12,12 +12,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full">
         <ThemeProvider>
-          <div className="flex min-h-screen flex-col">
-            <div className="flex-1">{children}</div>
-            <SiteFooter />
-          </div>
+          <BrandSync />
+          {children}
         </ThemeProvider>
       </body>
     </html>
