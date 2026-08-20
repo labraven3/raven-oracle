@@ -1,10 +1,9 @@
 import type { Request, Response, NextFunction } from "express";
 import { env } from "../config/env.js";
-import { Prisma } from "@prisma/client";
 
 /**
  * Global error handler middleware
- * 
+ *
  * SECURITY RULES:
  * - NEVER expose stack traces in production
  * - NEVER expose database internals
@@ -20,33 +19,36 @@ interface ErrorWithStatus extends Error {
   statusCode?: number;
 }
 
-/**
- * Check if error is a known Prisma error
- */
-function isPrismaError(error: unknown): error is Prisma.PrismaClientKnownRequestError {
-  return error instanceof Prisma.PrismaClientKnownRequestError;
+interface PrismaLikeError {
+  code: string;
 }
 
 /**
- * Get safe error message from Prisma error
+ * Check if an error looks like a Prisma client error without importing
+ * Prisma's runtime namespace. Prisma 7's ESM client does not expose the
+ * legacy `Prisma` namespace from `@prisma/client` in this deployment shape.
+ */
+function isPrismaError(error: unknown): error is PrismaLikeError {
+  if (!error || typeof error !== "object") return false;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === "string" && /^P\d{4}$/.test(code);
+}
+
+/**
+ * Get safe error message from a Prisma error
  * NEVER expose database schema, table names, or field names
  */
-function getSafePrismaMessage(error: Prisma.PrismaClientKnownRequestError): string {
+function getSafePrismaMessage(error: PrismaLikeError): string {
   switch (error.code) {
     case "P2002":
-      // Unique constraint violation
       return "A record with that information already exists.";
     case "P2025":
-      // Record not found
       return "The requested resource was not found.";
     case "P2003":
-      // Foreign key constraint failed
       return "The operation could not be completed due to a data relationship.";
     case "P2014":
-      // Invalid relation
       return "Invalid data relationship.";
     default:
-      // Generic safe message for all other Prisma errors
       return "A database error occurred.";
   }
 }
@@ -62,35 +64,23 @@ export function errorHandler(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   next: NextFunction
 ): void {
-  // Log full error server-side for debugging
   console.error("Error caught by global handler:", error);
 
-  // Determine status code
   const statusCode = error.status || error.statusCode || 500;
-
-  // In production, use safe generic messages
   const isProduction = env.NODE_ENV === "production";
 
   let message: string;
 
   if (isPrismaError(error)) {
-    // Handle Prisma errors safely
     message = getSafePrismaMessage(error);
   } else if (statusCode >= 400 && statusCode < 500) {
-    // Client errors - use the error message if it exists and is safe
-    // These are typically validation errors or business logic errors
     message = error.message || "Bad request.";
+  } else if (isProduction) {
+    message = "An internal server error occurred.";
   } else {
-    // Server errors - always use generic message in production
-    if (isProduction) {
-      message = "An internal server error occurred.";
-    } else {
-      // In development, expose more details for debugging
-      message = error.message || "An internal server error occurred.";
-    }
+    message = error.message || "An internal server error occurred.";
   }
 
-  // Build safe response
   const response: {
     success: false;
     message: string;
@@ -101,7 +91,6 @@ export function errorHandler(
     message,
   };
 
-  // ONLY in development: add error type and stack trace
   if (!isProduction) {
     response.error = error.name;
     if (error.stack) {
