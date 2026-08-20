@@ -7,9 +7,9 @@ import { API_BASE_URL } from "@/lib/api-config";
 
 async function readResponse(response: Response) {
   const text = await response.text();
-  if (!text) return {} as { message?: string; token?: string; user?: { role?: string } };
+  if (!text) return {} as { message?: string; token?: string };
   try {
-    return JSON.parse(text) as { message?: string; token?: string; user?: { role?: string } };
+    return JSON.parse(text) as { message?: string; token?: string };
   } catch {
     return { message: response.ok ? "Unexpected server response." : `Server error (${response.status}).` };
   }
@@ -39,9 +39,7 @@ export default function LoginPage() {
       if (!response.ok) throw new Error(data.message || "Login failed");
 
       if (data.token) localStorage.setItem("raven_token", data.token);
-      const destination = data.user?.role === "ADMIN" || data.user?.role === "MODERATOR"
-        ? "/admin"
-        : next.startsWith("/") && !next.startsWith("/admin") ? next : "/dashboard";
+      const destination = next.startsWith("/") && !next.startsWith("/admin") ? next : "/dashboard";
       router.replace(destination);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
