@@ -27,6 +27,36 @@ function portalForRequest(req: Request): AuthPortal {
   return url === "/api/admin" || url.startsWith("/api/admin/") ? "admin" : "user";
 }
 
+async function resolveUserFromRequest(req: Request, portal: AuthPortal) {
+  const header = req.headers.authorization;
+  const bearer = header?.startsWith("Bearer ")
+    ? header.slice("Bearer ".length).trim()
+    : null;
+  const cookie = cookieToken(req, portal);
+
+  // Prefer the explicit bearer token, but fall back to the same-origin session
+  // cookie. This keeps auth stable when a browser has an old local token while
+  // the server has already issued a fresh session cookie.
+  if (bearer) {
+    try {
+      const user = await verifyAuthToken(bearer, portal);
+      if (user) return user;
+    } catch {
+      // Fall through to the session cookie below.
+    }
+  }
+
+  if (cookie) {
+    try {
+      return await verifyAuthToken(cookie, portal);
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
 export async function requireAuth(
   req: Request,
   res: Response,
@@ -35,16 +65,13 @@ export async function requireAuth(
 ) {
   try {
     const expectedPortal = portal ?? portalForRequest(req);
-    const header = req.headers.authorization;
-    const token = header?.startsWith("Bearer ")
-      ? header.slice("Bearer ".length).trim()
-      : cookieToken(req, expectedPortal);
+    const hasCredentials = Boolean(req.headers.authorization?.startsWith("Bearer ")) || Boolean(cookieToken(req, expectedPortal));
 
-    if (!token) {
+    if (!hasCredentials) {
       return res.status(401).json({ success: false, message: "Authentication required" });
     }
 
-    const user = await verifyAuthToken(token, expectedPortal);
+    const user = await resolveUserFromRequest(req, expectedPortal);
 
     if (!user || user.status === "BANNED" || user.deletedAt) {
       return res.status(401).json({ success: false, message: "Invalid authentication" });
@@ -72,14 +99,22 @@ export async function requireActiveAccount(req: Request, res: Response, next: Ne
     }
 
     const header = req.headers.authorization;
-    const token = header?.startsWith("Bearer ")
+    const bearer = header?.startsWith("Bearer ")
       ? header.slice("Bearer ".length).trim()
-      : cookieToken(req, "user");
+      : null;
+    const token = bearer || cookieToken(req, "user");
     if (!token) {
       return res.status(401).json({ success: false, message: "Authentication required" });
     }
 
-    const user = await verifyAuthToken(token, "user");
+    let user;
+    try {
+      user = await verifyAuthToken(token, "user");
+    } catch {
+      const cookie = cookieToken(req, "user");
+      if (!cookie || cookie === token) return res.status(401).json({ success: false, message: "Invalid authentication token" });
+      user = await verifyAuthToken(cookie, "user");
+    }
 
     if (!user) return res.status(401).json({ success: false, message: "User not found" });
     if (user.status === "SUSPENDED") return res.status(403).json({ success: false, message: "Your account has been suspended. Please contact support." });
