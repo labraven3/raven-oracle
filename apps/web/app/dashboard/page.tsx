@@ -17,19 +17,23 @@ export default function DashboardPage() {
   const [wallets, setWallets] = useState<Wallet[]>([]);
 
   useEffect(() => {
+    const headers = new Headers();
     const token = localStorage.getItem("raven_token");
-    if (!token) { router.replace("/login?next=/dashboard"); return; }
-    const headers = { Authorization: `Bearer ${token}` };
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+
     Promise.all([
-      fetch(`${API_BASE_URL}/auth/me`, { headers }).then((r) => r.json()),
-      fetch(`${API_BASE_URL}/social-accounts/`, { headers }).then((r) => r.json()),
-      fetch(`${API_BASE_URL}/wallets/`, { headers }).then((r) => r.json()),
+      fetch(`${API_BASE_URL}/auth/me`, { headers, credentials: "include", cache: "no-store" }).then((r) => r.json()),
+      fetch(`${API_BASE_URL}/social-accounts/`, { headers, credentials: "include", cache: "no-store" }).then((r) => r.json()),
+      fetch(`${API_BASE_URL}/wallets/`, { headers, credentials: "include", cache: "no-store" }).then((r) => r.json()),
     ]).then(([me, social, wallet]) => {
       if (!me.success) throw new Error("Session expired");
       setUser(me.user);
       setSocials(social.accounts ?? []);
       setWallets((wallet.wallets ?? []).filter((w: Wallet) => w.status !== "ARCHIVED" && w.status !== "DELETED"));
-    }).catch(() => { localStorage.removeItem("raven_token"); router.replace("/login?next=/dashboard"); });
+    }).catch(() => {
+      localStorage.removeItem("raven_token");
+      router.replace("/login?next=/dashboard");
+    });
   }, [router]);
 
   if (!user) return <main className="grid min-h-screen place-items-center bg-[#06060a] text-zinc-500">Loading your dashboard…</main>;
