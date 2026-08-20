@@ -16,14 +16,8 @@ const NETWORKS = [
 
 type Network = (typeof NETWORKS)[number];
 
-const EVM_NETWORKS = new Set<Network>([
-  "ethereum", "polygon", "avax", "base", "arbitrum", "immutable", "manta", "monad", "blast", "scroll", "zksync",
-  "enjin", "linea", "viction", "bera", "apechain", "abstract", "hyperliquid", "story", "somnia", "sophon", "robinhood", "binance",
-]);
-
-const SOLANA_NETWORKS = new Set<Network>(["solana"]);
 const FAMILY_BY_NETWORK: Record<Network, WalletAddressFamily> = {
-  ethereum: "EVM", solana: "SOLANA", polygon: "EVM", aptos: "APTOS", sui: "SUI", cardano: "NEAR", bitcoin: "BITCOIN",
+  ethereum: "EVM", solana: "SOLANA", polygon: "EVM", aptos: "APTOS", sui: "SUI", cardano: "CARDANO", bitcoin: "BITCOIN",
   avax: "EVM", venom: "EVM", injective: "COSMOS", sei: "COSMOS", base: "EVM", ripple: "RIPPLE", arbitrum: "EVM",
   immutable: "EVM", flow: "FLOW", binance: "EVM", tezos: "TEZOS", multiversx: "MULTIVERSX", near: "NEAR", hedera: "HEDERA",
   cosmos: "COSMOS", reef: "REEF", starknet: "STARKNET", manta: "EVM", monad: "EVM", blast: "EVM", stargaze: "COSMOS",
@@ -38,17 +32,11 @@ const walletSchema = z.object({
   label: z.string().trim().min(1).max(100).optional(),
 });
 
-function familyForNetwork(network: Network): WalletAddressFamily {
-  return FAMILY_BY_NETWORK[network];
-}
-
 function dbChainForFamily(family: WalletAddressFamily): "EVM" | "SOLANA" {
   return family === "SOLANA" ? "SOLANA" : "EVM";
 }
 
 function normalizedKey(normalizedAddress: string, network: Network): string {
-  // Keep compatibility with the existing schema's unique [chain, normalizedAddress]
-  // while allowing the same public address to be registered on different networks.
   return `${network}:${normalizedAddress}`;
 }
 
@@ -69,13 +57,11 @@ router.post("/", requireAuth, async (req, res, next) => {
     const parsed = walletSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ success: false, message: "Invalid wallet data", errors: z.treeifyError(parsed.error) });
 
-    const { address, providedChain, label } = {
-      address: parsed.data.address,
-      providedChain: parsed.data.chain,
-      label: parsed.data.label,
-    };
+    const address = parsed.data.address;
+    const providedChain = parsed.data.chain;
+    const label = parsed.data.label;
     const network = (parsed.data.network ?? (providedChain === "SOLANA" ? "solana" : "ethereum")) as Network;
-    const family = familyForNetwork(network);
+    const family = FAMILY_BY_NETWORK[network];
     const dbChain = dbChainForFamily(family);
 
     if (providedChain && providedChain !== dbChain) {
