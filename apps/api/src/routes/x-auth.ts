@@ -1,40 +1,13 @@
-import { Router } from "express";
-import { requireAuth } from "../middleware/auth.js";
+import { Router, type Request, type Response } from "express";
+import { verifyAuthToken } from "../services/auth.service.js";
 import { connectXAccount, createXAuthorizationUrl } from "../services/x-oauth.service.js";
 import { env } from "../config/env.js";
 import { logOAuthLoginSuccess, logOAuthLoginFailed } from "../services/auth-audit.service.js";
 
 const router = Router();
+function requestToken(req: Request) { const header = req.headers.authorization; if (header?.startsWith("Bearer ")) return header.slice(7).trim(); const cookie = req.headers.cookie?.split(";").map((part) => part.trim()).find((part) => part.startsWith("raven_token=")); return cookie ? decodeURIComponent(cookie.slice("raven_token=".length)) : null; }
+function setSession(res: Response, token: string) { const secure = env.NODE_ENV === "production" && env.WEB_ORIGIN.startsWith("https://") ? "; Secure" : ""; res.setHeader("Set-Cookie", `raven_token=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800${secure}`); }
 
-router.get("/start", requireAuth, async (req, res, next) => {
-  try {
-    if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
-    return res.json({ success: true, authorizationUrl: createXAuthorizationUrl(req.userId) });
-  } catch (error) { next(error); }
-});
-
-router.get("/callback", async (req, res) => {
-  try {
-    const code = typeof req.query.code === "string" ? req.query.code : null;
-    const state = typeof req.query.state === "string" ? req.query.state : null;
-    const error = typeof req.query.error === "string" ? req.query.error : null;
-    if (error) {
-      const reason = typeof req.query.error_description === "string" ? req.query.error_description : error;
-      logOAuthLoginFailed("X", reason, req).catch(console.error);
-      return res.redirect(`${env.WEB_ORIGIN}/account#social=x&status=error&message=${encodeURIComponent(reason)}`);
-    }
-    if (!code || !state) {
-      logOAuthLoginFailed("X", "Missing code or state", req).catch(console.error);
-      return res.redirect(`${env.WEB_ORIGIN}/account#social=x&status=error&message=${encodeURIComponent("Missing X OAuth code or state")}`);
-    }
-    const account = await connectXAccount(code, state);
-    logOAuthLoginSuccess(account.userId, "X", req).catch(console.error);
-    return res.redirect(`${env.WEB_ORIGIN}/account#social=x&status=connected&account=${encodeURIComponent(account.providerUsername ?? account.providerAccountId)}`);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "X connection failed";
-    logOAuthLoginFailed("X", message, req).catch(console.error);
-    return res.redirect(`${env.WEB_ORIGIN}/account#social=x&status=error&message=${encodeURIComponent(message)}`);
-  }
-});
-
+router.get("/start", async (req, res, next) => { try { const token = requestToken(req); const session = token ? await verifyAuthToken(token, "user") : null; return res.json({ success: true, authorizationUrl: createXAuthorizationUrl(session?.id ?? null) }); } catch (error) { next(error); } });
+router.get("/callback", async (req, res) => { try { const code = typeof req.query.code === "string" ? req.query.code : null; const state = typeof req.query.state === "string" ? req.query.state : null; const error = typeof req.query.error === "string" ? req.query.error : null; if (error) { const reason = typeof req.query.error_description === "string" ? req.query.error_description : error; logOAuthLoginFailed("X", reason, req).catch(console.error); return res.redirect(`${env.WEB_ORIGIN}/login?oauth=x&status=error&message=${encodeURIComponent(reason)}`); } if (!code || !state) { logOAuthLoginFailed("X", "Missing code or state", req).catch(console.error); return res.redirect(`${env.WEB_ORIGIN}/login?oauth=x&status=error&message=${encodeURIComponent("Missing X OAuth code or state")}`); } const result = await connectXAccount(code, state); setSession(res, result.authToken); logOAuthLoginSuccess(result.user.id, "X", req).catch(console.error); if (result.login) return res.redirect(`${env.WEB_ORIGIN}/dashboard`); return res.redirect(`${env.WEB_ORIGIN}/account#social=x&status=connected&account=${encodeURIComponent(result.account.providerUsername ?? result.account.providerAccountId)}`); } catch (error) { const message = error instanceof Error ? error.message : "X connection failed"; logOAuthLoginFailed("X", message, req).catch(console.error); return res.redirect(`${env.WEB_ORIGIN}/login?oauth=x&status=error&message=${encodeURIComponent(message)}`); } });
 export default router;
