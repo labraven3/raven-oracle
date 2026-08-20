@@ -11,26 +11,11 @@ declare global {
   }
 }
 
-function authorizationHeader(req: Request) {
-  const direct = req.get("authorization")?.trim();
-  if (direct) return direct;
-
-  // Node/Express normally exposes Authorization through req.headers, but keep
-  // a raw-header fallback for VPS/proxy combinations that preserve the header
-  // while it is not exposed on the normalized headers object.
-  const rawHeaders = req.rawHeaders ?? [];
-  for (let i = 0; i < rawHeaders.length - 1; i += 2) {
-    if (rawHeaders[i]?.toLowerCase() === "authorization") {
-      return rawHeaders[i + 1]?.trim() || null;
-    }
-  }
-
-  return null;
-}
-
 function bearerToken(req: Request) {
-  const header = authorizationHeader(req);
-  return header?.startsWith("Bearer ") ? header.slice("Bearer ".length).trim() || null : null;
+  const header = req.headers.authorization;
+  if (typeof header !== "string") return null;
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  return match?.[1]?.trim() || null;
 }
 
 function cookieToken(req: Request, portal: AuthPortal) {
@@ -58,7 +43,7 @@ async function resolveUserFromRequest(req: Request, portal: AuthPortal) {
       const user = await verifyAuthToken(bearer, portal);
       if (user) return user;
     } catch {
-      // Fall through to the session cookie below.
+      // Try the session cookie if a bearer token is invalid.
     }
   }
 
@@ -83,9 +68,8 @@ export async function requireAuth(
     const expectedPortal = portal ?? portalForRequest(req);
     const bearer = bearerToken(req);
     const cookie = cookieToken(req, expectedPortal);
-    const hasCredentials = Boolean(bearer || cookie);
 
-    if (!hasCredentials) {
+    if (!bearer && !cookie) {
       return res.status(401).json({ success: false, message: "Authentication required" });
     }
 
@@ -96,7 +80,7 @@ export async function requireAuth(
     }
 
     req.userId = user.id;
-    next();
+    return next();
   } catch {
     return res.status(401).json({ success: false, message: "Invalid authentication token" });
   }
@@ -137,7 +121,7 @@ export async function requireActiveAccount(req: Request, res: Response, next: Ne
     if (user.status === "BANNED" || user.status === "DELETED") return res.status(403).json({ success: false, message: "Access denied." });
     if (user.status !== "ACTIVE") return res.status(403).json({ success: false, message: "Your account is not active." });
 
-    next();
+    return next();
   } catch {
     return res.status(401).json({ success: false, message: "Invalid authentication token" });
   }
