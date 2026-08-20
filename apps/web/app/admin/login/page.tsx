@@ -2,20 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { API_BASE_URL } from "@/lib/api-config";
 
-function clearLegacyAdminToken() {
-  const legacy = localStorage.getItem("raven_token");
-  if (!legacy) return;
-  try {
-    const payload = JSON.parse(atob(legacy.split(".")[1] ?? ""));
-    if (payload?.portal === "admin") localStorage.removeItem("raven_token");
-  } catch {
-    // Leave an unreadable token alone; the API will reject it if it is used.
-  }
-}
-
 export default function AdminLoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -30,20 +21,16 @@ export default function AdminLoginPage() {
       const response = await fetch(`${API_BASE_URL}/auth/admin/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ email, password }),
       });
 
       const data = await response.json().catch(() => ({}));
-      if (!response.ok || !data.token) {
-        throw new Error(data.message || "Admin login failed");
-      }
+      if (!response.ok) throw new Error(data.message || "Admin login failed");
 
-      // Keep admin authentication completely separate from the normal user session.
-      clearLegacyAdminToken();
-      localStorage.setItem("raven_admin_token", data.token);
-      document.cookie = `raven_admin_token=${encodeURIComponent(data.token)}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
-
-      window.location.href = "/admin";
+      localStorage.removeItem("raven_token");
+      localStorage.removeItem("raven_admin_token");
+      router.replace("/admin");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Admin login failed");
       setLoading(false);
