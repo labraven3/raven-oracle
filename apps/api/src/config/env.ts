@@ -1,9 +1,10 @@
 import dotenv from "dotenv";
 import { z } from "zod";
 
-// Load repository .env values without overwriting variables injected by PM2,
-// Docker, CI, or the hosting environment.
-dotenv.config();
+// The VPS deployment uses the repository .env as the canonical runtime config.
+// Override inherited PM2/shell values so an old process cannot silently keep
+// stale DATABASE_URL/JWT_SECRET values across deployments.
+dotenv.config({ override: true });
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
