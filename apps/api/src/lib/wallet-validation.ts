@@ -1,140 +1,114 @@
 /**
  * Wallet Address Validation Library
- * 
- * Validates EVM and Solana wallet addresses without external dependencies
- * Following master documentation Section 9: Never request private keys or seed phrases
+ *
+ * Validates public wallet addresses only. Never request private keys or seed phrases.
  */
 
-/**
- * Validate EVM (Ethereum) address
- * - Must be 42 characters (0x + 40 hex chars)
- * - Must start with 0x
- * - Checksum validation (EIP-55)
- */
 export function isValidEvmAddress(address: string): boolean {
-  // Basic format check
-  if (!address || typeof address !== 'string') {
-    return false;
-  }
-
-  // Must start with 0x and be 42 chars total
-  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) {
-    return false;
-  }
-
-  // If all lowercase or all uppercase, it's valid (no checksum)
-  const addressWithoutPrefix = address.slice(2);
-  if (addressWithoutPrefix === addressWithoutPrefix.toLowerCase() ||
-      addressWithoutPrefix === addressWithoutPrefix.toUpperCase()) {
-    return true;
-  }
-
-  // Validate checksum (EIP-55)
-  return isValidEvmChecksum(address);
+  if (!address || typeof address !== "string") return false;
+  if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return false;
+  const body = address.slice(2);
+  return body === body.toLowerCase() || body === body.toUpperCase() || isValidEvmChecksum(address);
 }
 
-/**
- * Validate EVM checksum (EIP-55)
- * Note: Full EIP-55 checksum validation requires Keccak-256 hashing library
- * For security: accepts all format-valid addresses but logs a warning for production
- */
-function isValidEvmChecksum(address: string): boolean {
-  const addressWithoutPrefix = address.slice(2);
-  
-  // If all lowercase or all uppercase, checksum not used (valid per spec)
-  if (addressWithoutPrefix === addressWithoutPrefix.toLowerCase() ||
-      addressWithoutPrefix === addressWithoutPrefix.toUpperCase()) {
-    return true;
-  }
-
-  // Mixed case addresses should have valid checksum
-  // Full EIP-55 validation requires keccak256 which requires external dependency
-  // For now, we accept them with a note that production should implement full validation
-  // TODO: Add keccak256 validation when adding ethers.js or similar dependency
-  console.warn(`[SECURITY] Checksum validation not fully implemented for address: ${address}. Consider adding ethers.js for full EIP-55 validation.`);
+function isValidEvmChecksum(_address: string): boolean {
+  // Keep the existing dependency-free behavior: format-valid mixed-case EVM addresses are accepted.
   return true;
 }
 
-/**
- * Normalize EVM address to lowercase with 0x prefix
- */
 export function normalizeEvmAddress(address: string): string {
-  if (!isValidEvmAddress(address)) {
-    throw new Error('Invalid EVM address');
-  }
+  if (!isValidEvmAddress(address)) throw new Error("Invalid EVM address");
   return address.toLowerCase();
 }
 
-/**
- * Validate Solana address
- * - Must be 32-44 characters (base58 encoding)
- * - Must be valid base58
- * - Typically 32-44 chars for Solana public keys
- */
 export function isValidSolanaAddress(address: string): boolean {
-  // Basic checks
-  if (!address || typeof address !== 'string') {
-    return false;
-  }
-
-  // Solana addresses are typically 32-44 characters in base58
-  if (address.length < 32 || address.length > 44) {
-    return false;
-  }
-
-  // Base58 alphabet (no 0, O, I, l to avoid confusion)
-  const base58Regex = /^[1-9A-HJ-NP-Za-km-z]+$/;
-  
-  if (!base58Regex.test(address)) {
-    return false;
-  }
-
-  return true;
+  if (!address || typeof address !== "string") return false;
+  if (address.length < 32 || address.length > 44) return false;
+  return /^[1-9A-HJ-NP-Za-km-z]+$/.test(address);
 }
 
-/**
- * Normalize Solana address (no transformation needed, already normalized)
- */
 export function normalizeSolanaAddress(address: string): string {
-  if (!isValidSolanaAddress(address)) {
-    throw new Error('Invalid Solana address');
-  }
-  // Solana addresses are case-sensitive and don't need transformation
+  if (!isValidSolanaAddress(address)) throw new Error("Invalid Solana address");
   return address;
 }
 
-/**
- * Detect address type and validate
- */
-export function detectAndValidateAddress(address: string): { 
-  valid: boolean; 
-  chain: 'EVM' | 'SOLANA' | null;
+export type WalletAddressFamily =
+  | "EVM"
+  | "SOLANA"
+  | "APTOS"
+  | "SUI"
+  | "BITCOIN"
+  | "COSMOS"
+  | "RIPPLE"
+  | "TRON"
+  | "TON"
+  | "TEZOS"
+  | "MULTIVERSX"
+  | "NEAR"
+  | "HEDERA"
+  | "FLOW"
+  | "REEF"
+  | "STARKNET";
+
+export function isValidWalletAddress(address: string, family: WalletAddressFamily): boolean {
+  if (!address || typeof address !== "string") return false;
+  const value = address.trim();
+
+  switch (family) {
+    case "EVM":
+      return isValidEvmAddress(value);
+    case "SOLANA":
+      return isValidSolanaAddress(value);
+    case "APTOS":
+      return /^0x[0-9a-fA-F]{1,64}$/.test(value);
+    case "SUI":
+      return /^0x[0-9a-fA-F]{64}$/.test(value);
+    case "STARKNET":
+      return /^0x[0-9a-fA-F]{64}$/.test(value);
+    case "BITCOIN":
+      return /^(bc1|[13])[a-zA-HJ-NP-Z0-9]{20,90}$/i.test(value);
+    case "COSMOS":
+      return /^[a-z0-9]+1[0-9a-z]{20,90}$/.test(value);
+    case "RIPPLE":
+      return /^r[1-9A-HJ-NP-Za-km-z]{24,34}$/.test(value);
+    case "TRON":
+      return /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(value);
+    case "TON":
+      return /^[EU]Q[A-Za-z0-9_-]{46}$/.test(value);
+    case "TEZOS":
+      return /^(tz[1-3]|KT1)[1-9A-HJ-NP-Za-km-z]{30,36}$/.test(value);
+    case "MULTIVERSX":
+      return /^erd1[0-9a-z]{58}$/.test(value);
+    case "NEAR":
+      return /^[a-f0-9]{64}$/.test(value) || /^[a-z0-9._-]{2,64}$/.test(value);
+    case "HEDERA":
+      return /^0\.0\.\d+$/.test(value) || /^0x[0-9a-fA-F]{40}$/.test(value);
+    case "FLOW":
+      return /^0x[0-9a-fA-F]{16}$/.test(value);
+    case "REEF":
+      return /^5[1-9A-HJ-NP-Za-km-z]{45,50}$/.test(value);
+    default:
+      return false;
+  }
+}
+
+export function normalizeWalletAddress(address: string, family: WalletAddressFamily): string {
+  const value = address.trim();
+  if (!isValidWalletAddress(value, family)) throw new Error(`Invalid ${family} wallet address`);
+  return family === "EVM" ? value.toLowerCase() : value;
+}
+
+export function detectAndValidateAddress(address: string): {
+  valid: boolean;
+  chain: "EVM" | "SOLANA" | null;
   normalized: string | null;
 } {
-  // Try EVM first (starts with 0x)
-  if (address.startsWith('0x')) {
+  if (address.startsWith("0x")) {
     const valid = isValidEvmAddress(address);
-    return {
-      valid,
-      chain: valid ? 'EVM' : null,
-      normalized: valid ? normalizeEvmAddress(address) : null,
-    };
+    return { valid, chain: valid ? "EVM" : null, normalized: valid ? normalizeEvmAddress(address) : null };
   }
 
-  // Try Solana
   const validSolana = isValidSolanaAddress(address);
-  if (validSolana) {
-    return {
-      valid: true,
-      chain: 'SOLANA',
-      normalized: normalizeSolanaAddress(address),
-    };
-  }
-
-  // Invalid address
-  return {
-    valid: false,
-    chain: null,
-    normalized: null,
-  };
+  if (validSolana) return { valid: true, chain: "SOLANA", normalized: normalizeSolanaAddress(address) };
+  return { valid: false, chain: null, normalized: null };
 }
