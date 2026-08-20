@@ -43,7 +43,8 @@ function upstreamHeaders(response: Response) {
 
 async function proxy(request: NextRequest) {
   const incoming = new URL(request.url);
-  const upstream = new URL(`${API_URL}${incoming.pathname.replace(/^\/api/, "")}`);
+  // Keep /api because the Express API mounts every application route under /api/*.
+  const upstream = new URL(`${API_URL}${incoming.pathname}`);
   upstream.search = incoming.search;
 
   const headers = new Headers(request.headers);
