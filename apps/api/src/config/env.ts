@@ -1,10 +1,9 @@
 import dotenv from "dotenv";
 import { z } from "zod";
 
-// The VPS PM2 process can retain old environment values across restarts.
-// Load the repository .env explicitly so the configured public WEB_ORIGIN is
-// used for links generated in emails. Secrets are still never logged.
-dotenv.config({ override: true });
+// Load repository .env values without overwriting variables injected by PM2,
+// Docker, CI, or the hosting environment.
+dotenv.config();
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
