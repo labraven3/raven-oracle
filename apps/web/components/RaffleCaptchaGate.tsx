@@ -20,26 +20,27 @@ export default function RaffleCaptchaGate({ raffleId, children }: GateProps) {
 
   useEffect(() => {
     let cancelled = false;
-    const load = async () => {
+    const loadRaffle = async () => {
       try {
         const response = await fetch(`${API_BASE_URL}/raffles/${raffleId}`, { credentials: "include", cache: "no-store" });
         const data = await response.json() as RaffleResponse;
-        if (cancelled) return;
-        const needs = required(data.raffle?.entryRules);
-        setNeedsCaptcha(needs);
-        if (!needs) return;
-        const checkEntry = async () => {
-          try { const entryResponse = await fetch(`${API_BASE_URL}/raffles/${raffleId}/entries/me`, { credentials: "include", cache: "no-store" }); if (!cancelled && entryResponse.ok) setEntryExists(true); } catch { /* account may be logged out */ }
-        };
-        await checkEntry();
-        const timer = window.setInterval(() => { if (!cancelled && !entryExists) void checkEntry(); }, 3000);
-        return () => window.clearInterval(timer);
-      } catch { /* public page continues even when account checks are unavailable */ }
+        if (!cancelled) setNeedsCaptcha(required(data.raffle?.entryRules));
+      } catch { /* public page continues */ }
     };
-    let cleanup: (() => void) | undefined;
-    void load().then((value) => { if (typeof value === "function") cleanup = value; });
-    return () => { cancelled = true; cleanup?.(); };
-  }, [raffleId, entryExists]);
+    void loadRaffle();
+    return () => { cancelled = true; };
+  }, [raffleId]);
+
+  useEffect(() => {
+    if (!needsCaptcha || entryExists) return;
+    let cancelled = false;
+    const checkEntry = async () => {
+      try { const response = await fetch(`${API_BASE_URL}/raffles/${raffleId}/entries/me`, { credentials: "include", cache: "no-store" }); if (!cancelled && response.ok) setEntryExists(true); } catch { /* logged out or not entered */ }
+    };
+    void checkEntry();
+    const timer = window.setInterval(() => { if (!cancelled) void checkEntry(); }, 3000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [raffleId, needsCaptcha, entryExists]);
 
   useEffect(() => {
     if (!needsCaptcha || !entryExists || verified || !containerRef.current) return;
