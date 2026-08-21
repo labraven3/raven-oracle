@@ -10,8 +10,8 @@ export default function RavenLogo({ className = "", showWordmark = true, compact
       />
       {showWordmark && (
         <span className="leading-none">
-          <span className="block text-sm font-black tracking-[.2em] text-white">RAVEN</span>
-          <span className="mt-1 block text-[8px] font-bold tracking-[.28em] text-violet-300">ORACLE</span>
+          <span className="block text-sm font-black tracking-[.2em] text-zinc-900 dark:text-white">RAVEN</span>
+          <span className="mt-1 block text-[8px] font-bold tracking-[.28em] text-violet-600 dark:text-violet-300">ORACLE</span>
         </span>
       )}
     </div>
