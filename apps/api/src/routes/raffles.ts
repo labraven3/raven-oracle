@@ -2,7 +2,7 @@ import { Router, type NextFunction, type Request, type Response } from "express"
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import type { Prisma } from "@prisma/client";
-import { requireAuth } from "../middleware/auth.js";
+import { requireAuth, requireAdminAuth } from "../middleware/auth.js";
 import { drawRaffle } from "../services/raffle-draw.service.js";
 import { notifyWinner } from "../services/raffle-winner.service.js";
 
@@ -12,7 +12,7 @@ const createRaffleSchema = z.object({ projectId: z.string().uuid().optional(), t
 const listSchema = z.object({ status: z.string().optional() });
 function asyncRoute(handler: (req: Request, res: Response, next: NextFunction) => Promise<void>) { return (req: Request, res: Response, next: NextFunction) => { void handler(req, res, next).catch(next); }; }
 
-router.post("/", requireAuth, asyncRoute(async (req, res) => {
+router.post("/", requireAdminAuth, asyncRoute(async (req, res) => {
   if (!req.userId) { res.status(401).json({ success: false, message: "Authentication required" }); return; }
   const parsed = createRaffleSchema.safeParse(req.body); if (!parsed.success) { res.status(400).json({ success: false, message: "Invalid raffle data", errors: z.treeifyError(parsed.error) }); return; }
   const data = parsed.data, startsAt = new Date(data.startsAt), endsAt = new Date(data.endsAt), now = new Date();
