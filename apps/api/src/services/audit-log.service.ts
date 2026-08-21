@@ -3,7 +3,7 @@ import type { AuditAction, Prisma } from "@prisma/client";
 
 /**
  * Audit Log Service
- * 
+ *
  * Records administrative and moderation actions for accountability
  * and security tracking.
  */
@@ -20,12 +20,7 @@ interface CreateAuditLogParams {
   riskContext?: Record<string, unknown>;
 }
 
-/**
- * Create an audit log entry
- */
-export async function createAuditLog(
-  params: CreateAuditLogParams
-): Promise<void> {
+export async function createAuditLog(params: CreateAuditLogParams): Promise<void> {
   const data: {
     actorUserId: string | null;
     action: AuditAction;
@@ -44,35 +39,41 @@ export async function createAuditLog(
     summary: params.summary,
   };
 
-  if (params.before) {
-    data.before = params.before as Prisma.InputJsonValue;
-  }
-  if (params.after) {
-    data.after = params.after as Prisma.InputJsonValue;
-  }
-  if (params.metadata) {
-    data.metadata = params.metadata as Prisma.InputJsonValue;
-  }
-  if (params.riskContext) {
-    data.riskContext = params.riskContext as Prisma.InputJsonValue;
-  }
+  if (params.before) data.before = params.before as Prisma.InputJsonValue;
+  if (params.after) data.after = params.after as Prisma.InputJsonValue;
+  if (params.metadata) data.metadata = params.metadata as Prisma.InputJsonValue;
+  if (params.riskContext) data.riskContext = params.riskContext as Prisma.InputJsonValue;
 
   await prisma.auditLog.create({ data });
 }
 
-/**
- * Log alpha submission moderation action
- */
+export async function logProjectChange(
+  actorUserId: string | null,
+  projectId: string,
+  eventType: "PROJECT_METADATA_UPDATED" | "PROJECT_CHAIN_UPDATED" | "PROJECT_RESUBMITTED",
+  summary: string,
+  before?: Record<string, unknown>,
+  after?: Record<string, unknown>,
+  metadata?: Record<string, unknown>
+): Promise<void> {
+  await createAuditLog({
+    actorUserId,
+    action: "ADMIN_ACTION",
+    entityType: "Project",
+    entityId: projectId,
+    summary,
+    ...(before ? { before } : {}),
+    ...(after ? { after } : {}),
+    metadata: { eventType, ...(metadata ?? {}) },
+  });
+}
+
 export async function logAlphaModeration(
   actorUserId: string,
   submissionId: string,
   action: "ALPHA_VERIFIED" | "ALPHA_REJECTED",
   before: { status: string; pointsAwarded: number | null },
-  after: {
-    status: string;
-    pointsAwarded: number | null;
-    rejectionReason?: string | null;
-  },
+  after: { status: string; pointsAwarded: number | null; rejectionReason?: string | null },
   metadata?: Record<string, unknown>
 ): Promise<void> {
   await createAuditLog({
@@ -80,26 +81,15 @@ export async function logAlphaModeration(
     action,
     entityType: "AlphaSubmission",
     entityId: submissionId,
-    summary:
-      action === "ALPHA_VERIFIED"
-        ? `Verified alpha submission (${after.pointsAwarded || 0} points awarded)`
-        : `Rejected alpha submission: ${after.rejectionReason || "No reason provided"}`,
-    before: {
-      status: before.status,
-      pointsAwarded: before.pointsAwarded,
-    },
-    after: {
-      status: after.status,
-      pointsAwarded: after.pointsAwarded,
-      rejectionReason: after.rejectionReason,
-    },
+    summary: action === "ALPHA_VERIFIED"
+      ? `Verified alpha submission (${after.pointsAwarded || 0} points awarded)`
+      : `Rejected alpha submission: ${after.rejectionReason || "No reason provided"}`,
+    before: { status: before.status, pointsAwarded: before.pointsAwarded },
+    after: { status: after.status, pointsAwarded: after.pointsAwarded, rejectionReason: after.rejectionReason },
     ...(metadata ? { metadata } : {}),
   });
 }
 
-/**
- * Log points awarded/deducted
- */
 export async function logPointsTransaction(
   actorUserId: string | null,
   userId: string,
@@ -124,9 +114,6 @@ export async function logPointsTransaction(
   });
 }
 
-/**
- * Log project moderation action
- */
 export async function logProjectModeration(
   actorUserId: string,
   projectId: string,
@@ -139,23 +126,14 @@ export async function logProjectModeration(
     action,
     entityType: "Project",
     entityId: projectId,
-    summary:
-      action === "PROJECT_APPROVED"
-        ? "Project approved"
-        : `Project rejected: ${after.rejectionReason || "No reason provided"}`,
-    before: {
-      status: before.status,
-    },
-    after: {
-      status: after.status,
-      rejectionReason: after.rejectionReason,
-    },
+    summary: action === "PROJECT_APPROVED"
+      ? "Project approved"
+      : `Project rejected: ${after.rejectionReason || "No reason provided"}`,
+    before: { status: before.status },
+    after: { status: after.status, rejectionReason: after.rejectionReason },
   });
 }
 
-/**
- * Log raffle winner selection
- */
 export async function logRaffleWinnerSelection(
   actorUserId: string,
   raffleId: string,
@@ -169,17 +147,10 @@ export async function logRaffleWinnerSelection(
     entityType: "Raffle",
     entityId: raffleId,
     summary: `Drew ${winnerCount} winner(s) from ${eligibleEntryCount} eligible entries`,
-    metadata: {
-      winnerCount,
-      eligibleEntryCount,
-      algorithmVersion,
-    },
+    metadata: { winnerCount, eligibleEntryCount, algorithmVersion },
   });
 }
 
-/**
- * Log user suspension/ban
- */
 export async function logUserAction(
   actorUserId: string,
   userId: string,
@@ -194,18 +165,11 @@ export async function logUserAction(
     entityType: "User",
     entityId: userId,
     summary: `User ${action === "USER_SUSPENDED" ? "suspended" : "banned"}: ${reason}`,
-    before: {
-      status: before.status,
-    },
-    after: {
-      status: after.status,
-    },
+    before: { status: before.status },
+    after: { status: after.status },
   });
 }
 
-/**
- * Log chat message moderation
- */
 export async function logChatModeration(
   actorUserId: string,
   messageId: string,
@@ -220,12 +184,8 @@ export async function logChatModeration(
     entityType: "ChatMessage",
     entityId: messageId,
     summary: `Message moderated: ${after.moderationStatus}${reason ? ` - ${reason}` : ""}`,
-    before: {
-      moderationStatus: before.moderationStatus,
-    },
-    after: {
-      moderationStatus: after.moderationStatus,
-    },
+    before: { moderationStatus: before.moderationStatus },
+    after: { moderationStatus: after.moderationStatus },
     ...(reason ? { metadata: { reason } } : {}),
   });
 }
