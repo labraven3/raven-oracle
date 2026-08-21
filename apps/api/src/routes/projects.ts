@@ -4,248 +4,26 @@ import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
+const category = z.enum(["NFT", "TOKEN", "GAME", "TOOL", "DEFI", "COMMUNITY", "OTHER"]);
+const logoDataUrl = z.string().regex(/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/).max(3_000_000, "Logo file is too large. Maximum size is 2 MB.");
+const createSchema = z.object({ name: z.string().trim().min(1).max(120), description: z.string().trim().max(5000).optional(), websiteUrl: z.string().url().optional().or(z.literal("")), xUrl: z.string().url().optional().or(z.literal("")), discordUrl: z.string().url().optional().or(z.literal("")), logoUrl: logoDataUrl, category: category.default("OTHER") });
+const raffleTaskSchema = z.object({ type: z.enum(["X_FOLLOW", "X_LIKE", "X_REPOST", "DISCORD_JOIN"]), title: z.string().trim().min(1).max(255), description: z.string().trim().max(1000).optional().nullable(), target: z.string().trim().min(1).max(500), targetUrl: z.string().url().optional().nullable().or(z.literal("")), isRequired: z.boolean().default(true) });
+const createProjectRaffleSchema = z.object({ title: z.string().trim().min(1).max(200), description: z.string().trim().max(5000).optional(), prizeName: z.string().trim().min(1).max(200), prizeDescription: z.string().trim().max(5000).optional(), prizeQuantity: z.number().int().positive().default(1), startsAt: z.string().datetime(), endsAt: z.string().datetime(), winnerCount: z.number().int().positive().default(1), maxEntriesPerUser: z.number().int().positive().default(1), fairnessAlgorithmVersion: z.string().trim().max(100).default("v1"), tasks: z.array(raffleTaskSchema).min(1) });
+function slugify(value: string) { return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 70) || "project"; }
+async function uniqueSlug(name: string) { const base = slugify(name); let slug = base; let i = 2; while (await prisma.project.findUnique({ where: { slug } })) slug = `${base}-${i++}`; return slug; }
 
-// Keep API validation aligned with prisma/schema.prisma ProjectCategory.
-const category = z.enum([
-  "NFT",
-  "TOKEN",
-  "GAME",
-  "TOOL",
-  "DEFI",
-  "COMMUNITY",
-  "OTHER",
-]);
+router.get("/", async (req, res, next) => { try { const categoryFilter = req.query.category as string | undefined; const status = req.query.status as string | undefined; const search = req.query.search as string | undefined; const limit = Math.min(parseInt(req.query.limit as string) || 100, 100); const where: any = { deletedAt: null }; if (categoryFilter && ["NFT","TOKEN","GAME","TOOL","DEFI","COMMUNITY","OTHER"].includes(categoryFilter)) where.category = categoryFilter; if (status === "APPROVED" || !status) where.status = "APPROVED"; if (search?.trim()) where.OR = [{ name: { contains: search.trim(), mode: "insensitive" } }, { description: { contains: search.trim(), mode: "insensitive" } }]; const projects = await prisma.project.findMany({ where, orderBy: { createdAt: "desc" }, take: limit, select: { id: true, name: true, slug: true, description: true, websiteUrl: true, xUrl: true, discordUrl: true, logoUrl: true, category: true, status: true, createdAt: true } }); return res.json({ success: true, projects, total: projects.length }); } catch (error) { next(error); } });
 
-// The frontend uploads a PNG/JPG/WEBP and sends it as a data URL for the
-// current local build. This removes the need for users to paste logo URLs.
-const logoDataUrl = z
-  .string()
-  .regex(/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/)
-  .max(3_000_000, "Logo file is too large. Maximum size is 2 MB.");
+router.get("/public", async (req, res, next) => { try { const categoryFilter = req.query.category as string | undefined; const search = req.query.search as string | undefined; const limit = Math.min(parseInt(req.query.limit as string) || 100, 100); const where: any = { deletedAt: null, status: "APPROVED" }; if (categoryFilter && ["NFT","TOKEN","GAME","TOOL","DEFI","COMMUNITY","OTHER"].includes(categoryFilter)) where.category = categoryFilter; if (search?.trim()) where.OR = [{ name: { contains: search.trim(), mode: "insensitive" } }, { description: { contains: search.trim(), mode: "insensitive" } }]; const projects = await prisma.project.findMany({ where, orderBy: { createdAt: "desc" }, take: limit, select: { id: true, name: true, slug: true, description: true, websiteUrl: true, xUrl: true, discordUrl: true, logoUrl: true, category: true, status: true, createdAt: true } }); return res.json({ success: true, projects, total: projects.length }); } catch (error) { next(error); } });
 
-const createSchema = z.object({
-  name: z.string().trim().min(1).max(120),
-  description: z.string().trim().max(5000).optional(),
-  // Website is optional. Empty string is normalized to null below.
-  websiteUrl: z.string().url().optional().or(z.literal("")),
-  xUrl: z.string().url().optional().or(z.literal("")),
-  discordUrl: z.string().url().optional().or(z.literal("")),
-  logoUrl: logoDataUrl,
-  category: category.default("OTHER"),
-});
+router.get("/mine", requireAuth, async (req, res, next) => { try { if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" }); const projects = await prisma.project.findMany({ where: { submittedByUserId: req.userId, deletedAt: null }, orderBy: { createdAt: "desc" }, include: { _count: { select: { raffles: true } }, raffles: { where: { cancelledAt: null }, orderBy: { startsAt: "desc" }, take: 20, select: { id: true, title: true, status: true, prizeName: true, startsAt: true, endsAt: true, winnerCount: true, _count: { select: { entries: true, winners: true } } } } } }); return res.json({ success: true, projects }); } catch (error) { next(error); } });
 
-function slugify(value: string) {
-  return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 70) || "project";
-}
+router.post("/", requireAuth, async (req, res, next) => { try { if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" }); const parsed = createSchema.safeParse(req.body); if (!parsed.success) return res.status(400).json({ success: false, message: "Invalid project data", errors: parsed.error.issues.map(issue => ({ field: issue.path.join("."), message: issue.message })) }); const pendingCount = await prisma.project.count({ where: { submittedByUserId: req.userId, status: "SUBMITTED", deletedAt: null } }); if (pendingCount >= 5) return res.status(429).json({ success: false, message: "You have too many pending project submissions. Please wait for them to be reviewed." }); const slug = await uniqueSlug(parsed.data.name); const project = await prisma.project.create({ data: { name: parsed.data.name, slug, description: parsed.data.description || null, websiteUrl: parsed.data.websiteUrl || null, xUrl: parsed.data.xUrl || null, discordUrl: parsed.data.discordUrl || null, logoUrl: parsed.data.logoUrl, category: parsed.data.category, status: "SUBMITTED", submittedByUserId: req.userId } }); return res.status(201).json({ success: true, project }); } catch (error) { next(error); } });
 
-async function uniqueSlug(name: string) {
-  const base = slugify(name);
-  let slug = base;
-  let i = 2;
-  while (await prisma.project.findUnique({ where: { slug } })) {
-    slug = `${base}-${i++}`;
-  }
-  return slug;
-}
+router.get("/:id/manage", requireAuth, async (req, res, next) => { try { if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" }); const project = await prisma.project.findUnique({ where: { id: req.params.id }, include: { raffles: { orderBy: { startsAt: "desc" }, include: { _count: { select: { entries: true, winners: true, tasks: true } }, tasks: { orderBy: { sortOrder: "asc" } } } } } }); if (!project || project.deletedAt) return res.status(404).json({ success: false, message: "Project not found" }); if (project.submittedByUserId !== req.userId) return res.status(403).json({ success: false, message: "You do not own this project" }); return res.json({ success: true, project }); } catch (error) { next(error); } });
 
-router.get("/", async (req, res, next) => {
-  try {
-    // Extract query parameters for filtering and search
-    const category = req.query.category as string | undefined;
-    const status = req.query.status as string | undefined;
-    const search = req.query.search as string | undefined;
-    const limit = Math.min(parseInt(req.query.limit as string) || 100, 100);
+router.post("/:id/raffles", requireAuth, async (req, res, next) => { try { if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" }); const parsed = createProjectRaffleSchema.safeParse(req.body); if (!parsed.success) return res.status(400).json({ success: false, message: "Invalid raffle data", errors: z.treeifyError(parsed.error) }); const project = await prisma.project.findUnique({ where: { id: req.params.id }, select: { id: true, name: true, status: true, deletedAt: true, submittedByUserId: true } }); if (!project || project.deletedAt) return res.status(404).json({ success: false, message: "Project not found" }); if (project.submittedByUserId !== req.userId) return res.status(403).json({ success: false, message: "You do not own this project" }); if (project.status !== "APPROVED") return res.status(400).json({ success: false, message: "Your project must be approved before you can publish a raffle" }); const data = parsed.data; const startsAt = new Date(data.startsAt); const endsAt = new Date(data.endsAt); const now = new Date(); if (endsAt <= startsAt) return res.status(400).json({ success: false, message: "endsAt must be after startsAt" }); if (endsAt <= now) return res.status(400).json({ success: false, message: "Raffle end time must be in the future" }); if (data.winnerCount > data.prizeQuantity) return res.status(400).json({ success: false, message: "winnerCount cannot exceed prizeQuantity" }); const raffle = await prisma.$transaction(async (tx) => { const created = await tx.raffle.create({ data: { projectId: project.id, createdByUserId: req.userId!, title: data.title, description: data.description || null, prizeName: data.prizeName, prizeDescription: data.prizeDescription || null, prizeQuantity: data.prizeQuantity, startsAt, endsAt, entryRules: { tasks: data.tasks }, status: startsAt > now ? "SCHEDULED" : "ACTIVE", maxEntriesPerUser: data.maxEntriesPerUser, winnerCount: data.winnerCount, fairnessAlgorithmVersion: data.fairnessAlgorithmVersion } }); await tx.raffleTask.createMany({ data: data.tasks.map((task, index) => ({ raffleId: created.id, type: task.type, title: task.title, description: task.description || null, target: task.target, targetUrl: task.targetUrl || null, isRequired: task.isRequired, sortOrder: index })) }); await tx.auditLog.create({ data: { actorUserId: req.userId!, action: "RAFFLE_CREATED", entityType: "Raffle", entityId: created.id, summary: `Raffle created: ${created.title}`, after: { projectId: created.projectId, status: created.status } } }); return tx.raffle.findUnique({ where: { id: created.id }, include: { project: { select: { id: true, name: true, logoUrl: true, category: true } }, tasks: { orderBy: { sortOrder: "asc" } } } }); }); return res.status(201).json({ success: true, raffle }); } catch (error) { next(error); } });
 
-    // Build where clause
-    const where: any = {
-      deletedAt: null,
-    };
-
-    // Filter by category
-    if (category && ["NFT", "TOKEN", "GAME", "TOOL", "DEFI", "COMMUNITY", "OTHER"].includes(category)) {
-      where.category = category;
-    }
-
-    // Filter by status (only admins/moderators should see non-approved)
-    // For now, public sees only APPROVED projects
-    // Admin routes will handle other statuses
-    if (status === "APPROVED" || !status) {
-      where.status = "APPROVED";
-    }
-
-    // Search by name or description
-    if (search && search.trim()) {
-      where.OR = [
-        { name: { contains: search.trim(), mode: "insensitive" } },
-        { description: { contains: search.trim(), mode: "insensitive" } },
-      ];
-    }
-
-    const projects = await prisma.project.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      take: limit,
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        description: true,
-        websiteUrl: true,
-        xUrl: true,
-        discordUrl: true,
-        logoUrl: true,
-        category: true,
-        status: true,
-        createdAt: true,
-      },
-    });
-    
-    return res.json({ success: true, projects, total: projects.length });
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
- * GET /api/projects/public
- * Returns only APPROVED projects (public discovery)
- * Must be defined BEFORE /:id route to prevent 'public' being caught as UUID
- */
-router.get("/public", async (req, res, next) => {
-  try {
-    const category = req.query.category as string | undefined;
-    const search = req.query.search as string | undefined;
-    const limit = Math.min(parseInt(req.query.limit as string) || 100, 100);
-
-    const where: any = {
-      deletedAt: null,
-      status: "APPROVED",
-    };
-
-    if (category && ["NFT", "TOKEN", "GAME", "TOOL", "DEFI", "COMMUNITY", "OTHER"].includes(category)) {
-      where.category = category;
-    }
-
-    if (search && search.trim()) {
-      where.OR = [
-        { name: { contains: search.trim(), mode: "insensitive" } },
-        { description: { contains: search.trim(), mode: "insensitive" } },
-      ];
-    }
-
-    const projects = await prisma.project.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      take: limit,
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        description: true,
-        websiteUrl: true,
-        xUrl: true,
-        discordUrl: true,
-        logoUrl: true,
-        category: true,
-        status: true,
-        createdAt: true,
-      },
-    });
-    
-    return res.json({ success: true, projects, total: projects.length });
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.post("/", requireAuth, async (req, res, next) => {
-  try {
-    if (!req.userId) {
-      return res.status(401).json({ success: false, message: "Authentication required" });
-    }
-
-    const parsed = createSchema.safeParse(req.body);
-    
-    if (!parsed.success) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Invalid project data", 
-        errors: parsed.error.issues.map(issue => ({
-          field: issue.path.join('.'),
-          message: issue.message,
-        })),
-      });
-    }
-
-    // Check if user already has too many pending submissions (spam prevention)
-    const pendingCount = await prisma.project.count({
-      where: {
-        submittedByUserId: req.userId,
-        status: "SUBMITTED",
-        deletedAt: null,
-      },
-    });
-
-    if (pendingCount >= 5) {
-      return res.status(429).json({
-        success: false,
-        message: "You have too many pending project submissions. Please wait for them to be reviewed.",
-      });
-    }
-
-    const slug = await uniqueSlug(parsed.data.name);
-    
-    const project = await prisma.project.create({
-      data: {
-        name: parsed.data.name,
-        slug,
-        description: parsed.data.description || null,
-        websiteUrl: parsed.data.websiteUrl || null,
-        xUrl: parsed.data.xUrl || null,
-        discordUrl: parsed.data.discordUrl || null,
-        logoUrl: parsed.data.logoUrl,
-        category: parsed.data.category,
-        status: "SUBMITTED",
-        submittedByUserId: req.userId,
-      },
-    });
-
-    return res.status(201).json({ success: true, project });
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.get("/:id", async (req, res, next) => {
-  try {
-    const project = await prisma.project.findUnique({
-      where: { id: req.params.id },
-      include: {
-        raffles: {
-          where: { 
-            cancelledAt: null,
-            status: { in: ["SCHEDULED", "ACTIVE", "CLOSED", "COMPLETED"] }, // Only show public raffles
-          },
-          orderBy: { startsAt: "desc" },
-          take: 50,
-        },
-      },
-    });
-    
-    if (!project || project.deletedAt) {
-      return res.status(404).json({ success: false, message: "Project not found" });
-    }
-
-    // Public users can only see APPROVED projects
-    // This check ensures non-approved projects are not accessible via direct ID
-    if (project.status !== "APPROVED") {
-      return res.status(404).json({ success: false, message: "Project not found" });
-    }
-    
-    return res.json({ success: true, project });
-  } catch (error) {
-    next(error);
-  }
-});
+router.get("/:id", async (req, res, next) => { try { const project = await prisma.project.findUnique({ where: { id: req.params.id }, include: { raffles: { where: { cancelledAt: null, status: { in: ["SCHEDULED", "ACTIVE", "CLOSED", "COMPLETED"] } }, orderBy: { startsAt: "desc" }, take: 50 } } }); if (!project || project.deletedAt || project.status !== "APPROVED") return res.status(404).json({ success: false, message: "Project not found" }); return res.json({ success: true, project }); } catch (error) { next(error); } });
 
 export default router;
