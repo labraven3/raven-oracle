@@ -1,0 +1,34 @@
+/* Final cross-page theme normalization. Loaded after theme-overrides.css. */
+
+html.light body{background:#f7f7fb!important;color:#171722!important}
+html.light main{color:#171722}
+html.light .text-zinc-100{color:#171722!important}
+html.light .text-zinc-200{color:#30303d!important}
+html.light .text-zinc-300{color:#474754!important}
+html.light .text-zinc-400{color:#626271!important}
+html.light .text-zinc-500{color:#777785!important}
+html.light .text-zinc-600{color:#8a8995!important}
+html.light .bg-[#06060a],html.light .bg-[#07070a]{background:#f7f7fb!important;color:#171722!important}
+html.light .bg-[#0d0c11],html.light .bg-[#111117],html.light .bg-[#121219],html.light .bg-[#15161c],html.light .bg-[#16161d]{background:#fff!important;color:#171722!important}
+html.light .border-white\/10{border-color:#e5e1ec!important}
+html.light .border-white\/5{border-color:#ece9f2!important}
+html.light button.border-white\/10,html.light a.border-white\/10{background:#fff!important;color:#333342!important}
+html.light input,html.light textarea,html.light select{background:#fff!important;color:#1f1f2b!important;border-color:#ddd8e8!important}
+html.light .hover\:bg-white\/5:hover{background:#f4f1f8!important}
+html.light .hover\:bg-slate-50:hover,html.light .hover\:bg-black\/5:hover{background:#f4f1f8!important}
+
+html.dark body{background:#07070a!important;color:#f4f4f5!important}
+html.dark main{color:#f4f4f5}
+
+/* Account: remove the legacy side navigation and use the full content width. */
+main.min-h-screen.bg-slate-50.text-slate-900 > div.mx-auto.flex.max-w-7xl.gap-0 > aside{display:none!important}
+main.min-h-screen.bg-slate-50.text-slate-900 > div.mx-auto.flex.max-w-7xl.gap-0 > section{width:100%!important;max-width:none!important}
+
+/* Keep the account page's content readable in light mode. */
+html.light main.min-h-screen.bg-slate-50.text-slate-900{background:#f7f7fb!important;color:#171722!important}
+html.light main.min-h-screen.bg-slate-50.text-slate-900 section{background:#fff!important;color:#171722!important}
+html.light main.min-h-screen.bg-slate-50.text-slate-900 .text-slate-900{color:#171722!important}
+html.light main.min-h-screen.bg-slate-50.text-slate-900 .text-slate-700{color:#30303d!important}
+html.light main.min-h-screen.bg-slate-50.text-slate-900 .text-slate-600{color:#474754!important}
+html.light main.min-h-screen.bg-slate-50.text-slate-900 .text-slate-500{color:#626271!important}
+html.light main.min-h-screen.bg-slate-50.text-slate-900 .border-slate-200{border-color:#e5e1ec!important}
