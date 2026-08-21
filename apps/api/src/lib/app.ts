@@ -16,6 +16,7 @@ import projectsRouter from "../routes/projects.js";
 import projectMetadataRouter from "../routes/project-metadata.js";
 import projectDiscoveryRouter from "../routes/project-discovery.js";
 import projectOnboardingRouter from "../routes/project-onboarding.js";
+import projectApprovalRouter from "../routes/project-approval.js";
 import chainsRouter from "../routes/chains.js";
 import rafflesRouter from "../routes/raffles.js";
 import publicRafflesRouter from "../routes/public-raffles.js";
@@ -55,6 +56,7 @@ export function createApp() {
   app.use("/api/projects/onboarding", projectCatalogGuard, projectOnboardingRouter);
   app.use("/api/projects", projectCatalogGuard, projectsRouter);
   app.use("/api/project-metadata", projectMetadataRouter);
+  app.use("/api/project-approval", projectApprovalRouter);
   app.use("/api/chains", chainsRouter);
   app.use("/api/raffles/public", publicRafflesRouter);
   app.use("/api/raffles", rafflesRouter);
