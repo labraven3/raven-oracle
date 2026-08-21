@@ -12,6 +12,7 @@ import discordAuthRouter from "../routes/discord-auth.js";
 import telegramAuthRouter from "../routes/telegram-auth.js";
 import walletsRouter from "../routes/wallets.js";
 import projectsRouter from "../routes/projects.js";
+import chainsRouter from "../routes/chains.js";
 import rafflesRouter from "../routes/raffles.js";
 import publicRafflesRouter from "../routes/public-raffles.js";
 import raffleEntriesRouter from "../routes/raffle-entries.js";
@@ -40,6 +41,7 @@ export function createApp() {
   app.use("/api/auth/telegram", telegramAuthRouter);
   app.use("/api/wallets", walletsRouter);
   app.use("/api/projects", projectsRouter);
+  app.use("/api/chains", chainsRouter);
   app.use("/api/raffles/public", publicRafflesRouter);
   app.use("/api/raffles", rafflesRouter);
   app.use("/api/raffles", raffleEntriesRouter);
