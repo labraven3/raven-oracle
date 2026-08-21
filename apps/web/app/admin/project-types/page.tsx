@@ -1,0 +1,157 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import AdminLayout from "@/components/AdminLayout";
+import { API_BASE_URL } from "@/lib/api-config";
+
+type ProjectType = "NFT" | "TOKEN" | "AIRDROP" | "OTHER";
+type Row = { projectId: string; type: ProjectType; metadata: Record<string, unknown> };
+type Project = { id: string; name: string; status: string; logoUrl?: string | null };
+
+async function api<T>(path: string, options: RequestInit = {}) {
+  const headers = new Headers(options.headers);
+  headers.set("Content-Type", "application/json");
+  const token = typeof window !== "undefined" ? localStorage.getItem("raven_token") : null;
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers, credentials: "include" });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message ?? `Request failed (${response.status})`);
+  return data as T;
+}
+
+const blankByType: Record<ProjectType, Record<string, string>> = {
+  NFT: { collectionContractAddress: "", supply: "", standard: "" },
+  TOKEN: { symbol: "", contractAddress: "", tokenStandard: "", decimals: "", launchDate: "" },
+  AIRDROP: { snapshotDate: "", claimDate: "", allocation: "", eligibility: "", claimUrl: "" },
+  OTHER: { subtype: "", externalUrl: "", notes: "" },
+};
+
+const labels: Record<string, string> = {
+  collectionContractAddress: "Collection contract",
+  supply: "Supply",
+  standard: "Standard",
+  symbol: "Symbol",
+  contractAddress: "Contract address",
+  tokenStandard: "Token standard",
+  decimals: "Decimals",
+  launchDate: "Launch date",
+  snapshotDate: "Snapshot date",
+  claimDate: "Claim date",
+  allocation: "Allocation",
+  eligibility: "Eligibility",
+  claimUrl: "Claim URL",
+  subtype: "Subtype",
+  externalUrl: "External URL",
+  notes: "Notes",
+};
+
+export default function AdminProjectTypesPage() {
+  const [rows, setRows] = useState<Row[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selected, setSelected] = useState("");
+  const [type, setType] = useState<ProjectType>("NFT");
+  const [metadata, setMetadata] = useState<Record<string, string>>(blankByType.NFT);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const load = async () => {
+    setLoading(true); setError("");
+    try {
+      const [typeData, projectData] = await Promise.all([
+        api<{ projectTypes: Row[] }>("/admin/project-types"),
+        api<{ projects: Project[] }>("/admin/projects"),
+      ]);
+      setRows(typeData.projectTypes ?? []);
+      setProjects(projectData.projects ?? []);
+      if (!selected && projectData.projects?.[0]) setSelected(projectData.projects[0].id);
+    } catch (e) { setError(e instanceof Error ? e.message : "Unable to load project metadata"); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { void load(); }, []);
+
+  useEffect(() => {
+    const row = rows.find((item) => item.projectId === selected);
+    const nextType = row?.type ?? "NFT";
+    setType(nextType);
+    const base = { ...blankByType[nextType] };
+    for (const [key, value] of Object.entries((row?.metadata ?? {}) as Record<string, unknown>)) base[key] = value == null ? "" : String(value);
+    setMetadata(base);
+  }, [rows, selected]);
+
+  const selectedProject = projects.find((item) => item.id === selected);
+  const fields = useMemo(() => Object.keys(blankByType[type]), [type]);
+
+  const changeType = (next: ProjectType) => {
+    setType(next);
+    const row = rows.find((item) => item.projectId === selected);
+    const base = { ...blankByType[next] };
+    if (row?.type === next) for (const [key, value] of Object.entries((row.metadata ?? {}) as Record<string, unknown>)) base[key] = value == null ? "" : String(value);
+    setMetadata(base);
+  };
+
+  const save = async () => {
+    if (!selected) return setError("Select a project first.");
+    setBusy(true); setError(""); setMessage("");
+    try {
+      const payload: Record<string, unknown> = {};
+      for (const key of fields) {
+        const value = metadata[key] ?? "";
+        if (key === "supply" || key === "decimals") {
+          if (value !== "") payload[key] = Number(value);
+        } else payload[key] = value;
+      }
+      await api(`/admin/project-types/${selected}`, { method: "PUT", body: JSON.stringify({ projectType: type, metadata: payload }) });
+      setMessage("Project metadata saved.");
+      await load();
+    } catch (e) { setError(e instanceof Error ? e.message : "Unable to save metadata"); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <AdminLayout>
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-8">
+          <Link href="/admin" className="text-xs text-zinc-500 hover:text-violet-300">← Admin</Link>
+          <span className="mt-5 block text-[9px] font-black tracking-[.2em] text-violet-300/60">PROJECT DATA</span>
+          <h1 className="mt-2 text-5xl font-medium tracking-tight">Type-specific metadata.</h1>
+          <p className="mt-3 text-sm text-zinc-600">Maintain verified NFT, token, airdrop and other project information.</p>
+        </div>
+
+        {error && <div className="rounded-xl border border-red-900/50 bg-red-950/20 p-4 text-sm text-red-300">{error}</div>}
+        {message && <div className="mt-4 rounded-xl border border-emerald-900/50 bg-emerald-950/20 p-4 text-sm text-emerald-300">{message}</div>}
+
+        {loading ? <div className="py-20 text-center text-sm text-zinc-600">Loading projects…</div> : (
+          <div className="mt-6 grid gap-6 lg:grid-cols-[320px_1fr]">
+            <section className="rounded-2xl border border-white/10 bg-[#0d0c11] p-5">
+              <div className="text-[9px] font-black tracking-[.16em] text-zinc-600">PROJECTS</div>
+              <div className="mt-4 space-y-2">
+                {projects.map((project) => {
+                  const row = rows.find((item) => item.projectId === project.id);
+                  return <button key={project.id} onClick={() => setSelected(project.id)} className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left ${selected === project.id ? "border-violet-500/40 bg-violet-500/5" : "border-white/10 bg-black/10 hover:bg-white/[.03]"}`}>
+                    <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-lg bg-black">{project.logoUrl ? <img src={project.logoUrl} alt="" className="h-full w-full object-cover" /> : project.name.slice(0, 1)}</div>
+                    <div className="min-w-0 flex-1"><b className="block truncate text-sm">{project.name}</b><span className="text-[9px] text-violet-300">{row?.type ?? "NFT"}</span></div>
+                  </button>;
+                })}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-white/10 bg-[#0d0c11] p-6">
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <div><div className="text-[9px] font-black tracking-[.16em] text-zinc-600">EDITOR</div><h2 className="mt-2 text-2xl font-semibold">{selectedProject?.name ?? "Select a project"}</h2></div>
+                <select value={type} onChange={(e) => changeType(e.target.value as ProjectType)} className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs"><option>NFT</option><option>TOKEN</option><option>AIRDROP</option><option>OTHER</option></select>
+              </div>
+              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                {fields.map((field) => <label key={field} className={field === "eligibility" || field === "notes" ? "sm:col-span-2" : ""}><span className="text-[10px] text-zinc-500">{labels[field] ?? field}</span>{field === "eligibility" || field === "notes" ? <textarea value={metadata[field] ?? ""} onChange={(e) => setMetadata((m) => ({ ...m, [field]: e.target.value }))} rows={5} className="mt-2 w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs outline-none" /> : <input value={metadata[field] ?? ""} onChange={(e) => setMetadata((m) => ({ ...m, [field]: e.target.value }))} type={field === "supply" || field === "decimals" ? "number" : field.toLowerCase().includes("date") ? "datetime-local" : "text"} className="mt-2 w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs outline-none" />}</label>)}
+              </div>
+              <button disabled={!selected || busy} onClick={() => void save()} className="mt-6 w-full rounded-xl bg-violet-500 py-3 text-xs font-black text-white disabled:opacity-40">{busy ? "Saving…" : "Save metadata"}</button>
+            </section>
+          </div>
+        )}
+      </div>
+    </AdminLayout>
+  );
+}
