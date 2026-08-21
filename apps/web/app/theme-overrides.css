@@ -13,6 +13,7 @@ html.light .hover\:bg-white\/5:hover{background:rgba(124,58,237,.06)!important} 
 .raven-brand-logo{object-fit:contain;display:block}
 
 /* Shared logo theme treatment, including legacy BrandSync-injected branding. */
+.raven-brand-theme{mix-blend-mode:color;transition:filter .3s ease}
 html.dark .raven-brand-theme{filter:invert(1) hue-rotate(180deg)!important}
 html.light .raven-brand-theme{filter:none!important}
 
