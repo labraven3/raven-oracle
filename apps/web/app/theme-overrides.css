@@ -1,0 +1,13 @@
+/* Raven Oracle unified theme layer. Loaded after Tailwind so every page shares the same light/dark surface system. */
+html.light { color-scheme: light; --background:#f7f7fb; --foreground:#151522; --card:#fff; --card-hover:#faf9ff; --border:#e6e3ef; --muted:#6f7180; --purple:#7c3aed; --purple-light:#6d28d9; }
+html.light body{background:var(--background);color:var(--foreground)}
+html.light main{background:radial-gradient(circle at 50% -10%,rgba(139,92,246,.12),transparent 35%),var(--background)}
+html.light nav.sticky{background:rgba(255,255,255,.86)!important;border-color:#e7e3ef!important}
+html.light footer{background:rgba(255,255,255,.92)!important;border-color:#e5e1ec!important}
+html.light .text-white{color:#171722!important} html.light .text-zinc-100{color:#222230!important} html.light .text-zinc-200{color:#30303d!important} html.light .text-zinc-300{color:#474754!important} html.light .text-zinc-400{color:#626271!important} html.light .text-zinc-500{color:#777785!important} html.light .text-zinc-600{color:#8a8995!important} html.light .text-zinc-700{color:#9b9aa6!important}
+html.light .border-white\/5{border-color:#ece9f2!important} html.light .border-white\/10{border-color:#e5e1ec!important} html.light .border-white\/20{border-color:#d9d4e4!important}
+html.light .bg-black\/20{background:rgba(255,255,255,.55)!important} html.light .bg-black\/30{background:rgba(245,243,249,.75)!important} html.light .bg-black\/40{background:rgba(255,255,255,.82)!important} html.light .bg-white\/5{background:rgba(120,105,150,.045)!important} html.light .bg-white\/10{background:rgba(120,105,150,.07)!important}
+html.light [class*="bg-[#0"]{background-color:#fff!important} html.light [class*="bg-[#1"]{background-color:#faf9fd!important} html.light [class*="bg-[#07"]{background-color:#f7f7fb!important}
+html.light input,html.light textarea,html.light select{background:#fff!important;color:#1f1f2b!important;border-color:#ddd8e8!important} html.light input::placeholder,html.light textarea::placeholder{color:#aaa6b4!important}
+html.light .hover\:bg-white\/5:hover{background:rgba(124,58,237,.06)!important} html.light .hover\:text-white:hover{color:#6d28d9!important}
+.raven-brand-logo{object-fit:contain;display:block}
