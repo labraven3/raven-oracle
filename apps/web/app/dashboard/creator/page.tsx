@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import SiteHeader from "../../components/SiteHeader";
+import SiteHeader from "../../../components/SiteHeader";
 import { API_BASE_URL } from "@/lib/api-config";
 
 type Project = { id: string; name: string; projectType?: "NFT" | "TOKEN" | "AIRDROP" | "OTHER"; category: string; status: string; logoUrl?: string | null; chain?: string | null; raffles: Array<{ id: string; title: string; status: string; prizeName: string; startsAt: string; endsAt: string; winnerCount: number; _count: { entries: number; winners: number; tasks: number } }> };
