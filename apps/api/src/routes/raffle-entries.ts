@@ -106,7 +106,7 @@ router.post("/:raffleId/entries/evaluate", requireAuth, async (req, res, next) =
     for (const entry of pending) {
       try {
         const result = await evaluateRaffleEntry(entry.id);
-        if (result.eligible) eligible += 1; else ineligible += 1;
+        if (result.status === "ELIGIBLE") eligible += 1; else ineligible += 1;
       } catch { failed += 1; }
     }
     const counts = await prisma.raffleEntry.groupBy({ by: ["status"], where: { raffleId }, _count: { _all: true } });
