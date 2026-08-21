@@ -16,6 +16,13 @@ function replaceBrand(target: HTMLElement, size: "header" | "footer") {
   target.style.alignItems = "center";
 }
 
+function syncAuthNavigation() {
+  const isLoggedIn = Boolean(localStorage.getItem("raven_token"));
+  document.querySelectorAll<HTMLAnchorElement>('a[href="/login"], a[href="/register"]').forEach((link) => {
+    link.style.display = isLoggedIn ? "none" : "";
+  });
+}
+
 function syncBranding() {
   const navs = Array.from(document.querySelectorAll<HTMLElement>("nav"));
   navs.forEach((nav) => {
@@ -36,6 +43,8 @@ function syncBranding() {
     });
     if (brandBlock) replaceBrand(brandBlock, "footer");
   });
+
+  syncAuthNavigation();
 }
 
 export default function BrandSync() {
@@ -44,7 +53,14 @@ export default function BrandSync() {
     syncBranding();
     const observer = new MutationObserver(() => syncBranding());
     observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
+    const interval = window.setInterval(syncAuthNavigation, 500);
+    const onAuthChanged = () => syncAuthNavigation();
+    window.addEventListener("raven-auth-changed", onAuthChanged);
+    return () => {
+      observer.disconnect();
+      window.clearInterval(interval);
+      window.removeEventListener("raven-auth-changed", onAuthChanged);
+    };
   }, [pathname]);
   return null;
 }
