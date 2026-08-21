@@ -21,6 +21,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { title: "Hero Settings", icon: "🎨", href: "/admin/hero-settings", description: "Customize hero section" },
     { title: "Community Links", icon: "🔗", href: "/admin/community-links", description: "Manage footer links" },
     { title: "Chain Management", icon: "⛓️", href: "/admin/chains", description: "Add, disable & remove chains" },
+    { title: "Project Chain Audit", icon: "🧭", href: "/admin/project-chains", description: "Verify project chain mappings" },
     { title: "Audit Logs", icon: "📋", href: "/admin/audit-logs", description: "View system logs" },
     { title: "Alpha Moderation", icon: "⚡", href: "/admin/alpha", description: "Review alpha submissions" },
     { title: "Chat Moderation", icon: "💬", href: "/admin/chat", description: "Moderate chat messages" },
