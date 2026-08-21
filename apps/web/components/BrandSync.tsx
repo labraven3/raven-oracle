@@ -11,6 +11,7 @@ function brandMarkup(size: "header" | "footer") {
 
 function replaceBrand(target: HTMLElement, size: "header" | "footer") {
   if (target.querySelector("[data-raven-brand]")) return;
+  if (target.querySelector("[data-raven-canonical]")) return;
   target.innerHTML = brandMarkup(size);
   target.style.display = "inline-flex";
   target.style.alignItems = "center";
