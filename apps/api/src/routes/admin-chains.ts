@@ -33,7 +33,7 @@ router.post("/", async (req, res, next) => {
     if (existing[0]) return res.status(409).json({ success: false, message: "That chain already exists" });
     const maxRows = await prisma.$queryRawUnsafe<Array<{ max: number | null }>>(`SELECT MAX("sortOrder")::int AS max FROM "ChainConfig"`);
     const sortOrder = parsed.data.sortOrder ?? Number(maxRows[0]?.max ?? -1) + 1;
-    const rows = await prisma.$queryRawUnsafe<Array<{ id: string; name: string; slug: string; isActive: boolean; sortOrder: number }>>(`INSERT INTO "ChainConfig" ("id", "name", "slug", "isActive", "sortOrder") VALUES (gen_random_uuid()::text, $1, $2, TRUE, $3) RETURNING "id", "name", "slug", "isActive", "sortOrder"`, parsed.data.name, slug, sortOrder);
+    const rows = await prisma.$queryRawUnsafe<Array<{ id: string; name: string; slug: string; isActive: boolean; sortOrder: number }>>(`INSERT INTO "ChainConfig" ("id", "name", "slug", "isActive", "sortOrder") VALUES (md5(random()::text || clock_timestamp()::text), $1, $2, TRUE, $3) RETURNING "id", "name", "slug", "isActive", "sortOrder"`, parsed.data.name, slug, sortOrder);
     res.status(201).json({ success: true, chain: rows[0] });
   } catch (error) { next(error); }
 });
