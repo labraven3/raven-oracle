@@ -12,19 +12,40 @@ export default function SiteHeader() {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    const syncAuth = () => setIsLoggedIn(Boolean(localStorage.getItem("raven_token")));
-    syncAuth();
-    const retry = window.setTimeout(syncAuth, 150);
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === "raven_token") syncAuth();
+    let cancelled = false;
+
+    const syncAuth = async () => {
+      const tokenPresent = Boolean(localStorage.getItem("raven_token"));
+      if (!cancelled && tokenPresent) setIsLoggedIn(true);
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/auth/me`, {
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!cancelled) setIsLoggedIn(response.ok);
+      } catch {
+        if (!cancelled) setIsLoggedIn(tokenPresent);
+      } finally {
+        if (!cancelled) setAuthChecked(true);
+      }
     };
-    const onAuthChanged = () => syncAuth();
+
+    void syncAuth();
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === "raven_token") void syncAuth();
+    };
+    const onAuthChanged = () => void syncAuth();
+
     window.addEventListener("storage", onStorage);
     window.addEventListener("raven-auth-changed", onAuthChanged);
+
     return () => {
-      window.clearTimeout(retry);
+      cancelled = true;
       window.removeEventListener("storage", onStorage);
       window.removeEventListener("raven-auth-changed", onAuthChanged);
     };
@@ -32,7 +53,10 @@ export default function SiteHeader() {
 
   const handleLogout = async () => {
     try {
-      await fetch(`${API_BASE_URL}/auth/logout`, { method: "POST", credentials: "include" });
+      await fetch(`${API_BASE_URL}/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
     } finally {
       localStorage.removeItem("raven_token");
       window.dispatchEvent(new Event("raven-auth-changed"));
@@ -55,7 +79,7 @@ export default function SiteHeader() {
           <button onClick={toggleTheme} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} className="rounded-lg border border-white/10 px-3 py-2 text-sm hover:bg-white/5">
             {theme === "dark" ? "☼" : "☾"}
           </button>
-          {isLoggedIn ? <>
+          {!authChecked ? null : isLoggedIn ? <>
             <Link href="/dashboard" className="rounded-lg border border-white/10 px-3 py-2 text-xs font-bold hover:bg-white/5">Dashboard</Link>
             <Link href="/create" className="hidden rounded-lg border border-white/10 px-3 py-2 text-xs font-bold hover:bg-white/5 sm:block">Creator Studio</Link>
             <Link href="/account" className="rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 px-3 py-2 text-xs font-black text-white shadow-lg shadow-violet-500/30">Account</Link>
