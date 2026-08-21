@@ -32,8 +32,9 @@ import adminRafflesRouter from "../routes/admin-raffles.js";
 import adminRaffleOperationsRouter from "../routes/admin-raffle-operations.js";
 import adminRaffleIntegrityRouter from "../routes/admin-raffle-integrity.js";
 import adminChainsRouter from "../routes/admin-chains.js";
-import adminLoginMethodsRouter from "../routes/admin-login-methods.js";
 import adminProjectTypesRouter from "../routes/admin-project-types.js";
+import adminProjectChainsRouter from "../routes/admin-project-chains.js";
+import adminLoginMethodsRouter from "../routes/admin-login-methods.js";
 import pendingUserCleanupRouter from "../routes/pending-user-cleanup.js";
 
 export function createApp() {
@@ -70,8 +71,9 @@ export function createApp() {
   app.use("/api/admin/raffle-operations", adminRaffleOperationsRouter);
   app.use("/api/admin/raffle-integrity", adminRaffleIntegrityRouter);
   app.use("/api/admin/chains", adminChainsRouter);
-  app.use("/api/admin/login-methods", adminLoginMethodsRouter);
   app.use("/api/admin/project-types", adminProjectTypesRouter);
+  app.use("/api/admin/project-chains", adminProjectChainsRouter);
+  app.use("/api/admin/login-methods", adminLoginMethodsRouter);
   app.use("/api/admin/pending-users", pendingUserCleanupRouter);
   app.use(notFoundHandler);
   app.use(errorHandler);
