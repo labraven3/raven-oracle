@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -6,8 +7,10 @@ import { requireAuth } from "../middleware/auth.js";
 const router = Router();
 router.use(requireAuth);
 
-function getRules(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value) ? { ...(value as Record<string, unknown>) } : {};
+function getRules(value: Prisma.JsonValue): Prisma.InputJsonObject {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? { ...(value as Prisma.InputJsonObject) }
+    : {};
 }
 
 router.get("/mine", async (req, res, next) => {
