@@ -4,6 +4,7 @@ import "./globals.css";
 import "./theme-overrides.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import BrandSync from "@/components/BrandSync";
+import SiteChrome from "@/components/SiteChrome";
 
 export const metadata: Metadata = {
   title: "Raven Oracle",
@@ -16,7 +17,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="min-h-full">
         <ThemeProvider>
           <BrandSync />
-          {children}
+          <SiteChrome>{children}</SiteChrome>
         </ThemeProvider>
       </body>
     </html>
