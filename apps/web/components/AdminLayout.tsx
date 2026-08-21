@@ -106,13 +106,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 <span className={`block h-0.5 transition-all ${theme === "dark" ? "bg-white" : "bg-gray-900"} ${sidebarOpen ? '-rotate-45 -translate-y-2 w-full' : 'w-full'}`} />
               </div>
             </button>
-            <Link href="/" className="flex items-center gap-3">
+            <Link href="/admin" className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center font-black text-lg shadow-lg shadow-violet-500/50">R</div>
               <div><div className="font-black text-sm tracking-[.2em]">RAVEN ORACLE</div><div className="text-[8px] text-violet-300 tracking-[.15em]">ADMIN PANEL</div></div>
             </Link>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/" className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors ${theme === "dark" ? "border border-white/10 hover:bg-white/5" : "border border-gray-300 hover:bg-gray-100"}`}>← Back to Site</Link>
+            <Link href="/admin" className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors ${theme === "dark" ? "border border-white/10 hover:bg-white/5" : "border border-gray-300 hover:bg-gray-100"}`}>← Dashboard</Link>
             <button onClick={handleLogout} className="px-4 py-2 text-xs font-bold border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/10 transition-colors">Logout</button>
           </div>
         </div>
