@@ -7,7 +7,13 @@ html.light footer{background:rgba(255,255,255,.97)!important;border-color:#e7e3e
 html.dark nav.sticky,
 html.dark footer{background:rgba(0,0,0,.55)!important;border-color:rgba(255,255,255,.10)!important;backdrop-filter:blur(16px)!important;-webkit-backdrop-filter:blur(16px)!important}
 
-/* Footer typography: maximum readable contrast while matching the active theme. */
+/* Shared typography */
+html,html.light,html.dark,body,button,input,textarea,select{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+html{font-size:16px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+html.light body{font-weight:450}
+html.dark body{font-weight:450}
+
+/* Footer typography */
 html.light footer,
 html.light footer p,
 html.light footer span,
@@ -27,33 +33,28 @@ html.dark footer .border-white\/10{border-color:rgba(255,255,255,.16)!important}
 html.light footer .bg-white\/5{background:rgba(124,58,237,.06)!important}
 html.dark footer .bg-white\/5{background:rgba(255,255,255,.07)!important}
 
-html.light .text-white{color:#171722!important} html.light .text-zinc-100{color:#222230!important} html.light .text-zinc-200{color:#30303d!important} html.light .text-zinc-300{color:#474754!important} html.light .text-zinc-400{color:#626271!important} html.light .text-zinc-500{color:#777785!important} html.light .text-zinc-600{color:#8a8995!important} html.light .text-zinc-700{color:#9b9aa6!important}
+/* Readable text scale in both themes */
+html.light .text-white{color:#171722!important} html.light .text-zinc-100{color:#222230!important} html.light .text-zinc-200{color:#30303d!important} html.light .text-zinc-300{color:#474754!important} html.light .text-zinc-400{color:#626271!important} html.light .text-zinc-500{color:#777785!important} html.light .text-zinc-600{color:#8a8995!important} html.light .text-zinc-700{color:#555563!important}
 html.light .border-white\/5{border-color:#ece9f2!important} html.light .border-white\/10{border-color:#e5e1ec!important} html.light .border-white\/20{border-color:#d9d4e4!important}
 html.light .bg-black\/20{background:rgba(255,255,255,.55)!important} html.light .bg-black\/30{background:rgba(245,243,249,.75)!important} html.light .bg-black\/40{background:rgba(255,255,255,.86)!important} html.light .bg-white\/5{background:rgba(120,105,150,.045)!important} html.light .bg-white\/10{background:rgba(120,105,150,.07)!important}
 html.light [class*="bg-[#0"]{background-color:#fff!important} html.light [class*="bg-[#1"]{background-color:#faf9fd!important} html.light [class*="bg-[#07"]{background-color:#f7f7fb!important}
-html.light input,html.light textarea,html.light select{background:#fff!important;color:#1f1f2b!important;border-color:#ddd8e8!important} html.light input::placeholder,html.light textarea::placeholder{color:#aaa6b4!important}
+html.light input,html.light textarea,html.light select{background:#fff!important;color:#1f1f2b!important;border-color:#ddd8e8!important}
+html.light input::placeholder,html.light textarea::placeholder{color:#aaa6b4!important}
 html.light .hover\:bg-white\/5:hover{background:rgba(124,58,237,.06)!important} html.light .hover\:text-white:hover{color:#6d28d9!important}
 
+/* Brand logo normalization */
 .raven-brand-logo{object-fit:contain;display:block;image-rendering:auto}
+html.light .raven-brand-theme{mix-blend-mode:multiply!important;filter:contrast(1.18) saturate(1.22) brightness(1.03) drop-shadow(0 0 9px rgba(124,58,237,.36))!important}
+html.dark .raven-brand-theme{mix-blend-mode:screen!important;filter:invert(1) hue-rotate(180deg) contrast(1.20) saturate(1.24) brightness(1) drop-shadow(0 0 12px rgba(139,92,246,.54))!important}
 
-/* One shared treatment for both the React logo and legacy BrandSync logo. */
-html.light .raven-brand-theme{
-  mix-blend-mode:multiply!important;
-  filter:contrast(1.18) saturate(1.22) brightness(1.03) drop-shadow(0 0 9px rgba(124,58,237,.36))!important;
-}
-html.dark .raven-brand-theme{
-  mix-blend-mode:screen!important;
-  filter:invert(1) hue-rotate(180deg) contrast(1.20) saturate(1.24) brightness(1) drop-shadow(0 0 12px rgba(139,92,246,.54))!important;
-}
-
-/* Keep the homepage to the single shared footer owned by SiteChrome. */
+/* Keep the homepage to the single shared footer */
 footer.relative.border-t.backdrop-blur-xl.mt-20{display:none!important}
 
-/* Account page: no secondary My Profile sidebar; the account content uses the full width. */
+/* Account page */
 main.min-h-screen.bg-slate-50.text-slate-900 > div.mx-auto.flex.max-w-7xl.gap-0 > aside{display:none!important}
 main.min-h-screen.bg-slate-50.text-slate-900 > div.mx-auto.flex.max-w-7xl.gap-0 > section{width:100%!important;max-width:none!important}
 
-/* Dark-theme compatibility for legacy/light account, dashboard and settings pages. */
+/* Dark-theme compatibility for legacy/light account, dashboard and settings pages */
 html.dark .bg-white{background-color:#0d0c11!important;color:#f4f4f5!important}
 html.dark .bg-slate-50,html.dark .bg-slate-100,html.dark .bg-gray-50,html.dark .bg-gray-100,html.dark .bg-zinc-50,html.dark .bg-zinc-100{background-color:#111117!important}
 html.dark .border-slate-100,html.dark .border-slate-200,html.dark .border-slate-300,html.dark .border-gray-100,html.dark .border-gray-200,html.dark .border-gray-300,html.dark .border-zinc-200{border-color:rgba(255,255,255,.10)!important}
@@ -73,7 +74,7 @@ html.dark .bg-slate-950\/50{background-color:rgba(0,0,0,.72)!important}
 html.dark .ring-violet-100{--tw-ring-color:rgba(139,92,246,.24)!important}
 html.dark .bg-violet-50{box-shadow:inset 0 0 0 1px rgba(139,92,246,.08)!important}
 
-/* Global component palette: every page, modal, card, field and utility surface follows the active theme. */
+/* Global dark palette */
 html.dark .bg-black{background-color:#07070a!important}
 html.dark .bg-slate-950{background-color:#07070a!important}
 html.dark .bg-slate-900{background-color:#0b0b10!important}
@@ -103,7 +104,7 @@ html.dark button.bg-white,html.dark a.bg-white{background-color:#121219!importan
 html.dark .placeholder\:text-zinc-400::placeholder{color:#71717a!important}
 html.dark .hover\:bg-gray-50:hover,html.dark .hover\:bg-gray-100:hover,html.dark .hover\:bg-zinc-50:hover,html.dark .hover\:bg-zinc-100:hover{background-color:#17171f!important}
 
-/* Light theme: neutralize dark legacy surfaces without touching intentional purple accent buttons. */
+/* Global light palette */
 html.light .bg-black{background-color:#ffffff!important;color:#171722!important}
 html.light .bg-slate-950,html.light .bg-slate-900,html.light .bg-gray-900,html.light .bg-zinc-900{background-color:#f7f7fb!important;color:#171722!important}
 html.light .bg-slate-800,html.light .bg-gray-800,html.light .bg-zinc-800{background-color:#ffffff!important;color:#171722!important}
@@ -117,19 +118,41 @@ html.light .hover\:bg-gray-50:hover,html.light .hover\:bg-gray-100:hover,html.li
 html.light .bg-red-950,html.light .bg-emerald-950,html.light .bg-sky-950,html.light .bg-violet-950,html.light .bg-purple-950{background-color:#f7f3ff!important}
 html.light .border-red-900\/50,html.light .border-emerald-900\/50,html.light .border-sky-900\/50,html.light .border-violet-900\/50{border-color:#ddd3f4!important}
 
-/* Inputs, selects, textareas and clickable controls have consistent contrast in both modes. */
+/* Inputs, textareas and selects */
+html.light input,html.light textarea,html.light select{box-shadow:0 1px 2px rgba(24,24,38,.03)!important}
+html.dark input,html.dark textarea,html.dark select{box-shadow:inset 0 1px 0 rgba(255,255,255,.02)!important}
+html.light input:focus,html.light textarea:focus,html.light select:focus{border-color:#a78bfa!important;box-shadow:0 0 0 3px rgba(124,58,237,.10)!important}
+html.dark input:focus,html.dark textarea:focus,html.dark select:focus{border-color:#8b5cf6!important;box-shadow:0 0 0 3px rgba(139,92,246,.14)!important}
+
+/* Buttons and clickable controls: consistent shape, weight and contrast */
+html.light button,html.light a[class*="rounded"]{font-weight:650}
+html.dark button,html.dark a[class*="rounded"]{font-weight:650}
 html.light button.border-white\/10,html.light a.border-white\/10{background:#ffffff!important;color:#333342!important}
 html.light button.border-white\/10:hover,html.light a.border-white\/10:hover{background:#f4f1f8!important}
 html.dark button.border-white\/10,html.dark a.border-white\/10{background:#111117!important;color:#f4f4f5!important}
 html.dark button.border-white\/10:hover,html.dark a.border-white\/10:hover{background:#191923!important}
 html.light .bg-gradient-to-r.from-violet-500,.html.light .bg-gradient-to-br.from-violet-500{color:#fff!important}
 html.dark .bg-gradient-to-r.from-violet-500,.html.dark .bg-gradient-to-br.from-violet-500{color:#fff!important}
+html.light .bg-violet-500,html.light .bg-violet-600,html.light .bg-purple-600,html.light .bg-violet-700{color:#fff!important}
+html.dark .bg-violet-500,html.dark .bg-violet-600,html.dark .bg-purple-600,html.dark .bg-violet-700{color:#fff!important}
+html.light button:disabled{opacity:.5;cursor:not-allowed}
+html.dark button:disabled{opacity:.45;cursor:not-allowed}
 
-/* Cards, drawers and modals that used explicit dark hex surfaces. */
+/* Cards, drawers and modals with explicit surfaces */
 html.light .bg-\[\#07070a\],html.light .bg-\[\#08080b\],html.light .bg-\[\#0a0a0e\],html.light .bg-\[\#0b0b10\],html.light .bg-\[\#0d0c11\],html.light .bg-\[\#0f1015\],html.light .bg-\[\#0f1014\],html.light .bg-\[\#111117\],html.light .bg-\[\#121219\],html.light .bg-\[\#15161c\],html.light .bg-\[\#16161d\]{background-color:#ffffff!important;color:#171722!important}
 html.light [class*="bg-[rgba(0"]{background-color:#ffffff!important}
 html.dark .bg-\[\#f7f8fa\],html.dark .bg-\[\#fafafa\],html.dark .bg-\[\#ffffff\]{background-color:#0d0c11!important;color:#f4f4f5!important}
 
-/* Keep accent buttons readable and consistent in both themes. */
-html.light .bg-violet-500,html.light .bg-violet-600,html.light .bg-purple-600{color:#fff!important}
-html.dark .bg-violet-500,html.dark .bg-violet-600,html.dark .bg-purple-600{color:#fff!important}
+/* Global surfaces and separators */
+html.light .shadow-sm{box-shadow:0 1px 3px rgba(28,24,48,.05),0 8px 24px rgba(28,24,48,.04)!important}
+html.light .shadow-lg,html.light .shadow-xl,html.light .shadow-2xl{box-shadow:0 20px 55px rgba(28,24,48,.12)!important}
+html.dark .shadow-sm{box-shadow:0 1px 2px rgba(0,0,0,.20)!important}
+html.dark .shadow-lg,html.dark .shadow-xl,html.dark .shadow-2xl{box-shadow:0 20px 55px rgba(0,0,0,.38)!important}
+html.light hr{border-color:#e8e4ef!important}
+html.dark hr{border-color:rgba(255,255,255,.08)!important}
+
+/* Smooth cards, links and form controls */
+button,a,input,textarea,select{transition:background-color .18s ease,border-color .18s ease,color .18s ease,box-shadow .18s ease,transform .18s ease}
+
+/* Homepage now uses the shared SiteHeader. Hide old page-local fixed header. */
+nav.fixed.top-0.left-0.right-0{display:none!important}
