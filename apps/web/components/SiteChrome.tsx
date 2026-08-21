@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
@@ -23,7 +24,7 @@ function hasOwnHeader(pathname: string) {
   return false;
 }
 
-export default function SiteChrome({ children }: { children: React.ReactNode }) {
+export default function SiteChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isAdmin = pathname === "/admin" || pathname.startsWith("/admin/");
   const isApi = pathname === "/api" || pathname.startsWith("/api/");
