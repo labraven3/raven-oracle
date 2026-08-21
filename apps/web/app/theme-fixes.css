@@ -21,14 +21,14 @@ html.dark body{background:#07070a!important;color:#f4f4f5!important}
 html.dark main{color:#f4f4f5}
 
 /* Account: remove the legacy side navigation and use the full content width. */
-main.min-h-screen.bg-slate-50.text-slate-900 > div.mx-auto.flex.max-w-7xl.gap-0 > aside{display:none!important}
-main.min-h-screen.bg-slate-50.text-slate-900 > div.mx-auto.flex.max-w-7xl.gap-0 > section{width:100%!important;max-width:none!important}
+main.min-h-screen.bg-slate-50 > div.mx-auto.flex.max-w-7xl.gap-0 > aside{display:none!important}
+main.min-h-screen.bg-slate-50 > div.mx-auto.flex.max-w-7xl.gap-0 > section{width:100%!important;max-width:none!important}
 
 /* Keep the account page's content readable in light mode. */
-html.light main.min-h-screen.bg-slate-50.text-slate-900{background:#f7f7fb!important;color:#171722!important}
-html.light main.min-h-screen.bg-slate-50.text-slate-900 section{background:#fff!important;color:#171722!important}
-html.light main.min-h-screen.bg-slate-50.text-slate-900 .text-slate-900{color:#171722!important}
-html.light main.min-h-screen.bg-slate-50.text-slate-900 .text-slate-700{color:#30303d!important}
-html.light main.min-h-screen.bg-slate-50.text-slate-900 .text-slate-600{color:#474754!important}
-html.light main.min-h-screen.bg-slate-50.text-slate-900 .text-slate-500{color:#626271!important}
-html.light main.min-h-screen.bg-slate-50.text-slate-900 .border-slate-200{border-color:#e5e1ec!important}
+html.light main.min-h-screen.bg-slate-50{background:#f7f7fb!important;color:#171722!important}
+html.light main.min-h-screen.bg-slate-50 section{background:#fff!important;color:#171722!important}
+html.light main.min-h-screen.bg-slate-50 .text-slate-900{color:#171722!important}
+html.light main.min-h-screen.bg-slate-50 .text-slate-700{color:#30303d!important}
+html.light main.min-h-screen.bg-slate-50 .text-slate-600{color:#474754!important}
+html.light main.min-h-screen.bg-slate-50 .text-slate-500{color:#626271!important}
+html.light main.min-h-screen.bg-slate-50 .border-slate-200{border-color:#e5e1ec!important}
