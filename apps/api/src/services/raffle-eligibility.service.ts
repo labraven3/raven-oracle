@@ -18,54 +18,24 @@ export async function verifyRaffleEligibility(
     },
   });
 
-  if (!raffle) {
-    throw new Error("Raffle not found");
-  }
+  if (!raffle) throw new Error("Raffle not found");
 
   const now = new Date();
-
   if (raffle.status !== "ACTIVE") {
-    throw new Error(
-      raffle.status === "SCHEDULED"
-        ? "Raffle has not started yet"
-        : "Raffle is not accepting verification",
-    );
+    throw new Error(raffle.status === "SCHEDULED" ? "Raffle has not started yet" : "Raffle is not accepting verification");
   }
+  if (now < raffle.startsAt) throw new Error("Raffle has not started yet");
+  if (now > raffle.endsAt) throw new Error("Raffle has ended");
 
-  if (now < raffle.startsAt) {
-    throw new Error("Raffle has not started yet");
-  }
-
-  if (now > raffle.endsAt) {
-    throw new Error("Raffle has ended");
-  }
-
-  const entry = await prisma.raffleEntry.findUnique({
-    where: { id: entryId },
-  });
-
-  if (!entry) {
-    throw new Error("Raffle entry not found");
-  }
-
-  if (entry.userId !== userId) {
-    throw new Error("Raffle entry does not belong to this user");
-  }
-
-  if (entry.raffleId !== raffleId) {
-    throw new Error("Raffle entry does not belong to this raffle");
-  }
+  const entry = await prisma.raffleEntry.findUnique({ where: { id: entryId } });
+  if (!entry) throw new Error("Raffle entry not found");
+  if (entry.userId !== userId) throw new Error("Raffle entry does not belong to this user");
+  if (entry.raffleId !== raffleId) throw new Error("Raffle entry does not belong to this raffle");
 
   const results = [];
-
   for (const task of raffle.tasks) {
     try {
-      const result = await verifyRaffleTask(
-        task.id,
-        entry.id,
-        userId,
-      );
-
+      const result = await verifyRaffleTask(task.id, entry.id, userId);
       results.push({
         taskId: task.id,
         type: task.type,
@@ -82,18 +52,13 @@ export async function verifyRaffleEligibility(
         title: task.title,
         required: task.isRequired,
         verified: false,
-        reason:
-          error instanceof Error
-            ? error.message
-            : "Verification failed",
+        reason: error instanceof Error ? error.message : "Verification failed",
       });
     }
   }
 
   const requiredTasks = results.filter((task) => task.required);
-  const failedRequiredTasks = requiredTasks.filter(
-    (task) => !task.verified,
-  );
+  const failedRequiredTasks = requiredTasks.filter((task) => !task.verified);
   const allRequiredTasksVerified = failedRequiredTasks.length === 0;
   const verifiedCount = results.filter((task) => task.verified).length;
 
@@ -114,8 +79,10 @@ export async function verifyRaffleEligibility(
   const updatedEntry = await prisma.raffleEntry.update({
     where: { id: entry.id },
     data: {
+      status: allRequiredTasksVerified ? "ELIGIBLE" : "PENDING",
       socialVerifiedAtEntry: allRequiredTasksVerified,
-      eligibilityReasons: eligibilityReasons,
+      eligibilityCheckedAt: new Date(),
+      eligibilityReasons,
     },
   });
 
