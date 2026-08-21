@@ -7,10 +7,10 @@ import SiteHeader from "../../../../../components/SiteHeader";
 import { API_BASE_URL } from "@/lib/api-config";
 
 type Issue = { code: string; field: string; message: string };
-type Readiness = { ready: boolean; issues: Issue[]; project?: { name: string; status: string; projectType: string; chain: string | null } | null };
+type Readiness = { ready: boolean; issues: Issue[]; project?: { name: string; status: string; projectType: string; chain: string | null; rejectionReason?: string | null } | null };
 
-async function api<T>(path: string) {
-  const response = await fetch(`${API_BASE_URL}${path}`, { credentials: "include", cache: "no-store" });
+async function api<T>(path: string, options: RequestInit = {}) {
+  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers: { "Content-Type": "application/json", ...(options.headers ?? {}) }, credentials: "include", cache: "no-store" });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.message ?? `Request failed (${response.status})`);
   return data as T;
@@ -20,11 +20,25 @@ export default function ProjectApprovalPage() {
   const { id } = useParams<{ id: string }>();
   const [data, setData] = useState<Readiness | null>(null);
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    void api<Readiness>(`/project-approval/${id}`).then(setData).catch((e) => setError(e instanceof Error ? e.message : "Unable to load approval readiness")).finally(() => setLoading(false));
-  }, [id]);
+  const load = async () => {
+    setLoading(true); setError("");
+    try { setData(await api<Readiness>(`/project-approval/${id}`)); }
+    catch (e) { setError(e instanceof Error ? e.message : "Unable to load approval readiness"); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { void load(); }, [id]);
+
+  const resubmit = async () => {
+    setBusy(true); setError(""); setMessage("");
+    try { await api(`/project-approval/${id}/resubmit`, { method: "POST" }); setMessage("Project resubmitted for admin review."); await load(); }
+    catch (e) { setError(e instanceof Error ? e.message : "Unable to resubmit project"); }
+    finally { setBusy(false); }
+  };
 
   return (
     <main className="min-h-screen bg-[#06060a] text-zinc-100">
@@ -42,8 +56,18 @@ export default function ProjectApprovalPage() {
               <div className={`rounded-full px-4 py-2 text-[10px] font-black ${data.ready ? "bg-emerald-500/10 text-emerald-300" : "bg-amber-500/10 text-amber-300"}`}>{data.ready ? "READY FOR REVIEW" : `${data.issues.length} ITEMS TO FIX`}</div>
             </div>
 
+            {data.project?.status === "REJECTED" && data.project.rejectionReason && (
+              <div className="mt-8 rounded-2xl border border-red-500/20 bg-red-500/5 p-6">
+                <div className="text-[9px] font-black uppercase tracking-[.18em] text-red-300">ADMIN REJECTION REASON</div>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-300">{data.project.rejectionReason}</p>
+              </div>
+            )}
+
             {data.ready ? (
-              <div className="mt-8 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-6 text-sm leading-6 text-emerald-200">Your project has the required chain, project information, type and metadata. It is ready for admin review.</div>
+              <div className="mt-8 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-6 text-sm leading-6 text-emerald-200">
+                {data.project?.status === "REJECTED" ? "Your project has been fixed and is ready to be resubmitted." : "Your project has the required chain, project information, type and metadata. It is ready for admin review."}
+                {data.project?.status === "REJECTED" && <button disabled={busy} onClick={() => void resubmit()} className="mt-5 rounded-xl bg-violet-500 px-5 py-3 text-xs font-black text-white disabled:opacity-40">{busy ? "Resubmitting…" : "Resubmit for review"}</button>}
+              </div>
             ) : (
               <div className="mt-8">
                 <h2 className="text-xl font-medium">Missing or invalid information</h2>
@@ -53,6 +77,7 @@ export default function ProjectApprovalPage() {
                 <Link href={`/dashboard/projects/${id}/metadata`} className="mt-6 inline-flex rounded-xl bg-violet-500 px-5 py-3 text-xs font-black text-white">Fix project information →</Link>
               </div>
             )}
+            {message && <div className="mt-5 rounded-xl border border-emerald-900/50 bg-emerald-950/20 p-4 text-sm text-emerald-300">{message}</div>}
           </section>
         )}
       </div>
