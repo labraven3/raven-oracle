@@ -32,3 +32,6 @@ html.light main.min-h-screen.bg-slate-50 .text-slate-700{color:#30303d!important
 html.light main.min-h-screen.bg-slate-50 .text-slate-600{color:#474754!important}
 html.light main.min-h-screen.bg-slate-50 .text-slate-500{color:#626271!important}
 html.light main.min-h-screen.bg-slate-50 .border-slate-200{border-color:#e5e1ec!important}
+
+/* Homepage now uses the shared SiteHeader. Hide the old page-local fixed header so there is only one header. */
+nav.fixed.top-0.left-0.right-0{display:none!important}
