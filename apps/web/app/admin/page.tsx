@@ -7,7 +7,16 @@ type ProjectType = "NFT" | "TOKEN" | "AIRDROP" | "OTHER";
 type Project = { id: string; name: string; description?: string | null; logoUrl?: string | null; category: string; projectType?: ProjectType; status: string; rejectionReason?: string | null; createdAt: string };
 type Stats = { submittedProjects: number; approvedProjects: number; activeRaffles: number; entries: number; users: number };
 type ProjectTypeRow = { projectId: string; type: ProjectType; metadata?: Record<string, unknown> | null };
-async function api<T>(path: string, options: RequestInit = {}) { const headers = new Headers(options.headers); headers.set("Content-Type", "application/json"); const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers, credentials: "same-origin" }); const data = await response.json().catch(() => ({})); if (!response.ok) throw new Error(data.message ?? `Request failed (${response.status})`); return data as T; }
+async function api<T>(path: string, options: RequestInit = {}) {
+  const headers = new Headers(options.headers);
+  headers.set("Content-Type", "application/json");
+  const token = typeof window !== "undefined" ? localStorage.getItem("raven_admin_token") : null;
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers, credentials: "include" });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message ?? `Request failed (${response.status})`);
+  return data as T;
+}
 function metadataPreview(type: ProjectType, metadata?: Record<string, unknown> | null) { if (!metadata) return []; const keys: Record<ProjectType, string[]> = { NFT: ["collectionContractAddress","supply","standard"], TOKEN: ["symbol","contractAddress","tokenStandard","decimals","launchDate"], AIRDROP: ["snapshotDate","claimDate","allocation","claimUrl"], OTHER: ["subtype","externalUrl"] }; return keys[type].map((key) => { const raw = metadata[key]; return [key, typeof raw === "string" || typeof raw === "number" ? String(raw) : ""]; }).filter(([, value]) => value); }
 export default function AdminPage() {
   const [stats, setStats] = useState<Stats | null>(null); const [projects, setProjects] = useState<Project[]>([]); const [projectTypes, setProjectTypes] = useState<Record<string, ProjectTypeRow>>({}); const [filter, setFilter] = useState("SUBMITTED");
