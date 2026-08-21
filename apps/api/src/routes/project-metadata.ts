@@ -11,12 +11,15 @@ const tokenMetadata = z.object({
   contractAddress: z.string().trim().min(1).max(120),
   tokenStandard: z.string().trim().max(40).optional().or(z.literal("")),
   decimals: z.number().int().min(0).max(36).optional(),
+  totalSupply: z.string().trim().max(120).optional().or(z.literal("")),
+  explorerUrl: z.string().url().optional().or(z.literal("")),
   launchDate: z.string().datetime().optional().or(z.literal("")),
 });
 
 const airdropMetadata = z.object({
   snapshotDate: z.string().datetime().optional().or(z.literal("")),
   claimDate: z.string().datetime().optional().or(z.literal("")),
+  claimStatus: z.enum(["UPCOMING", "LIVE", "ENDED"]).optional(),
   allocation: z.string().trim().max(120).optional().or(z.literal("")),
   eligibility: z.string().trim().max(2000).optional().or(z.literal("")),
   claimUrl: z.string().url().optional().or(z.literal("")),
@@ -35,7 +38,7 @@ const nftMetadata = z.object({
 });
 
 const metadataSchema = z.object({
-  projectType: projectType,
+  projectType,
   metadata: z.record(z.string(), z.unknown()).default({}),
 });
 
