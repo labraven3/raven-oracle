@@ -2,7 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { getProjectApprovalReadiness } from "../services/project-approval.service.js";
-import { logProjectModeration } from "../services/audit-log.service.js";
+import { logProjectChange, logProjectModeration } from "../services/audit-log.service.js";
 
 const router = Router();
 
@@ -16,15 +16,23 @@ function getProjectId(req: Parameters<Parameters<typeof router.get>[1]>[0], res:
 }
 
 async function requireAdminUser(userId: string) {
-  return prisma.user.findUnique({
-    where: { id: userId },
-    select: { role: true, status: true, isAdminApproved: true },
-  });
+  return prisma.user.findUnique({ where: { id: userId }, select: { role: true, status: true, isAdminApproved: true } });
 }
-
 async function assertAdmin(userId: string) {
   const admin = await requireAdminUser(userId);
   return !!admin && admin.status !== "BANNED" && ["ADMIN", "MODERATOR"].includes(admin.role) && admin.isAdminApproved;
+}
+
+async function getHistory(projectId: string, includeActor: boolean) {
+  return prisma.auditLog.findMany({
+    where: { entityType: "Project", entityId: projectId },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+    select: {
+      id: true, action: true, summary: true, before: true, after: true, metadata: true, createdAt: true,
+      ...(includeActor ? { actor: { select: { username: true, displayName: true, role: true } } } : {}),
+    },
+  });
 }
 
 router.get("/:id", requireAuth, async (req, res, next) => {
@@ -37,7 +45,8 @@ router.get("/:id", requireAuth, async (req, res, next) => {
     if (project.submittedByUserId !== req.userId) return res.status(403).json({ success: false, message: "You do not own this project" });
     const result = await getProjectApprovalReadiness(projectId);
     if (!result.project) return res.status(404).json(result);
-    return res.json({ success: true, ...result });
+    const history = await getHistory(projectId, false);
+    return res.json({ success: true, ...result, history });
   } catch (error) { next(error); }
 });
 
@@ -48,7 +57,8 @@ router.get("/admin/:id", (req, res, next) => requireAuth(req, res, next, "admin"
     if (!projectId) return;
     const result = await getProjectApprovalReadiness(projectId);
     if (!result.project) return res.status(404).json(result);
-    return res.json({ success: true, ...result });
+    const history = await getHistory(projectId, true);
+    return res.json({ success: true, ...result, history });
   } catch (error) { next(error); }
 });
 
@@ -100,6 +110,7 @@ router.post("/:id/resubmit", requireAuth, async (req, res, next) => {
     const readiness = await getProjectApprovalReadiness(project.id);
     if (!readiness.ready) return res.status(422).json({ success: false, message: "Project is not ready for resubmission.", issues: readiness.issues, readiness });
     const updated = await prisma.project.update({ where: { id: project.id }, data: { status: "SUBMITTED", rejectedAt: null, rejectionReason: null, approvedAt: null, approvedByUserId: null } });
+    await logProjectChange(req.userId, project.id, "PROJECT_RESUBMITTED", "Project resubmitted for admin review", { status: project.status }, { status: updated.status });
     return res.json({ success: true, project: updated, readiness });
   } catch (error) { next(error); }
 });
