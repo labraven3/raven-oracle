@@ -8,7 +8,7 @@ export default function SiteFooter() {
         <div className="grid gap-10 md:grid-cols-4">
           <div>
             <Link href="/" className="inline-flex">
-              <RavenLogo />
+              <RavenLogo compact />
             </Link>
             <p className="mt-4 max-w-xs text-xs leading-relaxed text-zinc-500">
               Web3, NFT projects, raffles and community alpha — built around transparent identity, reputation and fair rewards.
