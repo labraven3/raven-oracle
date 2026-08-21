@@ -21,6 +21,7 @@ import raffleTasksRouter from "../routes/raffle-tasks.js";
 import raffleWinnersRouter from "../routes/raffle-winners.js";
 import raffleDraftsRouter from "../routes/raffle-drafts.js";
 import raffleCaptchaRouter from "../routes/raffle-captcha.js";
+import raffleSecurityRouter from "../routes/raffle-security.js";
 import alphaRouter from "../routes/alpha.js";
 import chatRouter from "../routes/chat.js";
 import adminRouter from "../routes/admin.js";
@@ -55,6 +56,7 @@ export function createApp() {
   app.use("/api/raffles", raffleWinnersRouter);
   app.use("/api/raffle-drafts", raffleDraftsRouter);
   app.use("/api/raffle-captcha", raffleCaptchaRouter);
+  app.use("/api/raffle-security", raffleSecurityRouter);
   app.use("/api/alpha", alphaRouter);
   app.use("/api/chat", chatRouter);
   app.use("/api/admin", adminRouter);
