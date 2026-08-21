@@ -1,9 +1,8 @@
 import { Router } from "express";
-import { Prisma, PrismaClient } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
-import { chainExists, setProjectChain } from "../services/chain-config.service.js";
+import { chainExists, ensureChainStore } from "../services/chain-config.service.js";
 
 const router = Router();
 const projectType = z.enum(["NFT", "TOKEN", "AIRDROP", "OTHER"]);
@@ -25,18 +24,20 @@ router.post("/", requireAuth, async (req, res, next) => {
     if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
     const parsed = onboardingSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ success: false, message: "Invalid project onboarding data", errors: parsed.error.issues });
+    await ensureChainStore();
     if (!(await chainExists(parsed.data.chain))) return res.status(400).json({ success: false, message: "Selected chain is not active" });
-    try { parsed.data.metadata = validateMetadata(parsed.data.projectType, parsed.data.metadata) as Record<string, unknown>; }
+    let normalized: Record<string, unknown>;
+    try { normalized = validateMetadata(parsed.data.projectType, parsed.data.metadata) as Record<string, unknown>; }
     catch (error) { return res.status(400).json({ success: false, message: "Invalid type-specific project data", errors: error instanceof z.ZodError ? error.issues : [] }); }
     const pendingCount = await prisma.project.count({ where: { submittedByUserId: req.userId, status: "SUBMITTED", deletedAt: null } });
     if (pendingCount >= 5) return res.status(429).json({ success: false, message: "You have too many pending project submissions. Please wait for them to be reviewed." });
     const slug = await uniqueSlug(parsed.data.name);
     const project = await prisma.$transaction(async (tx) => {
       const created = await tx.project.create({ data: { name: parsed.data.name, slug, description: parsed.data.description, websiteUrl: parsed.data.websiteUrl || null, xUrl: parsed.data.xUrl || null, discordUrl: parsed.data.discordUrl || null, logoUrl: parsed.data.logoUrl, bannerUrl: parsed.data.bannerUrl || null, category: publicCategoryForType(parsed.data.projectType), status: "SUBMITTED", submittedByUserId: req.userId! } });
-      await setProjectChain(created.id, parsed.data.chain);
+      await tx.$executeRawUnsafe(`INSERT INTO "ProjectChainMap" ("projectId","chainName") VALUES ($1,$2) ON CONFLICT ("projectId") DO UPDATE SET "chainName"=EXCLUDED."chainName","updatedAt"=CURRENT_TIMESTAMP`, created.id, parsed.data.chain);
       await tx.$executeRaw`
         INSERT INTO "ProjectClassification" ("projectId", "type", "metadata")
-        VALUES (${created.id}::uuid, ${parsed.data.projectType}, ${JSON.stringify(parsed.data.metadata)}::jsonb)
+        VALUES (${created.id}::uuid, ${parsed.data.projectType}, ${JSON.stringify(normalized)}::jsonb)
         ON CONFLICT ("projectId") DO UPDATE SET "type" = EXCLUDED."type", "metadata" = EXCLUDED."metadata", "updatedAt" = CURRENT_TIMESTAMP
       `;
       return created;
