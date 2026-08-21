@@ -1,4 +1,5 @@
 import { prisma } from "../lib/prisma.js";
+import { evaluateRaffleEntry } from "./eligibility.service.js";
 import { verifyRaffleTask } from "./raffle-task-verification.service.js";
 
 export async function verifyRaffleEligibility(
@@ -62,7 +63,7 @@ export async function verifyRaffleEligibility(
   const allRequiredTasksVerified = failedRequiredTasks.length === 0;
   const verifiedCount = results.filter((task) => task.verified).length;
 
-  const eligibilityReasons = {
+  const taskReasons = {
     checkedAt: new Date().toISOString(),
     allRequiredTasksVerified,
     verifiedCount,
@@ -76,23 +77,30 @@ export async function verifyRaffleEligibility(
     })),
   };
 
-  const updatedEntry = await prisma.raffleEntry.update({
+  await prisma.raffleEntry.update({
     where: { id: entry.id },
     data: {
-      status: allRequiredTasksVerified ? "ELIGIBLE" : "PENDING",
+      status: allRequiredTasksVerified ? "PENDING" : "PENDING",
       socialVerifiedAtEntry: allRequiredTasksVerified,
       eligibilityCheckedAt: new Date(),
-      eligibilityReasons,
+      eligibilityReasons: taskReasons,
     },
   });
 
+  // Required social/task checks are only one stage. The central eligibility
+  // evaluator must also enforce wallet, CAPTCHA, account/wallet age and risk rules.
+  const finalEligibility = await evaluateRaffleEntry(entry.id);
+
+  const refreshedEntry = await prisma.raffleEntry.findUnique({ where: { id: entry.id } });
+
   return {
-    eligible: allRequiredTasksVerified,
+    eligible: finalEligibility.status === "ELIGIBLE",
     verifiedCount,
     totalTasks: results.length,
     requiredTasks: requiredTasks.length,
     failedRequiredTasks,
     tasks: results,
-    entry: updatedEntry,
+    eligibility: finalEligibility,
+    entry: refreshedEntry,
   };
 }
