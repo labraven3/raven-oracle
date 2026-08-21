@@ -1,0 +1,52 @@
+import { Router } from "express";
+import { prisma } from "../lib/prisma.js";
+import { requireAuth } from "../middleware/auth.js";
+import { getProjectApprovalReadiness } from "../services/project-approval.service.js";
+import { logProjectModeration } from "../services/audit-log.service.js";
+
+const router = Router();
+
+async function requireAdminUser(userId: string) {
+  return prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true, status: true, isAdminApproved: true },
+  });
+}
+
+router.get("/:id", requireAuth, async (req, res, next) => {
+  try {
+    if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
+    const result = await getProjectApprovalReadiness(req.params.id);
+    if (!result.project) return res.status(404).json(result);
+    const owner = result.project as { submittedByUserId?: string };
+    const project = await prisma.project.findUnique({ where: { id: req.params.id }, select: { submittedByUserId: true } });
+    if (!project || project.submittedByUserId !== req.userId) return res.status(403).json({ success: false, message: "You do not own this project" });
+    return res.json({ success: true, ...result });
+  } catch (error) { next(error); }
+});
+
+router.post("/:id/approve", (req, res, next) => requireAuth(req, res, next, "admin"), async (req, res, next) => {
+  try {
+    if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
+    const admin = await requireAdminUser(req.userId);
+    if (!admin || admin.status === "BANNED" || !["ADMIN", "MODERATOR"].includes(admin.role)) return res.status(403).json({ success: false, message: "Admin access required" });
+    if (!admin.isAdminApproved) return res.status(403).json({ success: false, message: "Admin access pending approval" });
+
+    const readiness = await getProjectApprovalReadiness(req.params.id);
+    if (!readiness.project) return res.status(404).json(readiness);
+    if (!readiness.ready) return res.status(422).json({ success: false, message: "Project is not ready for approval", issues: readiness.issues, readiness });
+
+    const project = await prisma.project.findUnique({ where: { id: req.params.id }, select: { id: true, status: true, deletedAt: true } });
+    if (!project || project.deletedAt) return res.status(404).json({ success: false, message: "Project not found" });
+    if (project.status === "APPROVED") return res.json({ success: true, message: "Project is already approved", readiness });
+
+    const updated = await prisma.project.update({
+      where: { id: project.id },
+      data: { status: "APPROVED", approvedAt: new Date(), approvedByUserId: req.userId, rejectedAt: null, rejectionReason: null },
+    });
+    await logProjectModeration(req.userId, project.id, "PROJECT_APPROVED", { status: project.status }, { status: updated.status });
+    return res.json({ success: true, project: updated, readiness });
+  } catch (error) { next(error); }
+});
+
+export default router;
