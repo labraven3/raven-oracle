@@ -18,7 +18,6 @@ router.get("/:id", requireAuth, async (req, res, next) => {
     if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
     const result = await getProjectApprovalReadiness(req.params.id);
     if (!result.project) return res.status(404).json(result);
-    const owner = result.project as { submittedByUserId?: string };
     const project = await prisma.project.findUnique({ where: { id: req.params.id }, select: { submittedByUserId: true } });
     if (!project || project.submittedByUserId !== req.userId) return res.status(403).json({ success: false, message: "You do not own this project" });
     return res.json({ success: true, ...result });
@@ -34,7 +33,10 @@ router.post("/:id/approve", (req, res, next) => requireAuth(req, res, next, "adm
 
     const readiness = await getProjectApprovalReadiness(req.params.id);
     if (!readiness.project) return res.status(404).json(readiness);
-    if (!readiness.ready) return res.status(422).json({ success: false, message: "Project is not ready for approval", issues: readiness.issues, readiness });
+    if (!readiness.ready) {
+      const reasons = readiness.issues.map((issue) => `${issue.field}: ${issue.message}`).join(" | ");
+      return res.status(422).json({ success: false, message: `Project is not ready for approval. ${reasons}`, issues: readiness.issues, readiness });
+    }
 
     const project = await prisma.project.findUnique({ where: { id: req.params.id }, select: { id: true, status: true, deletedAt: true } });
     if (!project || project.deletedAt) return res.status(404).json({ success: false, message: "Project not found" });
