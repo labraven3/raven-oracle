@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 function brandMarkup(size: "header" | "footer") {
   const markSize = size === "header" ? 56 : 112;
   const wordmarkSize = size === "header" ? 40 : 56;
-  return `<span data-raven-brand="true" class="raven-brand-lockup" style="display:inline-flex;align-items:center;gap:12px;line-height:1;text-decoration:none;flex:none"><img src="/RavenOracleLogo.jpeg" alt="Raven Oracle mark" class="raven-brand-logo raven-brand-theme" style="display:block;height:${markSize}px;width:${markSize}px;object-fit:contain;flex:none"/><img src="/RavenOracleWordmark.jpeg" alt="Raven Oracle" class="raven-brand-logo raven-brand-theme" style="display:block;height:${wordmarkSize}px;width:auto;object-fit:contain;flex:none"/></span>`;
+  return `<span data-raven-brand="true" class="raven-brand-lockup" style="display:inline-flex;align-items:center;gap:0;line-height:1;text-decoration:none;flex:none"><img src="/RavenOracleLogo.jpeg" alt="Raven Oracle mark" class="raven-brand-logo raven-brand-theme" style="display:block;height:${markSize}px;width:${markSize}px;object-fit:contain;flex:none"/><img src="/RavenOracleWordmark.jpeg" alt="Raven Oracle" class="raven-brand-logo raven-brand-theme" style="display:block;height:${wordmarkSize}px;width:auto;object-fit:contain;flex:none"/></span>`;
 }
 
 function replaceBrand(target: HTMLElement, size: "header" | "footer") {
