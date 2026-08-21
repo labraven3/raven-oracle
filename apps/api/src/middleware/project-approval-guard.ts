@@ -7,6 +7,8 @@ export async function projectApprovalGuard(req: Request, res: Response, next: Ne
   if (req.method !== "PATCH" || !match || req.body?.status !== "APPROVED") return next();
 
   const projectId = match[1];
+  if (!projectId) return res.status(400).json({ success: false, message: "Invalid project ID" });
+
   return requireAuth(req, res, async () => {
     try {
       if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
