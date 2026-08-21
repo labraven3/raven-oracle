@@ -15,6 +15,7 @@ import walletsRouter from "../routes/wallets.js";
 import projectsRouter from "../routes/projects.js";
 import projectMetadataRouter from "../routes/project-metadata.js";
 import projectDiscoveryRouter from "../routes/project-discovery.js";
+import projectOnboardingRouter from "../routes/project-onboarding.js";
 import chainsRouter from "../routes/chains.js";
 import rafflesRouter from "../routes/raffles.js";
 import publicRafflesRouter from "../routes/public-raffles.js";
@@ -50,6 +51,7 @@ export function createApp() {
   app.use("/api/auth/telegram", telegramAuthRouter);
   app.use("/api/wallets", walletsRouter);
   app.use("/api/projects/discovery", projectCatalogGuard, projectDiscoveryRouter);
+  app.use("/api/projects/onboarding", projectCatalogGuard, projectOnboardingRouter);
   app.use("/api/projects", projectCatalogGuard, projectsRouter);
   app.use("/api/project-metadata", projectMetadataRouter);
   app.use("/api/chains", chainsRouter);
