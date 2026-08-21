@@ -65,16 +65,27 @@ export default function SiteHeader() {
           <button onClick={toggleTheme} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`} className="rounded-lg border border-white/10 px-3 py-2 text-sm hover:bg-white/5">
             {theme === "dark" ? "☼" : "☾"}
           </button>
-          {!authChecked ? null : isLoggedIn ? <>
+          {!authChecked ? null : isLoggedIn ? (
             <Link href="/dashboard" className="rounded-lg border border-white/10 px-3 py-2 text-xs font-bold hover:bg-white/5">Dashboard</Link>
-            <Link href="/account" className="rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 px-3 py-2 text-xs font-black text-white shadow-lg shadow-violet-500/30">Account</Link>
-            <button onClick={() => void handleLogout()} className="hidden rounded-lg border border-white/10 px-3 py-2 text-xs font-bold text-zinc-400 hover:bg-white/5 sm:block">Logout</button>
-          </> : <>
-            <Link href="/login" className="rounded-lg border border-white/10 px-4 py-2 text-xs font-bold hover:bg-white/5">Login</Link>
-            <Link href="/register" className="rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 px-4 py-2 text-xs font-black text-white shadow-lg shadow-violet-500/30">Sign Up</Link>
-          </>}
+          ) : (
+            <>
+              <Link href="/login" className="rounded-lg border border-white/10 px-4 py-2 text-xs font-bold hover:bg-white/5">Login</Link>
+              <Link href="/register" className="rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 px-4 py-2 text-xs font-black text-white shadow-lg shadow-violet-500/30">Sign Up</Link>
+            </>
+          )}
         </div>
       </div>
+
+      {!authChecked ? null : isLoggedIn ? (
+        <div className="fixed bottom-4 left-4 z-[70] flex items-center gap-2 sm:bottom-5 sm:left-5">
+          <Link href="/account" className="rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 px-4 py-2 text-xs font-black text-white shadow-lg shadow-violet-500/30">
+            Profile
+          </Link>
+          <button onClick={() => void handleLogout()} className="rounded-lg border border-white/10 bg-black/40 px-4 py-2 text-xs font-bold text-zinc-300 backdrop-blur-xl hover:bg-white/5">
+            Logout
+          </button>
+        </div>
+      ) : null}
     </nav>
   );
 }
