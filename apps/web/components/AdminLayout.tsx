@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useTheme } from "@/contexts/ThemeContext";
 import { API_BASE_URL } from "@/lib/api-config";
 
 type AdminLayoutProps = {
@@ -16,19 +15,18 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [loading, setLoading] = useState(true);
   const pathname = usePathname();
   const router = useRouter();
-  const { theme } = useTheme();
 
   const menuItems = [
     { title: "Dashboard", icon: "📊", href: "/admin", description: "Overview & statistics" },
     { title: "Hero Settings", icon: "🎨", href: "/admin/hero-settings", description: "Customize hero section" },
     { title: "Community Links", icon: "🔗", href: "/admin/community-links", description: "Manage footer links" },
+    { title: "Chain Management", icon: "⛓️", href: "/admin/chains", description: "Add, disable & remove chains" },
     { title: "Audit Logs", icon: "📋", href: "/admin/audit-logs", description: "View system logs" },
     { title: "Alpha Moderation", icon: "⚡", href: "/admin/alpha", description: "Review alpha submissions" },
     { title: "Chat Moderation", icon: "💬", href: "/admin/chat", description: "Moderate chat messages" },
     { title: "User Management", icon: "👥", href: "/admin/users", description: "Manage users & bans" },
     { title: "Pending User Cleanup", icon: "🧹", href: "/admin/pending-users", description: "Remove unverified test accounts" },
     { title: "Raffle Management", icon: "🎟️", href: "/admin/raffles", description: "Cancel & review raffles" },
-    { title: "Create Raffle", icon: "➕", href: "/admin/raffles/create", description: "Create a new whitelist raffle" },
   ];
 
   const isActive = (href: string) => href === "/admin" ? pathname === href : pathname?.startsWith(href);
@@ -61,7 +59,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0a0a0f] via-[#0f0a1f] to-[#0a0a0f] text-white">
+      <div className="min-h-screen flex items-center justify-center bg-[#08090d] text-white">
         <div className="text-center">
           <div className="inline-block animate-spin"><div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full"></div></div>
           <p className="text-zinc-400 mt-4">Verifying admin access...</p>
@@ -72,7 +70,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   if (!isAuthorized) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0a0a0f] via-[#0f0a1f] to-[#0a0a0f] text-white">
+      <div className="min-h-screen flex items-center justify-center bg-[#08090d] text-white">
         <div className="text-center">
           <div className="text-red-400 text-5xl mb-4">🔒</div>
           <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
@@ -96,15 +94,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   };
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${theme === "dark" ? "bg-gradient-to-br from-[#0a0a0f] via-[#0f0a1f] to-[#0a0a0f] text-white" : "bg-gradient-to-br from-gray-50 via-white to-gray-100 text-gray-900"}`}>
-      <header className={`fixed top-0 left-0 right-0 z-50 border-b backdrop-blur-xl transition-colors ${theme === "dark" ? "border-white/10 bg-black/40" : "border-gray-200 bg-white/40"}`}>
+    <div className="admin-shell min-h-screen bg-[#08090d] text-white">
+      <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-[#0a0b10]/95 backdrop-blur-xl">
         <div className="flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className={`w-10 h-10 flex items-center justify-center rounded-lg transition-colors ${theme === "dark" ? "border border-white/10 hover:bg-white/5" : "border border-gray-300 hover:bg-gray-100"}`}>
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="w-10 h-10 flex items-center justify-center rounded-lg border border-white/10 hover:bg-white/5">
               <div className="w-5 h-4 flex flex-col justify-between">
-                <span className={`block h-0.5 transition-all ${theme === "dark" ? "bg-white" : "bg-gray-900"} ${sidebarOpen ? 'rotate-45 translate-y-1.5 w-full' : 'w-full'}`} />
-                <span className={`block h-0.5 transition-all ${theme === "dark" ? "bg-white" : "bg-gray-900"} ${sidebarOpen ? 'opacity-0 w-full' : 'w-full'}`} />
-                <span className={`block h-0.5 transition-all ${theme === "dark" ? "bg-white" : "bg-gray-900"} ${sidebarOpen ? '-rotate-45 -translate-y-2 w-full' : 'w-full'}`} />
+                <span className={`block h-0.5 bg-white transition-all ${sidebarOpen ? 'rotate-45 translate-y-1.5 w-full' : 'w-full'}`} />
+                <span className={`block h-0.5 bg-white transition-all ${sidebarOpen ? 'opacity-0 w-full' : 'w-full'}`} />
+                <span className={`block h-0.5 bg-white transition-all ${sidebarOpen ? '-rotate-45 -translate-y-2 w-full' : 'w-full'}`} />
               </div>
             </button>
             <Link href="/admin" className="flex items-center gap-3">
@@ -113,16 +111,16 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             </Link>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/admin" className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors ${theme === "dark" ? "border border-white/10 hover:bg-white/5" : "border border-gray-300 hover:bg-gray-100"}`}>← Dashboard</Link>
+            <Link href="/admin" className="px-4 py-2 text-xs font-bold rounded-lg border border-white/10 hover:bg-white/5">← Dashboard</Link>
             <button onClick={handleLogout} className="px-4 py-2 text-xs font-bold border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/10 transition-colors">Logout</button>
           </div>
         </div>
       </header>
 
-      <aside className={`fixed top-[73px] left-0 bottom-0 z-40 border-r backdrop-blur-xl transition-all duration-300 overflow-y-auto ${theme === "dark" ? "border-white/10 bg-black/40" : "border-gray-200 bg-white/40"} ${sidebarOpen ? "w-72" : "w-0"}`}>
+      <aside className={`fixed top-[73px] left-0 bottom-0 z-40 border-r border-white/10 bg-[#0a0b10]/95 backdrop-blur-xl transition-all duration-300 overflow-y-auto ${sidebarOpen ? "w-72" : "w-0"}`}>
         <nav className="p-6 space-y-2">
           {menuItems.map((item) => (
-            <Link key={item.href} href={item.href} className={`block rounded-lg p-4 transition-all ${isActive(item.href) ? "bg-violet-500/20 border border-violet-500/50 shadow-lg shadow-violet-500/20" : theme === "dark" ? "border border-white/10 hover:border-white/20 hover:bg-white/5" : "border border-gray-300 hover:border-gray-400 hover:bg-gray-100"}`}>
+            <Link key={item.href} href={item.href} className={`block rounded-lg p-4 transition-all ${isActive(item.href) ? "bg-violet-500/20 border border-violet-500/50 shadow-lg shadow-violet-500/20" : "border border-white/10 hover:border-white/20 hover:bg-white/5"}`}>
               <div className="flex items-center gap-3 mb-1"><span className="text-2xl">{item.icon}</span><span className="font-bold text-sm">{item.title}</span></div>
               <p className="text-xs text-zinc-500 ml-10">{item.description}</p>
             </Link>
@@ -130,9 +128,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </nav>
       </aside>
 
-      <main className={`pt-[73px] transition-all duration-300 ${sidebarOpen ? "ml-72" : "ml-0"}`}><div className="p-6">{children}</div></main>
+      <main className={`pt-[73px] transition-all duration-300 ${sidebarOpen ? "ml-72" : "ml-0"}`}>
+        <div className="min-h-[calc(100vh-73px)] bg-[#08090d] p-6 text-white">
+          {children}
+        </div>
+      </main>
 
-      {sidebarOpen && <div className={`fixed inset-0 z-30 lg:hidden ${theme === "dark" ? "bg-black/50" : "bg-black/20"}`} onClick={() => setSidebarOpen(false)} />}
+      {sidebarOpen && <div className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />}
     </div>
   );
 }
