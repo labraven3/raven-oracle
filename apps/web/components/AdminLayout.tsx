@@ -34,12 +34,18 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   useEffect(() => {
     const verifyAccess = async () => {
       try {
+        const headers = new Headers();
+        const token = localStorage.getItem("raven_admin_token");
+        if (token) headers.set("Authorization", `Bearer ${token}`);
+
         const response = await fetch(`${API_BASE_URL}/admin/overview`, {
+          headers,
           credentials: "include",
           cache: "no-store",
         });
 
         if (!response.ok) {
+          localStorage.removeItem("raven_admin_token");
           setIsAuthorized(false);
           router.replace("/admin/login");
           return;
