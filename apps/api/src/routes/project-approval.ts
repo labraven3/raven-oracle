@@ -16,10 +16,18 @@ async function requireAdminUser(userId: string) {
 router.get("/:id", requireAuth, async (req, res, next) => {
   try {
     if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
+    const project = await prisma.project.findUnique({
+      where: { id: req.params.id },
+      select: { submittedByUserId: true },
+    });
+    if (!project) return res.status(404).json({ success: false, message: "Project not found" });
+    const admin = await requireAdminUser(req.userId);
+    const isApprovedAdmin = !!admin && admin.status !== "BANNED" && ["ADMIN", "MODERATOR"].includes(admin.role) && admin.isAdminApproved;
+    if (project.submittedByUserId !== req.userId && !isApprovedAdmin) {
+      return res.status(403).json({ success: false, message: "You do not have access to this project readiness report" });
+    }
     const result = await getProjectApprovalReadiness(req.params.id);
     if (!result.project) return res.status(404).json(result);
-    const project = await prisma.project.findUnique({ where: { id: req.params.id }, select: { submittedByUserId: true } });
-    if (!project || project.submittedByUserId !== req.userId) return res.status(403).json({ success: false, message: "You do not own this project" });
     return res.json({ success: true, ...result });
   } catch (error) { next(error); }
 });
