@@ -13,13 +13,29 @@ export default function SiteHeader() {
   const { theme, toggleTheme } = useTheme();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  useEffect(() => setIsLoggedIn(Boolean(localStorage.getItem("raven_token"))), [pathname]);
+  useEffect(() => {
+    const syncAuth = () => setIsLoggedIn(Boolean(localStorage.getItem("raven_token")));
+    syncAuth();
+    const retry = window.setTimeout(syncAuth, 150);
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === "raven_token") syncAuth();
+    };
+    const onAuthChanged = () => syncAuth();
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("raven-auth-changed", onAuthChanged);
+    return () => {
+      window.clearTimeout(retry);
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("raven-auth-changed", onAuthChanged);
+    };
+  }, [pathname]);
 
   const handleLogout = async () => {
     try {
       await fetch(`${API_BASE_URL}/auth/logout`, { method: "POST", credentials: "include" });
     } finally {
       localStorage.removeItem("raven_token");
+      window.dispatchEvent(new Event("raven-auth-changed"));
       setIsLoggedIn(false);
       router.replace("/");
     }
