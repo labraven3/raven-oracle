@@ -6,22 +6,33 @@ html.light nav.sticky,
 html.light footer{background:rgba(255,255,255,.97)!important;border-color:#e7e3ef!important;backdrop-filter:blur(16px)!important;-webkit-backdrop-filter:blur(16px)!important}
 html.dark nav.sticky,
 html.dark footer{background:rgba(0,0,0,.55)!important;border-color:rgba(255,255,255,.10)!important;backdrop-filter:blur(16px)!important;-webkit-backdrop-filter:blur(16px)!important}
+
+/* Footer typography: strong enough to read, while matching the site's theme. */
+html.light footer,
+html.light footer p,
+html.light footer span,
+html.light footer h4,
+html.light footer a,
+html.light footer svg{color:#111827!important}
+html.dark footer,
+html.dark footer p,
+html.dark footer span,
+html.dark footer h4,
+html.dark footer a,
+html.dark footer svg{color:#f5f7ff!important}
+html.light footer a:hover{color:#6d28d9!important}
+html.dark footer a:hover{color:#c4b5fd!important}
+html.light footer .border-white\/10{border-color:#ddd8e8!important}
+html.dark footer .border-white\/10{border-color:rgba(255,255,255,.14)!important}
+html.light footer .bg-white\/5{background:rgba(124,58,237,.05)!important}
+html.dark footer .bg-white\/5{background:rgba(255,255,255,.06)!important}
+
 html.light .text-white{color:#171722!important} html.light .text-zinc-100{color:#222230!important} html.light .text-zinc-200{color:#30303d!important} html.light .text-zinc-300{color:#474754!important} html.light .text-zinc-400{color:#626271!important} html.light .text-zinc-500{color:#777785!important} html.light .text-zinc-600{color:#8a8995!important} html.light .text-zinc-700{color:#9b9aa6!important}
 html.light .border-white\/5{border-color:#ece9f2!important} html.light .border-white\/10{border-color:#e5e1ec!important} html.light .border-white\/20{border-color:#d9d4e4!important}
 html.light .bg-black\/20{background:rgba(255,255,255,.55)!important} html.light .bg-black\/30{background:rgba(245,243,249,.75)!important} html.light .bg-black\/40{background:rgba(255,255,255,.86)!important} html.light .bg-white\/5{background:rgba(120,105,150,.045)!important} html.light .bg-white\/10{background:rgba(120,105,150,.07)!important}
 html.light [class*="bg-[#0"]{background-color:#fff!important} html.light [class*="bg-[#1"]{background-color:#faf9fd!important} html.light [class*="bg-[#07"]{background-color:#f7f7fb!important}
 html.light input,html.light textarea,html.light select{background:#fff!important;color:#1f1f2b!important;border-color:#ddd8e8!important} html.light input::placeholder,html.light textarea::placeholder{color:#aaa6b4!important}
 html.light .hover\:bg-white\/5:hover{background:rgba(124,58,237,.06)!important} html.light .hover\:text-white:hover{color:#6d28d9!important}
-
-/* Footer typography follows the site's brighter contrast hierarchy. */
-html.light footer .text-zinc-400{color:#535364!important}
-html.light footer .text-zinc-500{color:#686979!important}
-html.light footer h4{color:#2b2b39!important}
-html.light footer a:hover{color:#6d28d9!important}
-html.dark footer .text-zinc-400{color:#c2c2d0!important}
-html.dark footer .text-zinc-500{color:#a9a9ba!important}
-html.dark footer h4{color:#f4f4f8!important}
-html.dark footer a:hover{color:#c4a7ff!important}
 
 .raven-brand-logo{object-fit:contain;display:block;image-rendering:auto}
 
