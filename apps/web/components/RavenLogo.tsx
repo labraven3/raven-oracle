@@ -1,19 +1,19 @@
 type RavenLogoProps = { className?: string; showWordmark?: boolean; compact?: boolean };
 
-export default function RavenLogo({ className = "", showWordmark = true, compact = false }: RavenLogoProps) {
+/**
+ * Canonical Raven Oracle brand asset.
+ *
+ * The PNG is the approved final logo supplied for the project. Keep the same
+ * asset everywhere instead of recreating the mark or wrapping it in an SVG.
+ */
+export default function RavenLogo({ className = "", compact = false }: RavenLogoProps) {
   return (
-    <div className={`flex items-center gap-2 ${className}`} aria-label="Raven Oracle">
+    <div className={`flex items-center ${className}`} aria-label="Raven Oracle">
       <img
-        src="/raven-oracle-final.svg"
+        src="/raven-oracle-logo.png"
         alt="Raven Oracle"
-        className={`${compact ? "h-10 w-10" : "h-14 w-14"} raven-brand-logo shrink-0`}
+        className={`${compact ? "h-12 w-auto" : "h-28 w-auto"} shrink-0 object-contain`}
       />
-      {showWordmark && (
-        <span className="leading-none">
-          <span className="block text-sm font-black tracking-[.2em] text-zinc-900 dark:text-white">RAVEN</span>
-          <span className="mt-1 block text-[8px] font-bold tracking-[.28em] text-violet-600 dark:text-violet-300">ORACLE</span>
-        </span>
-      )}
     </div>
   );
 }
