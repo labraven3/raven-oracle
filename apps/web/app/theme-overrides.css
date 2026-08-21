@@ -2,9 +2,10 @@
 html.light { color-scheme: light; --background:#f7f7fb; --foreground:#151522; --card:#fff; --card-hover:#faf9ff; --border:#e6e3ef; --muted:#6f7180; --purple:#7c3aed; --purple-light:#6d28d9; }
 html.light body{background:var(--background);color:var(--foreground)}
 html.light main{background:radial-gradient(circle at 50% -10%,rgba(139,92,246,.12),transparent 35%),var(--background)}
-html.light nav.sticky{background:rgba(255,255,255,.86)!important;border-color:#e7e3ef!important}
-html.light footer{background:rgba(255,255,255,.86)!important;border-color:#e7e3ef!important}
-html.dark footer{background:rgba(0,0,0,.40)!important;border-color:rgba(255,255,255,.10)!important}
+html.light nav.sticky,
+html.light footer{background:rgba(255,255,255,.97)!important;border-color:#e7e3ef!important;backdrop-filter:blur(16px)!important;-webkit-backdrop-filter:blur(16px)!important}
+html.dark nav.sticky,
+html.dark footer{background:rgba(0,0,0,.55)!important;border-color:rgba(255,255,255,.10)!important;backdrop-filter:blur(16px)!important;-webkit-backdrop-filter:blur(16px)!important}
 html.light .text-white{color:#171722!important} html.light .text-zinc-100{color:#222230!important} html.light .text-zinc-200{color:#30303d!important} html.light .text-zinc-300{color:#474754!important} html.light .text-zinc-400{color:#626271!important} html.light .text-zinc-500{color:#777785!important} html.light .text-zinc-600{color:#8a8995!important} html.light .text-zinc-700{color:#9b9aa6!important}
 html.light .border-white\/5{border-color:#ece9f2!important} html.light .border-white\/10{border-color:#e5e1ec!important} html.light .border-white\/20{border-color:#d9d4e4!important}
 html.light .bg-black\/20{background:rgba(255,255,255,.55)!important} html.light .bg-black\/30{background:rgba(245,243,249,.75)!important} html.light .bg-black\/40{background:rgba(255,255,255,.86)!important} html.light .bg-white\/5{background:rgba(120,105,150,.045)!important} html.light .bg-white\/10{background:rgba(120,105,150,.07)!important}
@@ -17,11 +18,11 @@ html.light .hover\:bg-white\/5:hover{background:rgba(124,58,237,.06)!important} 
 /* One shared treatment for both the React logo and legacy BrandSync logo. */
 html.light .raven-brand-theme{
   mix-blend-mode:multiply!important;
-  filter:contrast(1.16) saturate(1.20) brightness(1.02) drop-shadow(0 0 8px rgba(124,58,237,.34))!important;
+  filter:contrast(1.18) saturate(1.22) brightness(1.03) drop-shadow(0 0 9px rgba(124,58,237,.36))!important;
 }
 html.dark .raven-brand-theme{
   mix-blend-mode:screen!important;
-  filter:invert(1) hue-rotate(180deg) contrast(1.18) saturate(1.22) brightness(.99) drop-shadow(0 0 11px rgba(139,92,246,.52))!important;
+  filter:invert(1) hue-rotate(180deg) contrast(1.20) saturate(1.24) brightness(1) drop-shadow(0 0 12px rgba(139,92,246,.54))!important;
 }
 
 /* Keep the homepage to the single shared footer owned by SiteChrome. */
