@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import SiteHeader from "../../components/SiteHeader";
 import { API_BASE_URL } from "@/lib/api-config";
@@ -24,6 +24,12 @@ type Project = {
   createdAt: string;
 };
 
+type DiscoveryResponse = {
+  projects?: Project[];
+  total?: number;
+  counts?: Record<string, number>;
+};
+
 const projectTypes: ProjectType[] = ["ALL", "NFT", "TOKEN", "AIRDROP", "OTHER"];
 const DEFAULT_CHAIN_NAMES = ["Ethereum", "Solana", "Polygon", "Aptos", "Sui", "Cardano", "Bitcoin", "Avax", "Venom", "Injective", "Sei", "Base", "Ripple", "Arbitrum", "Immutable", "Flow", "Binance", "Tezos", "MultiversX", "Near", "Hedera", "Cosmos", "Reef", "Starknet", "Manta", "Monad", "Blast", "Stargaze", "Scroll", "zkSync", "Enjin", "Linea", "Oraichain", "TON", "Viction", "Bera", "Tron", "ApeChain", "Abstract", "Hyperliquid", "Story", "XION", "Somnia", "Sophon", "Robinhood"];
 const DEFAULT_CHAINS: Chain[] = DEFAULT_CHAIN_NAMES.map((name) => ({ id: `default-${name.toLowerCase()}`, name, slug: name.toLowerCase().replace(/[^a-z0-9]+/g, "-") }));
@@ -39,36 +45,53 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.allSettled([
-      fetch(`${API_BASE_URL}/projects/public`, { cache: "no-store" }).then(async (r) => {
-        const d = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(d.message ?? "Unable to load projects");
-        return d as { projects?: Project[] };
-      }),
-      fetch(`${API_BASE_URL}/chains`, { cache: "no-store" }).then(async (r) => {
-        const d = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(d.message ?? "Unable to load chains");
-        return d as { chains?: Chain[] };
-      }),
-    ]).then(([projectsResult, chainsResult]) => {
-      if (cancelled) return;
-      if (projectsResult.status === "fulfilled") setProjects(projectsResult.value.projects ?? []);
-      else setError(projectsResult.reason instanceof Error ? projectsResult.reason.message : "Unable to load projects");
-      if (chainsResult.status === "fulfilled" && chainsResult.value.chains?.length) setChains(chainsResult.value.chains);
-      else setChains(DEFAULT_CHAINS);
-      setLoading(false);
-    });
+    fetch(`${API_BASE_URL}/chains`, { cache: "no-store" })
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.message ?? "Unable to load chains");
+        return data as { chains?: Chain[] };
+      })
+      .then((data) => {
+        if (!cancelled) setChains(data.chains?.length ? data.chains : DEFAULT_CHAINS);
+      })
+      .catch(() => {
+        if (!cancelled) setChains(DEFAULT_CHAINS);
+      });
+
     return () => { cancelled = true; };
   }, []);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return projects.filter((project) =>
-      (projectType === "ALL" || project.projectType === projectType) &&
-      (chain === "ALL" || project.chain === chain) &&
-      (!q || `${project.name} ${project.description ?? ""} ${project.projectType} ${project.chain ?? ""}`.toLowerCase().includes(q))
-    );
-  }, [projects, projectType, chain, query]);
+  useEffect(() => {
+    let cancelled = false;
+    const params = new URLSearchParams();
+    if (projectType !== "ALL") params.set("projectType", projectType);
+    if (chain !== "ALL") params.set("chain", chain);
+    if (query.trim()) params.set("search", query.trim());
+    params.set("limit", "60");
+
+    setLoading(true);
+    setError("");
+    fetch(`${API_BASE_URL}/projects/discovery?${params.toString()}`, { cache: "no-store" })
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.message ?? "Unable to load projects");
+        return data as DiscoveryResponse;
+      })
+      .then((data) => {
+        if (!cancelled) setProjects(data.projects ?? []);
+      })
+      .catch((reason) => {
+        if (!cancelled) {
+          setProjects([]);
+          setError(reason instanceof Error ? reason.message : "Unable to load projects");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [projectType, chain, query]);
 
   return (
     <main className="min-h-screen bg-[#f7f8fb] text-[#15151d] dark:bg-[#07070a] dark:text-zinc-100">
@@ -102,7 +125,7 @@ export default function ProjectsPage() {
             </div>
           </div>
           <div className="flex items-center justify-between border-t border-black/5 px-5 py-3 text-[10px] font-black uppercase tracking-[.14em] text-zinc-400 dark:border-white/10 sm:px-6">
-            <span>{loading ? "Loading" : `${filtered.length} projects`}</span>
+            <span>{loading ? "Loading" : `${projects.length} projects`}</span>
             <span>{chain === "ALL" ? "All networks" : chain}</span>
           </div>
         </section>
@@ -110,11 +133,11 @@ export default function ProjectsPage() {
         {error && <div className="mt-5 rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-500">{error}</div>}
         {loading ? (
           <div className="mt-5 rounded-2xl border border-black/5 bg-white p-16 text-center text-sm text-zinc-500 dark:border-white/10 dark:bg-[#0d0c11]">Loading projects…</div>
-        ) : filtered.length === 0 ? (
+        ) : projects.length === 0 ? (
           <div className="mt-5 rounded-2xl border border-dashed border-black/10 bg-white p-16 text-center dark:border-white/10 dark:bg-[#0d0c11]"><h2 className="text-lg font-semibold">No projects found</h2><p className="mt-2 text-sm text-zinc-500">Try another search, project type or chain.</p></div>
         ) : (
           <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {filtered.map((project) => (
+            {projects.map((project) => (
               <Link key={project.id} href={`/projects/${project.id}`} className="group overflow-hidden rounded-2xl border border-black/5 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-lg hover:shadow-violet-500/5 dark:border-white/10 dark:bg-[#0d0c11] dark:hover:border-violet-500/40">
                 <div className="relative h-48 overflow-hidden bg-gradient-to-br from-violet-100 via-slate-100 to-slate-200 dark:from-violet-950/40 dark:via-[#17171d] dark:to-[#0a0a0d]">
                   {project.bannerUrl ? <img src={project.bannerUrl} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" /> : <div className="h-full w-full bg-[radial-gradient(circle_at_20%_20%,rgba(139,92,246,.35),transparent_45%),radial-gradient(circle_at_80%_70%,rgba(59,130,246,.20),transparent_40%)]" />}
