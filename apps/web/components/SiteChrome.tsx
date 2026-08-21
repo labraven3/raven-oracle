@@ -17,7 +17,6 @@ const routesWithOwnHeader = [
 ];
 
 function hasOwnHeader(pathname: string) {
-  if (pathname === "/") return true;
   if (routesWithOwnHeader.includes(pathname)) return true;
   if (pathname.startsWith("/projects/")) return true;
   if (pathname.startsWith("/raffles/")) return true;
@@ -35,7 +34,7 @@ export default function SiteChrome({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen flex-col">
       {!hasOwnHeader(pathname) && <SiteHeader />}
       <main className="flex-1">{children}</main>
-      {pathname !== "/"       <SiteFooter />      <SiteFooter /> <SiteFooter />}
+      {pathname !== "/" && <SiteFooter />}
     </div>
   );
 }
