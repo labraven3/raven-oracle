@@ -3,9 +3,8 @@ type RavenLogoProps = { className?: string; showWordmark?: boolean; compact?: bo
 /**
  * Canonical Raven Oracle brand lockup.
  *
- * Uses the approved mark + horizontal wordmark assets already stored in /public.
- * The image backgrounds are blended into the current site surface via CSS;
- * dark mode also applies the requested invert/hue adjustment.
+ * Uses the exact JPEG assets already stored in /public.
+ * CSS blends only the baked background into the active theme; the artwork itself is unchanged.
  */
 export default function RavenLogo({ className = "", compact = false }: RavenLogoProps) {
   const markSize = compact ? "h-14 w-14" : "h-28 w-28";
@@ -16,12 +15,12 @@ export default function RavenLogo({ className = "", compact = false }: RavenLogo
       <img
         src="/RavenOracleLogo.jpeg"
         alt="Raven Oracle mark"
-        className={`${markSize} shrink-0 object-contain mix-blend-multiply transition-[filter] duration-300 dark:mix-blend-screen dark:invert dark:hue-rotate-180`}
+        className={`${markSize} shrink-0 object-contain mix-blend-color transition-[filter] duration-300 dark:invert dark:hue-rotate-180`}
       />
       <img
         src="/RavenOracleWordmark.jpeg"
         alt="Raven Oracle"
-        className={`${wordmarkSize} shrink-0 object-contain mix-blend-multiply transition-[filter] duration-300 dark:mix-blend-screen dark:invert dark:hue-rotate-180`}
+        className={`${wordmarkSize} shrink-0 object-contain mix-blend-color transition-[filter] duration-300 dark:invert dark:hue-rotate-180`}
       />
     </div>
   );
