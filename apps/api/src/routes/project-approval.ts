@@ -13,19 +13,26 @@ async function requireAdminUser(userId: string) {
   });
 }
 
+async function assertAdmin(userId: string) {
+  const admin = await requireAdminUser(userId);
+  return !!admin && admin.status !== "BANNED" && ["ADMIN", "MODERATOR"].includes(admin.role) && admin.isAdminApproved;
+}
+
 router.get("/:id", requireAuth, async (req, res, next) => {
   try {
     if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
-    const project = await prisma.project.findUnique({
-      where: { id: req.params.id },
-      select: { submittedByUserId: true },
-    });
+    const project = await prisma.project.findUnique({ where: { id: req.params.id }, select: { submittedByUserId: true } });
     if (!project) return res.status(404).json({ success: false, message: "Project not found" });
-    const admin = await requireAdminUser(req.userId);
-    const isApprovedAdmin = !!admin && admin.status !== "BANNED" && ["ADMIN", "MODERATOR"].includes(admin.role) && admin.isAdminApproved;
-    if (project.submittedByUserId !== req.userId && !isApprovedAdmin) {
-      return res.status(403).json({ success: false, message: "You do not have access to this project readiness report" });
-    }
+    if (project.submittedByUserId !== req.userId) return res.status(403).json({ success: false, message: "You do not own this project" });
+    const result = await getProjectApprovalReadiness(req.params.id);
+    if (!result.project) return res.status(404).json(result);
+    return res.json({ success: true, ...result });
+  } catch (error) { next(error); }
+});
+
+router.get("/admin/:id", (req, res, next) => requireAuth(req, res, next, "admin"), async (req, res, next) => {
+  try {
+    if (!req.userId || !(await assertAdmin(req.userId))) return res.status(403).json({ success: false, message: "Admin access required" });
     const result = await getProjectApprovalReadiness(req.params.id);
     if (!result.project) return res.status(404).json(result);
     return res.json({ success: true, ...result });
@@ -34,26 +41,17 @@ router.get("/:id", requireAuth, async (req, res, next) => {
 
 router.post("/:id/approve", (req, res, next) => requireAuth(req, res, next, "admin"), async (req, res, next) => {
   try {
-    if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
-    const admin = await requireAdminUser(req.userId);
-    if (!admin || admin.status === "BANNED" || !["ADMIN", "MODERATOR"].includes(admin.role)) return res.status(403).json({ success: false, message: "Admin access required" });
-    if (!admin.isAdminApproved) return res.status(403).json({ success: false, message: "Admin access pending approval" });
-
+    if (!req.userId || !(await assertAdmin(req.userId))) return res.status(403).json({ success: false, message: "Admin access required" });
     const readiness = await getProjectApprovalReadiness(req.params.id);
     if (!readiness.project) return res.status(404).json(readiness);
     if (!readiness.ready) {
       const reasons = readiness.issues.map((issue) => `${issue.field}: ${issue.message}`).join(" | ");
       return res.status(422).json({ success: false, message: `Project is not ready for approval. ${reasons}`, issues: readiness.issues, readiness });
     }
-
     const project = await prisma.project.findUnique({ where: { id: req.params.id }, select: { id: true, status: true, deletedAt: true } });
     if (!project || project.deletedAt) return res.status(404).json({ success: false, message: "Project not found" });
     if (project.status === "APPROVED") return res.json({ success: true, message: "Project is already approved", readiness });
-
-    const updated = await prisma.project.update({
-      where: { id: project.id },
-      data: { status: "APPROVED", approvedAt: new Date(), approvedByUserId: req.userId, rejectedAt: null, rejectionReason: null },
-    });
+    const updated = await prisma.project.update({ where: { id: project.id }, data: { status: "APPROVED", approvedAt: new Date(), approvedByUserId: req.userId, rejectedAt: null, rejectionReason: null } });
     await logProjectModeration(req.userId, project.id, "PROJECT_APPROVED", { status: project.status }, { status: updated.status });
     return res.json({ success: true, project: updated, readiness });
   } catch (error) { next(error); }
