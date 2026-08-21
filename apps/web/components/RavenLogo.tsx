@@ -1,9 +1,9 @@
 type RavenLogoProps = { className?: string; showWordmark?: boolean; compact?: boolean };
 
 /**
- * Canonical Raven Oracle brand asset.
+ * Canonical Raven Oracle brand lockup.
  *
- * Uses the approved Raven mark plus the approved horizontal wordmark.
+ * Uses the approved mark + horizontal wordmark assets already stored in /public.
  * Both assets receive the same CSS theme treatment; no SVG redraw is used.
  */
 export default function RavenLogo({ className = "", compact = false }: RavenLogoProps) {
@@ -12,15 +12,13 @@ export default function RavenLogo({ className = "", compact = false }: RavenLogo
 
   return (
     <div className={`flex items-center gap-3 ${className}`} aria-label="Raven Oracle">
-      <span className={`${markSize} shrink-0 overflow-hidden`}>
-        <img
-          src="/RavenOracleLogoMark.png"
-          alt="Raven Oracle mark"
-          className="h-full w-full object-contain transition-[filter] duration-300 dark:invert dark:hue-rotate-180"
-        />
-      </span>
       <img
-        src="/RavenOracleWordmark.png"
+        src="/RavenOracleLogo.jpeg"
+        alt="Raven Oracle mark"
+        className={`${markSize} shrink-0 object-contain transition-[filter] duration-300 dark:invert dark:hue-rotate-180`}
+      />
+      <img
+        src="/RavenOracleWordmark.jpeg"
         alt="Raven Oracle"
         className={`${wordmarkSize} shrink-0 object-contain transition-[filter] duration-300 dark:invert dark:hue-rotate-180`}
       />
