@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -9,7 +10,11 @@ import { verifyRaffleEligibility } from "../services/raffle-eligibility.service.
 const router = Router();
 const enterSchema = z.object({ walletAddressId: z.string().uuid(), captchaToken: z.string().trim().optional() });
 function getIdParam(value: string | string[] | undefined) { return Array.isArray(value) ? value[0] : value; }
-function rules(value: unknown) { return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}; }
+function rules(value: Prisma.JsonValue): Prisma.InputJsonObject {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? { ...(value as Prisma.InputJsonObject) }
+    : {};
+}
 
 router.post("/:raffleId/entries", requireAuth, async (req, res, next) => {
   try {
