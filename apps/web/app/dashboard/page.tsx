@@ -93,7 +93,10 @@ export default function DashboardPage() {
               <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Welcome back, {name}.</h1>
               <p className="mt-2 text-sm text-zinc-500">Your joined raffles, entries and project activity in one place.</p>
             </div>
-            <Link href="/raffles" className="rounded-xl border border-white/10 bg-black/20 px-4 py-2.5 text-xs font-black text-zinc-200 hover:bg-white/5">Explore raffles</Link>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/dashboard/creator" className="rounded-xl border border-violet-500/25 bg-violet-500/5 px-4 py-2.5 text-xs font-black text-violet-300 hover:bg-violet-500/10">Creator Studio</Link>
+              <Link href="/raffles" className="rounded-xl border border-white/10 bg-black/20 px-4 py-2.5 text-xs font-black text-zinc-200 hover:bg-white/5">Explore raffles</Link>
+            </div>
           </div>
 
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -148,7 +151,10 @@ export default function DashboardPage() {
               <span className="text-[9px] font-black tracking-[.2em] text-violet-300/70">MY PROJECTS</span>
               <h2 className="mt-2 text-2xl font-semibold">Projects you created</h2>
             </div>
-            <Link href="/projects/new" className="rounded-xl bg-violet-500 px-4 py-2.5 text-xs font-black text-white">+ New Project</Link>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/dashboard/creator" className="rounded-xl border border-white/10 px-4 py-2.5 text-xs font-black text-zinc-300">Manage</Link>
+              <Link href="/projects/new" className="rounded-xl bg-violet-500 px-4 py-2.5 text-xs font-black text-white">+ New Project</Link>
+            </div>
           </div>
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             {projects.length === 0 ? (
