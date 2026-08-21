@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { evaluateRaffleEntry } from "../services/eligibility.service.js";
 import { drawRaffle } from "../services/raffle-draw.service.js";
@@ -12,26 +13,15 @@ router.get("/", async (req, res, next) => {
   try {
     const status = typeof req.query.status === "string" ? req.query.status : undefined;
     const type = typeof req.query.projectType === "string" ? req.query.projectType : undefined;
-    const where = status && ["DRAFT","SCHEDULED","ACTIVE","CLOSED","DRAWING","COMPLETED","CANCELLED"].includes(status)
-      ? { status: status as never }
-      : {};
-    const raffles = await prisma.raffle.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      take: 200,
-      include: {
-        project: { select: { id: true, name: true, logoUrl: true, category: true } },
-        createdBy: { select: { username: true, email: true } },
-        _count: { select: { entries: true, winners: true, tasks: true } },
-      },
-    });
+    const where = status && ["DRAFT","SCHEDULED","ACTIVE","CLOSED","DRAWING","COMPLETED","CANCELLED"].includes(status) ? { status: status as never } : {};
+    const raffles = await prisma.raffle.findMany({ where, orderBy: { createdAt: "desc" }, take: 200, include: { project: { select: { id: true, name: true, logoUrl: true, category: true } }, createdBy: { select: { username: true, email: true } }, _count: { select: { entries: true, winners: true, tasks: true } } } });
     let projectTypeById = new Map<string, string>();
-    if (type) {
-      const ids = raffles.map((r) => r.projectId).filter((id): id is string => Boolean(id));
+    if (type && raffles.length) {
+      const ids = [...new Set(raffles.map((r) => r.projectId).filter((id): id is string => Boolean(id)))];
       if (ids.length) {
         const rows = await prisma.$queryRaw<Array<{ projectId: string; type: string }>>`
           SELECT "projectId", "type" FROM "ProjectClassification"
-          WHERE "projectId" IN (${ids.map((id) => `${id}`).join(",")})
+          WHERE "projectId" IN (${Prisma.join(ids.map((id) => Prisma.sql`${id}::uuid`))})
         `;
         projectTypeById = new Map(rows.map((row) => [row.projectId, row.type]));
       }
