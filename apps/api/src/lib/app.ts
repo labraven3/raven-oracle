@@ -24,6 +24,7 @@ import adminRouter from "../routes/admin.js";
 import adminRafflesRouter from "../routes/admin-raffles.js";
 import adminChainsRouter from "../routes/admin-chains.js";
 import adminLoginMethodsRouter from "../routes/admin-login-methods.js";
+import adminProjectTypesRouter from "../routes/admin-project-types.js";
 import pendingUserCleanupRouter from "../routes/pending-user-cleanup.js";
 
 export function createApp() {
@@ -53,6 +54,7 @@ export function createApp() {
   app.use("/api/admin", adminRafflesRouter);
   app.use("/api/admin/chains", adminChainsRouter);
   app.use("/api/admin/login-methods", adminLoginMethodsRouter);
+  app.use("/api/admin/project-types", adminProjectTypesRouter);
   app.use("/api/admin/pending-users", pendingUserCleanupRouter);
   app.use(notFoundHandler);
   app.use(errorHandler);
