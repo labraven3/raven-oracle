@@ -3,14 +3,14 @@ type RavenLogoProps = { className?: string; showWordmark?: boolean; compact?: bo
 /**
  * Canonical Raven Oracle brand asset.
  *
- * The PNG is the approved final logo supplied for the project. Keep the same
- * asset everywhere instead of recreating the mark or wrapping it in an SVG.
+ * Use the exact approved PNG asset supplied for the project.
+ * Do not recreate, redraw, or convert the logo.
  */
 export default function RavenLogo({ className = "", compact = false }: RavenLogoProps) {
   return (
     <div className={`flex items-center ${className}`} aria-label="Raven Oracle">
       <img
-        src="/raven-oracle-logo.png"
+        src="/RavenOracleLogo.png"
         alt="Raven Oracle"
         className={`${compact ? "h-12 w-auto" : "h-28 w-auto"} shrink-0 object-contain`}
       />
