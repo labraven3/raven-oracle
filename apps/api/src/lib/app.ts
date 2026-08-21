@@ -20,6 +20,7 @@ import raffleWinnersRouter from "../routes/raffle-winners.js";
 import alphaRouter from "../routes/alpha.js";
 import chatRouter from "../routes/chat.js";
 import adminRouter from "../routes/admin.js";
+import adminRafflesRouter from "../routes/admin-raffles.js";
 import adminLoginMethodsRouter from "../routes/admin-login-methods.js";
 import pendingUserCleanupRouter from "../routes/pending-user-cleanup.js";
 
@@ -46,6 +47,7 @@ export function createApp() {
   app.use("/api/alpha", alphaRouter);
   app.use("/api/chat", chatRouter);
   app.use("/api/admin", adminRouter);
+  app.use("/api/admin", adminRafflesRouter);
   app.use("/api/admin/login-methods", adminLoginMethodsRouter);
   app.use("/api/admin/pending-users", pendingUserCleanupRouter);
   app.use(notFoundHandler);
