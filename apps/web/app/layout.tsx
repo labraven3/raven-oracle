@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
 import "./theme-overrides.css";
+import "./theme-fixes.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import BrandSync from "@/components/BrandSync";
 import SiteChrome from "@/components/SiteChrome";
