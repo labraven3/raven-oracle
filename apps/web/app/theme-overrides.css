@@ -49,6 +49,10 @@ html.dark .raven-brand-theme{
 /* Keep the homepage to the single shared footer owned by SiteChrome. */
 footer.relative.border-t.backdrop-blur-xl.mt-20{display:none!important}
 
+/* Account page: no secondary My Profile sidebar; the account content uses the full width. */
+main.min-h-screen.bg-slate-50.text-slate-900 > div.mx-auto.flex.max-w-7xl.gap-0 > aside{display:none!important}
+main.min-h-screen.bg-slate-50.text-slate-900 > div.mx-auto.flex.max-w-7xl.gap-0 > section{width:100%!important;max-width:none!important}
+
 /* Dark-theme compatibility for legacy/light account, dashboard and settings pages. */
 html.dark .bg-white{background-color:#0d0c11!important;color:#f4f4f5!important}
 html.dark .bg-slate-50,html.dark .bg-slate-100,html.dark .bg-gray-50,html.dark .bg-gray-100,html.dark .bg-zinc-50,html.dark .bg-zinc-100{background-color:#111117!important}
