@@ -3,29 +3,20 @@ import { prisma } from "../lib/prisma.js";
 
 const router = Router();
 
-/**
- * GET /api/raffles/public
- * Public discovery feed. Draft/cancelled raffles are never exposed.
- */
 router.get("/", async (_req, res, next) => {
   try {
     const now = new Date();
     const raffles = await prisma.raffle.findMany({
       where: {
         cancelledAt: null,
+        projectId: { not: null },
         status: { in: ["SCHEDULED", "ACTIVE", "COMPLETED"] },
       },
       orderBy: [{ status: "asc" }, { startsAt: "desc" }],
       take: 100,
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        prizeName: true,
-        prizeQuantity: true,
-        startsAt: true,
-        endsAt: true,
-        status: true,
+      include: {
+        project: { select: { id: true, name: true, logoUrl: true, category: true } },
+        _count: { select: { entries: true, winners: true, tasks: true } },
       },
     });
 
@@ -38,7 +29,20 @@ router.get("/", async (_req, res, next) => {
         await prisma.raffle.update({ where: { id: raffle.id }, data: { status: "CLOSED" } });
         status = "CLOSED";
       }
-      return { ...raffle, status };
+
+      return {
+        id: raffle.id,
+        title: raffle.title,
+        description: raffle.description,
+        prizeName: raffle.prizeName,
+        prizeQuantity: raffle.prizeQuantity,
+        startsAt: raffle.startsAt,
+        endsAt: raffle.endsAt,
+        status,
+        winnerCount: raffle.winnerCount,
+        project: raffle.project,
+        _count: raffle._count,
+      };
     }));
 
     res.json({ success: true, raffles: normalized.filter((raffle) => ["SCHEDULED", "ACTIVE", "COMPLETED"].includes(raffle.status)) });
