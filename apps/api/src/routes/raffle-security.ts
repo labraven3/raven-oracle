@@ -7,9 +7,9 @@ import { requireAuth } from "../middleware/auth.js";
 const router = Router();
 router.use(requireAuth);
 
-function getRules(value: Prisma.JsonValue): Prisma.InputJsonObject {
+function getRules(value: Prisma.JsonValue): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
-    ? { ...(value as Prisma.InputJsonObject) }
+    ? { ...(value as Record<string, unknown>) }
     : {};
 }
 
@@ -35,7 +35,7 @@ router.patch("/:raffleId", async (req, res, next) => {
     if (["CLOSED", "DRAWING", "COMPLETED", "CANCELLED"].includes(raffle.status)) return res.status(400).json({ success: false, message: "Security settings can only be changed before the raffle is completed" });
     const rules = getRules(raffle.entryRules);
     rules.captchaRequired = parsed.data.captchaRequired;
-    const updated = await prisma.raffle.update({ where: { id: raffle.id }, data: { entryRules: rules } });
+    const updated = await prisma.raffle.update({ where: { id: raffle.id }, data: { entryRules: rules as Prisma.InputJsonObject } });
     return res.json({ success: true, raffle: { id: updated.id, status: updated.status, captchaRequired: parsed.data.captchaRequired } });
   } catch (error) { next(error); }
 });
