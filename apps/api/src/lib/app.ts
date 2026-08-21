@@ -1,5 +1,6 @@
 import express from "express";
 import { securityMiddleware } from "../middleware/security.js";
+import { projectCatalogGuard } from "../middleware/project-catalog-guard.js";
 import { errorHandler, notFoundHandler } from "../middleware/error-handler.js";
 import { healthRouter } from "../routes/health.js";
 import usersRouter from "../routes/users.js";
@@ -28,7 +29,6 @@ import adminRouter from "../routes/admin.js";
 import adminRafflesRouter from "../routes/admin-raffles.js";
 import adminRaffleOperationsRouter from "../routes/admin-raffle-operations.js";
 import adminRaffleIntegrityRouter from "../routes/admin-raffle-integrity.js";
-import adminWinnerIntegrityRouter from "../routes/admin-winner-integrity.js";
 import adminChainsRouter from "../routes/admin-chains.js";
 import adminLoginMethodsRouter from "../routes/admin-login-methods.js";
 import adminProjectTypesRouter from "../routes/admin-project-types.js";
@@ -48,7 +48,7 @@ export function createApp() {
   app.use("/api/auth/discord", discordAuthRouter);
   app.use("/api/auth/telegram", telegramAuthRouter);
   app.use("/api/wallets", walletsRouter);
-  app.use("/api/projects", projectsRouter);
+  app.use("/api/projects", projectCatalogGuard, projectsRouter);
   app.use("/api/project-metadata", projectMetadataRouter);
   app.use("/api/chains", chainsRouter);
   app.use("/api/raffles/public", publicRafflesRouter);
@@ -65,7 +65,6 @@ export function createApp() {
   app.use("/api/admin", adminRafflesRouter);
   app.use("/api/admin/raffle-operations", adminRaffleOperationsRouter);
   app.use("/api/admin/raffle-integrity", adminRaffleIntegrityRouter);
-  app.use("/api/admin/winner-integrity", adminWinnerIntegrityRouter);
   app.use("/api/admin/chains", adminChainsRouter);
   app.use("/api/admin/login-methods", adminLoginMethodsRouter);
   app.use("/api/admin/project-types", adminProjectTypesRouter);
