@@ -4,9 +4,9 @@ export default function RavenLogo({ className = "", showWordmark = true, compact
   return (
     <div className={`flex items-center gap-2 ${className}`} aria-label="Raven Oracle">
       <img
-        src="/raven-logo-mark.svg"
+        src="/raven-oracle-final.svg"
         alt="Raven Oracle"
-        className={`${compact ? "h-10 w-10" : "h-12 w-12"} shrink-0 object-contain`}
+        className={`${compact ? "h-10 w-10" : "h-14 w-14"} raven-brand-logo shrink-0`}
       />
       {showWordmark && (
         <span className="leading-none">
