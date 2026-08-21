@@ -3,8 +3,8 @@ type RavenLogoProps = { className?: string; showWordmark?: boolean; compact?: bo
 /**
  * Canonical Raven Oracle brand asset.
  *
- * Use the exact approved PNG asset supplied for the project.
- * Do not recreate, redraw, or convert the logo.
+ * Uses the exact approved PNG asset supplied for the project.
+ * The same asset is used everywhere; dark mode only adjusts it with CSS.
  */
 export default function RavenLogo({ className = "", compact = false }: RavenLogoProps) {
   return (
@@ -12,7 +12,7 @@ export default function RavenLogo({ className = "", compact = false }: RavenLogo
       <img
         src="/RavenOracleLogo.png"
         alt="Raven Oracle"
-        className={`${compact ? "h-12 w-auto" : "h-28 w-auto"} shrink-0 object-contain`}
+        className={`${compact ? "h-12 w-auto" : "h-28 w-auto"} shrink-0 object-contain transition-[filter] duration-300 dark:invert dark:hue-rotate-180`}
       />
     </div>
   );
