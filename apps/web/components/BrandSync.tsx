@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 function brandMarkup(size: "header" | "footer") {
   const height = size === "header" ? 64 : 128;
-  return `<span data-raven-brand="true" style="display:inline-flex;align-items:center;line-height:1;text-decoration:none"><img src="/raven-oracle-logo.png" alt="Raven Oracle" style="display:block;height:${height}px;width:auto;object-fit:contain;flex:none"/></span>`;
+  return `<span data-raven-brand="true" style="display:inline-flex;align-items:center;line-height:1;text-decoration:none"><img src="/RavenOracleLogo.png" alt="Raven Oracle" style="display:block;height:${height}px;width:auto;object-fit:contain;flex:none"/></span>`;
 }
 
 function replaceBrand(target: HTMLElement, size: "header" | "footer") {

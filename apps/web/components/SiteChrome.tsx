@@ -35,7 +35,7 @@ export default function SiteChrome({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen flex-col">
       {!hasOwnHeader(pathname) && <SiteHeader />}
       <main className="flex-1">{children}</main>
-      <SiteFooter />
+      {pathname !== "/"       <SiteFooter />      <SiteFooter /> <SiteFooter />}
     </div>
   );
 }
