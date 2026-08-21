@@ -19,25 +19,51 @@ export default function SiteHeader() {
     let cancelled = false;
     const syncAuth = async () => {
       const tokenPresent = Boolean(localStorage.getItem("raven_token"));
-      if (!cancelled && tokenPresent) setIsLoggedIn(true);
+
+      // Keep the authenticated UI immediately when a Raven token exists.
+      // This prevents Login / Sign Up from flashing or replacing Profile
+      // during a full navigation such as clicking the brand logo.
+      if (!cancelled) {
+        setIsLoggedIn(tokenPresent);
+        setAuthChecked(true);
+      }
+
       try {
-        const response = await fetch(`${API_BASE_URL}/auth/me`, { credentials: "include", cache: "no-store" });
-        if (!cancelled) setIsLoggedIn(response.ok);
+        const response = await fetch(`${API_BASE_URL}/auth/me`, {
+          credentials: "include",
+          cache: "no-store",
+          headers: tokenPresent
+            ? { Authorization: `Bearer ${localStorage.getItem("raven_token")}` }
+            : undefined,
+        });
+
+        if (!cancelled && response.ok) {
+          setIsLoggedIn(true);
+        } else if (!cancelled && !tokenPresent) {
+          setIsLoggedIn(false);
+        }
       } catch {
+        // Network/API failures must not log a locally authenticated user out.
         if (!cancelled) setIsLoggedIn(tokenPresent);
-      } finally {
-        if (!cancelled) setAuthChecked(true);
       }
     };
+
     void syncAuth();
-    const onStorage = (event: StorageEvent) => { if (event.key === "raven_token") void syncAuth(); };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === "raven_token") void syncAuth();
+    };
     const onAuthChanged = () => void syncAuth();
+    const onPageShow = () => void syncAuth();
+
     window.addEventListener("storage", onStorage);
     window.addEventListener("raven-auth-changed", onAuthChanged);
+    window.addEventListener("pageshow", onPageShow);
+
     return () => {
       cancelled = true;
       window.removeEventListener("storage", onStorage);
       window.removeEventListener("raven-auth-changed", onAuthChanged);
+      window.removeEventListener("pageshow", onPageShow);
     };
   }, [pathname]);
 
