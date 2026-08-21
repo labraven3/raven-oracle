@@ -10,12 +10,19 @@ html.light .bg-black\/20{background:rgba(255,255,255,.55)!important} html.light 
 html.light [class*="bg-[#0"]{background-color:#fff!important} html.light [class*="bg-[#1"]{background-color:#faf9fd!important} html.light [class*="bg-[#07"]{background-color:#f7f7fb!important}
 html.light input,html.light textarea,html.light select{background:#fff!important;color:#1f1f2b!important;border-color:#ddd8e8!important} html.light input::placeholder,html.light textarea::placeholder{color:#aaa6b4!important}
 html.light .hover\:bg-white\/5:hover{background:rgba(124,58,237,.06)!important} html.light .hover\:text-white:hover{color:#6d28d9!important}
-.raven-brand-logo{object-fit:contain;display:block}
 
-/* Shared logo theme treatment, including legacy BrandSync-injected branding. */
-.raven-brand-theme{mix-blend-mode:color;transition:filter .3s ease}
-html.dark .raven-brand-theme{filter:invert(1) hue-rotate(180deg)!important}
-html.light .raven-brand-theme{filter:none!important}
+.raven-brand-logo{object-fit:contain;display:block;image-rendering:auto}
 
-/* The homepage previously rendered its own legacy footer. SiteChrome now owns the single shared footer. */
+/* One shared treatment for both the React logo and legacy BrandSync logo.
+   The JPEG artwork is untouched; only its baked surface is blended into the theme. */
+html.light .raven-brand-theme{
+  mix-blend-mode:multiply!important;
+  filter:contrast(1.12) saturate(1.16) brightness(1.01) drop-shadow(0 0 7px rgba(124,58,237,.28))!important;
+}
+html.dark .raven-brand-theme{
+  mix-blend-mode:screen!important;
+  filter:invert(1) hue-rotate(180deg) contrast(1.14) saturate(1.18) brightness(.98) drop-shadow(0 0 10px rgba(139,92,246,.48))!important;
+}
+
+/* Keep the homepage to the single shared footer owned by SiteChrome. */
 footer.relative.border-t.backdrop-blur-xl.mt-20{display:none!important}
