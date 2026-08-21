@@ -3,9 +3,9 @@ import RavenLogo from "./RavenLogo";
 
 export default function SiteFooter() {
   return (
-    <footer className="border-t border-white/10 bg-[#07070b]">
-      <div className="mx-auto w-[min(1180px,calc(100%-32px))] px-4 py-10">
-        <div className="grid gap-10 md:grid-cols-4">
+    <footer className="border-t border-white/10 bg-black/40 backdrop-blur-xl">
+      <div className="mx-auto w-[min(1180px,calc(100%-32px))] px-4 py-8">
+        <div className="grid gap-8 md:grid-cols-4">
           <div>
             <Link href="/" className="inline-flex">
               <RavenLogo compact />
