@@ -6,7 +6,7 @@ import SiteHeader from "../../components/SiteHeader";
 import { API_BASE_URL } from "@/lib/api-config";
 
 type Category = "ALL" | "NFT" | "TOKEN" | "GAME" | "TOOL" | "DEFI" | "COMMUNITY" | "OTHER";
-type Sort = "NEWEST" | "OLDEST" | "NAME";
+type Chain = "ALL" | "EVM" | "SOLANA";
 type Project = {
   id: string;
   name: string;
@@ -18,17 +18,19 @@ type Project = {
   logoUrl: string;
   bannerUrl: string | null;
   category: Exclude<Category, "ALL">;
+  chain?: Exclude<Chain, "ALL"> | null;
   status: string;
   createdAt: string;
 };
 
 const categories: Category[] = ["ALL", "NFT", "TOKEN", "GAME", "TOOL", "DEFI", "COMMUNITY", "OTHER"];
+const chains: Chain[] = ["ALL", "EVM", "SOLANA"];
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<Category>("ALL");
-  const [sort, setSort] = useState<Sort>("NEWEST");
+  const [chain, setChain] = useState<Chain>("ALL");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -46,18 +48,13 @@ export default function ProjectsPage() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const result = projects.filter((project) => {
+    return projects.filter((project) => {
       const categoryOk = category === "ALL" || project.category === category;
+      const chainOk = chain === "ALL" || project.chain === chain;
       const queryOk = !q || `${project.name} ${project.description ?? ""}`.toLowerCase().includes(q);
-      return categoryOk && queryOk;
+      return categoryOk && chainOk && queryOk;
     });
-
-    return [...result].sort((a, b) => {
-      if (sort === "NAME") return a.name.localeCompare(b.name);
-      const diff = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-      return sort === "NEWEST" ? -diff : diff;
-    });
-  }, [projects, category, query, sort]);
+  }, [projects, category, chain, query]);
 
   return (
     <main className="min-h-screen bg-[#f7f8fa] text-[#17191f] dark:bg-[#08090c] dark:text-zinc-100">
@@ -88,23 +85,18 @@ export default function ProjectsPage() {
               <div className="text-xs font-semibold text-zinc-400">{filtered.length} projects</div>
             </div>
 
-            <div className="mt-6 grid gap-3 lg:grid-cols-[1fr_auto_auto]">
+            <div className="mt-6 grid gap-3 lg:grid-cols-[1fr_auto]">
               <div className="rounded-xl border border-black/10 bg-[#fafafa] px-4 dark:border-white/10 dark:bg-black/20">
                 <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search projects" className="w-full bg-transparent py-3 text-sm outline-none placeholder:text-zinc-400" />
               </div>
-              <select value={category} onChange={(e) => setCategory(e.target.value as Category)} className="rounded-xl border border-black/10 bg-white px-4 py-3 text-sm text-zinc-700 outline-none dark:border-white/10 dark:bg-black/20 dark:text-zinc-300">
-                {categories.map((item) => <option key={item} value={item}>{item === "ALL" ? "All categories" : item}</option>)}
-              </select>
-              <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} className="rounded-xl border border-black/10 bg-white px-4 py-3 text-sm text-zinc-700 outline-none dark:border-white/10 dark:bg-black/20 dark:text-zinc-300">
-                <option value="NEWEST">Newest</option>
-                <option value="OLDEST">Oldest</option>
-                <option value="NAME">Name</option>
+              <select value={chain} onChange={(e) => setChain(e.target.value as Chain)} className="rounded-xl border border-black/10 bg-white px-4 py-3 text-sm text-zinc-700 outline-none dark:border-white/10 dark:bg-[#121318] dark:text-zinc-200">
+                {chains.map((item) => <option key={item} value={item}>{item === "ALL" ? "All chains" : item === "SOLANA" ? "Solana" : "EVM"}</option>)}
               </select>
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
               {categories.map((item) => (
-                <button key={item} onClick={() => setCategory(item)} className={`rounded-full border px-3.5 py-2 text-[10px] font-black tracking-[.08em] transition ${category === item ? "border-violet-500 bg-violet-500 text-white" : "border-black/10 bg-white text-zinc-500 hover:border-violet-300 hover:text-violet-500 dark:border-white/10 dark:bg-[#121318] dark:text-zinc-400"}`}>
+                <button key={item} onClick={() => setCategory(item)} className={`rounded-full border px-3.5 py-2 text-[10px] font-black tracking-[.08em] transition ${category === item ? "border-violet-500 bg-violet-500 text-white" : "border-black/10 bg-white text-zinc-600 hover:border-violet-300 hover:text-violet-500 dark:border-white/15 dark:bg-[#15161c] dark:text-zinc-200 dark:hover:border-violet-400 dark:hover:text-violet-300"}`}>
                   {item}
                 </button>
               ))}
@@ -119,7 +111,7 @@ export default function ProjectsPage() {
             <div className="p-16 text-center">
               <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-violet-500/10 text-xl text-violet-500">◈</div>
               <h2 className="mt-4 text-lg font-semibold">No projects found</h2>
-              <p className="mt-2 text-sm text-zinc-500">Try another search or filter.</p>
+              <p className="mt-2 text-sm text-zinc-500">Try another search, category, or chain.</p>
             </div>
           ) : (
             <div className="grid gap-px overflow-hidden rounded-b-2xl bg-black/5 dark:bg-white/10 sm:grid-cols-2 xl:grid-cols-3">
