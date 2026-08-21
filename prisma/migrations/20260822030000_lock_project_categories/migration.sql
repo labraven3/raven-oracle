@@ -1,5 +1,6 @@
--- Raven Oracle project catalog now supports only NFT, TOKEN, AIRDROP and OTHER.
--- Legacy categories are normalized to OTHER before tightening the enum.
+-- Raven Oracle project catalog now uses project classification for NFT, TOKEN,
+-- AIRDROP and OTHER. The legacy Project.category column is retained only as a
+-- compatibility field and is limited to NFT, TOKEN and OTHER.
 
 UPDATE "Project"
 SET "category" = 'OTHER'
@@ -7,13 +8,13 @@ WHERE "category"::text IN ('GAME', 'TOOL', 'DEFI', 'COMMUNITY');
 
 DO $$
 BEGIN
-  CREATE TYPE "ProjectCategory_new" AS ENUM ('NFT', 'TOKEN', 'AIRDROP', 'OTHER');
+  CREATE TYPE "ProjectCategory_new" AS ENUM ('NFT', 'TOKEN', 'OTHER');
 
   ALTER TABLE "Project"
     ALTER COLUMN "category" DROP DEFAULT,
     ALTER COLUMN "category" TYPE "ProjectCategory_new"
       USING (CASE
-        WHEN "category"::text IN ('NFT', 'TOKEN', 'AIRDROP') THEN "category"::text
+        WHEN "category"::text IN ('NFT', 'TOKEN') THEN "category"::text
         ELSE 'OTHER'
       END)::"ProjectCategory_new";
 
