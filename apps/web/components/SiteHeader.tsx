@@ -16,16 +16,11 @@ export default function SiteHeader() {
 
   useEffect(() => {
     let cancelled = false;
-
     const syncAuth = async () => {
       const tokenPresent = Boolean(localStorage.getItem("raven_token"));
       if (!cancelled && tokenPresent) setIsLoggedIn(true);
-
       try {
-        const response = await fetch(`${API_BASE_URL}/auth/me`, {
-          credentials: "include",
-          cache: "no-store",
-        });
+        const response = await fetch(`${API_BASE_URL}/auth/me`, { credentials: "include", cache: "no-store" });
         if (!cancelled) setIsLoggedIn(response.ok);
       } catch {
         if (!cancelled) setIsLoggedIn(tokenPresent);
@@ -33,17 +28,11 @@ export default function SiteHeader() {
         if (!cancelled) setAuthChecked(true);
       }
     };
-
     void syncAuth();
-
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === "raven_token") void syncAuth();
-    };
+    const onStorage = (event: StorageEvent) => { if (event.key === "raven_token") void syncAuth(); };
     const onAuthChanged = () => void syncAuth();
-
     window.addEventListener("storage", onStorage);
     window.addEventListener("raven-auth-changed", onAuthChanged);
-
     return () => {
       cancelled = true;
       window.removeEventListener("storage", onStorage);
@@ -53,10 +42,7 @@ export default function SiteHeader() {
 
   const handleLogout = async () => {
     try {
-      await fetch(`${API_BASE_URL}/auth/logout`, {
-        method: "POST",
-        credentials: "include",
-      });
+      await fetch(`${API_BASE_URL}/auth/logout`, { method: "POST", credentials: "include" });
     } finally {
       localStorage.removeItem("raven_token");
       window.dispatchEvent(new Event("raven-auth-changed"));
@@ -81,7 +67,6 @@ export default function SiteHeader() {
           </button>
           {!authChecked ? null : isLoggedIn ? <>
             <Link href="/dashboard" className="rounded-lg border border-white/10 px-3 py-2 text-xs font-bold hover:bg-white/5">Dashboard</Link>
-            <Link href="/create" className="hidden rounded-lg border border-white/10 px-3 py-2 text-xs font-bold hover:bg-white/5 sm:block">Creator Studio</Link>
             <Link href="/account" className="rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 px-3 py-2 text-xs font-black text-white shadow-lg shadow-violet-500/30">Account</Link>
             <button onClick={() => void handleLogout()} className="hidden rounded-lg border border-white/10 px-3 py-2 text-xs font-bold text-zinc-400 hover:bg-white/5 sm:block">Logout</button>
           </> : <>
