@@ -1,6 +1,7 @@
 import express from "express";
 import { securityMiddleware } from "../middleware/security.js";
 import { projectCatalogGuard } from "../middleware/project-catalog-guard.js";
+import { projectApprovalGuard } from "../middleware/project-approval-guard.js";
 import { errorHandler, notFoundHandler } from "../middleware/error-handler.js";
 import { healthRouter } from "../routes/health.js";
 import usersRouter from "../routes/users.js";
@@ -68,6 +69,7 @@ export function createApp() {
   app.use("/api/raffle-security", raffleSecurityRouter);
   app.use("/api/alpha", alphaRouter);
   app.use("/api/chat", chatRouter);
+  app.use("/api/admin", projectApprovalGuard);
   app.use("/api/admin", adminRouter);
   app.use("/api/admin", adminRafflesRouter);
   app.use("/api/admin/raffle-operations", adminRaffleOperationsRouter);
