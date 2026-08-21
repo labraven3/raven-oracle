@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
+import { logProjectChange } from "../services/audit-log.service.js";
 
 const router = Router();
 const projectType = z.enum(["NFT", "TOKEN", "AIRDROP", "OTHER"]);
@@ -15,7 +16,6 @@ const tokenMetadata = z.object({
   explorerUrl: z.string().url().optional().or(z.literal("")),
   launchDate: z.string().datetime().optional().or(z.literal("")),
 });
-
 const airdropMetadata = z.object({
   snapshotDate: z.string().datetime().optional().or(z.literal("")),
   claimDate: z.string().datetime().optional().or(z.literal("")),
@@ -24,41 +24,31 @@ const airdropMetadata = z.object({
   eligibility: z.string().trim().max(2000).optional().or(z.literal("")),
   claimUrl: z.string().url().optional().or(z.literal("")),
 });
-
 const otherMetadata = z.object({
   subtype: z.string().trim().max(80).optional().or(z.literal("")),
   externalUrl: z.string().url().optional().or(z.literal("")),
   notes: z.string().trim().max(3000).optional().or(z.literal("")),
 });
-
 const nftMetadata = z.object({
   collectionContractAddress: z.string().trim().max(120).optional().or(z.literal("")),
   supply: z.number().int().positive().optional(),
   standard: z.string().trim().max(40).optional().or(z.literal("")),
 });
-
-const metadataSchema = z.object({
-  projectType,
-  metadata: z.record(z.string(), z.unknown()).default({}),
-});
+const metadataSchema = z.object({ projectType, metadata: z.record(z.string(), z.unknown()).default({}) });
 
 let ready = false;
 let readyPromise: Promise<void> | null = null;
-
 async function ensureSchema() {
   if (ready) return;
-  readyPromise ??= prisma.$executeRawUnsafe(`
-    ALTER TABLE "ProjectClassification" ADD COLUMN IF NOT EXISTS "metadata" JSONB NOT NULL DEFAULT '{}'::jsonb;
-  `).then(() => { ready = true; }).catch((error) => { readyPromise = null; throw error; });
+  readyPromise ??= prisma.$executeRawUnsafe(`ALTER TABLE "ProjectClassification" ADD COLUMN IF NOT EXISTS "metadata" JSONB NOT NULL DEFAULT '{}'::jsonb;`)
+    .then(() => { ready = true; }).catch((error) => { readyPromise = null; throw error; });
   await readyPromise;
 }
-
 async function getClassification(projectId: string) {
   return prisma.$queryRaw<Array<{ type: string; metadata: unknown }>>`
     SELECT "type", "metadata" FROM "ProjectClassification" WHERE "projectId" = ${projectId}::uuid LIMIT 1
   `;
 }
-
 function validateMetadata(type: z.infer<typeof projectType>, metadata: Record<string, unknown>) {
   if (type === "TOKEN") return tokenMetadata.parse(metadata);
   if (type === "AIRDROP") return airdropMetadata.parse(metadata);
@@ -91,11 +81,25 @@ router.put("/:id", requireAuth, async (req, res, next) => {
     let normalized: Record<string, unknown>;
     try { normalized = validateMetadata(parsed.data.projectType, parsed.data.metadata) as Record<string, unknown>; }
     catch (error) { return res.status(400).json({ success: false, message: "Invalid type-specific project data", errors: error instanceof z.ZodError ? error.issues : [] }); }
+
+    const beforeRows = await getClassification(id);
+    const before = beforeRows[0] ?? null;
+
     await prisma.$executeRaw`
       INSERT INTO "ProjectClassification" ("projectId", "type", "metadata")
       VALUES (${id}::uuid, ${parsed.data.projectType}, ${JSON.stringify(normalized)}::jsonb)
       ON CONFLICT ("projectId") DO UPDATE SET "type" = EXCLUDED."type", "metadata" = EXCLUDED."metadata", "updatedAt" = CURRENT_TIMESTAMP
     `;
+
+    await logProjectChange(
+      req.userId,
+      id,
+      "PROJECT_METADATA_UPDATED",
+      "Project type-specific metadata updated",
+      before ? { projectType: before.type, metadata: before.metadata } : undefined,
+      { projectType: parsed.data.projectType, metadata: normalized }
+    );
+
     return res.json({ success: true, projectType: parsed.data.projectType, metadata: normalized });
   } catch (error) { next(error); }
 });
