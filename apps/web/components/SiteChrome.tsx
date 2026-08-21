@@ -32,10 +32,10 @@ export default function SiteChrome({ children }: { children: ReactNode }) {
   if (isAdmin || isApi) return <>{children}</>;
 
   return (
-    <>
+    <div className="flex min-h-screen flex-col">
       {!hasOwnHeader(pathname) && <SiteHeader />}
-      {children}
-      {pathname !== "/" && <SiteFooter />}
-    </>
+      <main className="flex-1">{children}</main>
+      <SiteFooter />
+    </div>
   );
 }
