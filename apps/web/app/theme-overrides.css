@@ -12,5 +12,9 @@ html.light input,html.light textarea,html.light select{background:#fff!important
 html.light .hover\:bg-white\/5:hover{background:rgba(124,58,237,.06)!important} html.light .hover\:text-white:hover{color:#6d28d9!important}
 .raven-brand-logo{object-fit:contain;display:block}
 
+/* Shared logo theme treatment, including legacy BrandSync-injected branding. */
+html.dark .raven-brand-theme{filter:invert(1) hue-rotate(180deg)!important}
+html.light .raven-brand-theme{filter:none!important}
+
 /* The homepage previously rendered its own legacy footer. SiteChrome now owns the single shared footer. */
 footer.relative.border-t.backdrop-blur-xl.mt-20{display:none!important}
