@@ -27,9 +27,10 @@ export default function AdminLoginPage() {
 
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.message || "Admin login failed");
+      if (typeof data.token !== "string" || !data.token) throw new Error("Admin login succeeded but no session token was returned.");
 
       localStorage.removeItem("raven_token");
-      localStorage.removeItem("raven_admin_token");
+      localStorage.setItem("raven_admin_token", data.token);
       router.replace("/admin");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Admin login failed");
