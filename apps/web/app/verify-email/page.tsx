@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { API_BASE_URL } from "@/lib/api-config";
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<"verifying" | "success" | "error">("verifying");
@@ -26,8 +26,6 @@ export default function VerifyEmailPage() {
       setEmail(email_param);
 
       try {
-        // The Express route is mounted at /api/auth/email/verify.
-        // API_BASE_URL is /api, so /auth must be included here.
         const response = await fetch(`${API_BASE_URL}/auth/email/verify`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -43,17 +41,16 @@ export default function VerifyEmailPage() {
         }
 
         setStatus("success");
-        // Redirect to login after 3 seconds
         setTimeout(() => {
           router.push("/login");
         }, 3000);
-      } catch (err: any) {
+      } catch (err: unknown) {
         setStatus("error");
-        setError(err.message || "Verification failed");
+        setError(err instanceof Error ? err.message : "Verification failed");
       }
     };
 
-    verifyToken();
+    void verifyToken();
   }, [searchParams, router]);
 
   return (
@@ -63,9 +60,7 @@ export default function VerifyEmailPage() {
           <div className="text-center">
             {status === "verifying" && (
               <>
-                <div className="inline-block animate-spin mb-4">
-                  <div className="w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full"></div>
-                </div>
+                <div className="inline-block animate-spin mb-4"><div className="w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full"></div></div>
                 <h1 className="text-2xl font-bold text-white mb-2">Verifying Email</h1>
                 <p className="text-zinc-400">Please wait while we verify your email...</p>
               </>
@@ -73,50 +68,23 @@ export default function VerifyEmailPage() {
 
             {status === "success" && (
               <>
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-500/20 text-green-400 mb-4">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-500/20 text-green-400 mb-4"><svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg></div>
                 <h1 className="text-2xl font-bold text-white mb-2">Email Verified!</h1>
-                <p className="text-zinc-400 mb-6">
-                  Your email <strong className="text-green-400">{email}</strong> has been verified successfully.
-                </p>
+                <p className="text-zinc-400 mb-6">Your email <strong className="text-green-400">{email}</strong> has been verified successfully.</p>
                 <p className="text-sm text-zinc-500 mb-6">Redirecting to login...</p>
-                <Link
-                  href="/login"
-                  className="inline-block px-6 py-3 bg-violet-500 hover:bg-violet-600 text-white font-bold rounded-lg transition-colors"
-                >
-                  Go to Login
-                </Link>
+                <Link href="/login" className="inline-block px-6 py-3 bg-violet-500 hover:bg-violet-600 text-white font-bold rounded-lg transition-colors">Go to Login</Link>
               </>
             )}
 
             {status === "error" && (
               <>
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-500/20 text-red-400 mb-4">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </div>
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-500/20 text-red-400 mb-4"><svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></div>
                 <h1 className="text-2xl font-bold text-white mb-2">Verification Failed</h1>
                 <p className="text-red-400 mb-6">{error}</p>
                 <div className="space-y-3">
                   <p className="text-sm text-zinc-500">Try one of the following:</p>
-                  <Link
-                    href="/register"
-                    className="inline-block px-6 py-3 bg-violet-500 hover:bg-violet-600 text-white font-bold rounded-lg transition-colors"
-                  >
-                    Create New Account
-                  </Link>
-                  <div>
-                    <Link
-                      href="/login"
-                      className="text-violet-400 hover:text-violet-300 text-sm font-medium"
-                    >
-                      Back to Login
-                    </Link>
-                  </div>
+                  <Link href="/register" className="inline-block px-6 py-3 bg-violet-500 hover:bg-violet-600 text-white font-bold rounded-lg transition-colors">Create New Account</Link>
+                  <div><Link href="/login" className="text-violet-400 hover:text-violet-300 text-sm font-medium">Back to Login</Link></div>
                 </div>
               </>
             )}
@@ -124,5 +92,13 @@ export default function VerifyEmailPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#0a0a0f] px-4"><div className="text-sm text-zinc-500">Loading verification…</div></div>}>
+      <VerifyEmailContent />
+    </Suspense>
   );
 }
