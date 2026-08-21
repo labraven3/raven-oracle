@@ -6,146 +6,16 @@ import SiteHeader from "../../components/SiteHeader";
 import { API_BASE_URL } from "@/lib/api-config";
 
 type Category = "ALL" | "NFT" | "TOKEN" | "GAME" | "TOOL" | "DEFI" | "COMMUNITY" | "OTHER";
-type Chain = "ALL" | "EVM" | "SOLANA";
+type Chain = { id: string; name: string; slug: string };
 type Project = {
-  id: string;
-  name: string;
-  slug: string;
-  description: string | null;
-  websiteUrl: string | null;
-  xUrl: string | null;
-  discordUrl: string | null;
-  logoUrl: string;
-  bannerUrl: string | null;
-  category: Exclude<Category, "ALL">;
-  chain?: Exclude<Chain, "ALL"> | null;
-  status: string;
-  createdAt: string;
+  id: string; name: string; slug: string; description: string | null; websiteUrl: string | null; xUrl: string | null; discordUrl: string | null;
+  logoUrl: string; bannerUrl: string | null; category: Exclude<Category, "ALL">; chain?: string | null; status: string; createdAt: string;
 };
-
 const categories: Category[] = ["ALL", "NFT", "TOKEN", "GAME", "TOOL", "DEFI", "COMMUNITY", "OTHER"];
-const chains: Chain[] = ["ALL", "EVM", "SOLANA"];
 
 export default function ProjectsPage() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<Category>("ALL");
-  const [chain, setChain] = useState<Chain>("ALL");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    fetch(`${API_BASE_URL}/projects/public`, { cache: "no-store" })
-      .then(async (response) => {
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.message ?? "Unable to load projects");
-        return data as { projects?: Project[] };
-      })
-      .then((data) => setProjects(data.projects ?? []))
-      .catch((e) => setError(e instanceof Error ? e.message : "Unable to load projects"))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return projects.filter((project) => {
-      const categoryOk = category === "ALL" || project.category === category;
-      const chainOk = chain === "ALL" || project.chain === chain;
-      const queryOk = !q || `${project.name} ${project.description ?? ""}`.toLowerCase().includes(q);
-      return categoryOk && chainOk && queryOk;
-    });
-  }, [projects, category, chain, query]);
-
-  return (
-    <main className="min-h-screen bg-[#f7f8fa] text-[#17191f] dark:bg-[#08090c] dark:text-zinc-100">
-      <SiteHeader />
-
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        <div className="mb-6 flex flex-col gap-4 border-b border-black/5 pb-5 dark:border-white/10 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="text-[10px] font-black uppercase tracking-[.22em] text-zinc-400">Explore</div>
-            <div className="mt-2 flex items-center gap-2 text-sm text-zinc-400">
-              <Link href="/" className="hover:text-violet-500">Home</Link>
-              <span>/</span>
-              <span className="font-semibold text-zinc-800 dark:text-zinc-200">Discover Projects</span>
-            </div>
-          </div>
-          <Link href="/projects/new" className="rounded-xl border border-black/10 bg-white px-4 py-2.5 text-xs font-bold text-zinc-700 shadow-sm hover:border-violet-300 hover:text-violet-500 dark:border-white/10 dark:bg-[#0f1015] dark:text-zinc-300">
-            Submit a project
-          </Link>
-        </div>
-
-        <section className="rounded-2xl border border-black/5 bg-white shadow-sm dark:border-white/10 dark:bg-[#0f1015]">
-          <div className="border-b border-black/5 p-5 dark:border-white/10 sm:p-6">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Discover Projects</h1>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">Explore verified projects and discover communities, products and opportunities across Raven Oracle.</p>
-              </div>
-              <div className="text-xs font-semibold text-zinc-400">{filtered.length} projects</div>
-            </div>
-
-            <div className="mt-6 grid gap-3 lg:grid-cols-[1fr_auto]">
-              <div className="rounded-xl border border-black/10 bg-[#fafafa] px-4 dark:border-white/10 dark:bg-black/20">
-                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search projects" className="w-full bg-transparent py-3 text-sm outline-none placeholder:text-zinc-400" />
-              </div>
-              <select value={chain} onChange={(e) => setChain(e.target.value as Chain)} className="rounded-xl border border-black/10 bg-white px-4 py-3 text-sm text-zinc-700 outline-none dark:border-white/10 dark:bg-[#121318] dark:text-zinc-200">
-                {chains.map((item) => <option key={item} value={item}>{item === "ALL" ? "All chains" : item === "SOLANA" ? "Solana" : "EVM"}</option>)}
-              </select>
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              {categories.map((item) => (
-                <button key={item} onClick={() => setCategory(item)} className={`rounded-full border px-3.5 py-2 text-[10px] font-black tracking-[.08em] transition ${category === item ? "border-violet-500 bg-violet-500 text-white" : "border-black/10 bg-white text-zinc-600 hover:border-violet-300 hover:text-violet-500 dark:border-white/15 dark:bg-[#15161c] dark:text-zinc-200 dark:hover:border-violet-400 dark:hover:text-violet-300"}`}>
-                  {item}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {error && <div className="m-5 rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-500">{error}</div>}
-
-          {loading ? (
-            <div className="p-16 text-center text-sm text-zinc-500">Loading projects…</div>
-          ) : filtered.length === 0 ? (
-            <div className="p-16 text-center">
-              <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-violet-500/10 text-xl text-violet-500">◈</div>
-              <h2 className="mt-4 text-lg font-semibold">No projects found</h2>
-              <p className="mt-2 text-sm text-zinc-500">Try another search, category, or chain.</p>
-            </div>
-          ) : (
-            <div className="grid gap-px overflow-hidden rounded-b-2xl bg-black/5 dark:bg-white/10 sm:grid-cols-2 xl:grid-cols-3">
-              {filtered.map((project) => (
-                <Link key={project.id} href={`/projects/${project.id}`} className="group bg-white dark:bg-[#0f1015]">
-                  <div className="relative h-52 overflow-hidden bg-gradient-to-br from-violet-100 via-slate-50 to-slate-100 dark:from-violet-950/40 dark:via-[#16171d] dark:to-[#0c0d11]">
-                    {project.bannerUrl ? <img src={project.bannerUrl} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" /> : <div className="h-full w-full bg-gradient-to-br from-violet-950/50 via-[#19151f] to-[#0b0c10]" />}
-                    <div className="absolute inset-x-0 top-0 flex items-start justify-between p-4">
-                      <span className="rounded-full border border-white/20 bg-black/40 px-3 py-1.5 text-[9px] font-black tracking-[.12em] text-white backdrop-blur">{project.category}</span>
-                      <span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1.5 text-[9px] font-black text-emerald-300 backdrop-blur">VERIFIED</span>
-                    </div>
-                    <div className="absolute bottom-4 left-4 grid h-16 w-16 place-items-center overflow-hidden rounded-2xl border-4 border-white bg-white shadow-lg dark:border-[#0f1015] dark:bg-black">
-                      {project.logoUrl ? <img src={project.logoUrl} alt="" className="h-full w-full object-cover" /> : <span className="text-xl font-black text-violet-500">{project.name.slice(0, 1)}</span>}
-                    </div>
-                  </div>
-                  <div className="p-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h2 className="truncate text-xl font-semibold group-hover:text-violet-500">{project.name}</h2>
-                        <p className="mt-2 line-clamp-2 text-xs leading-5 text-zinc-500">{project.description || "Verified project on Raven Oracle."}</p>
-                      </div>
-                      <span className="text-lg text-violet-500">↗</span>
-                    </div>
-                    <div className="mt-5 flex items-center justify-between border-t border-black/5 pt-4 text-[9px] font-black tracking-[.12em] text-zinc-400 dark:border-white/5">
-                      <span>RAVEN ORACLE</span>
-                      <span className="text-violet-500">VIEW PROJECT →</span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
-    </main>
-  );
+  const [projects, setProjects] = useState<Project[]>([]); const [chains, setChains] = useState<Chain[]>([]); const [query, setQuery] = useState(""); const [category, setCategory] = useState<Category>("ALL"); const [chain, setChain] = useState("ALL"); const [loading, setLoading] = useState(true); const [error, setError] = useState("");
+  useEffect(() => { Promise.all([fetch(`${API_BASE_URL}/projects/public`, { cache: "no-store" }).then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.message ?? "Unable to load projects"); return d as { projects?: Project[] }; }), fetch(`${API_BASE_URL}/chains`, { cache: "no-store" }).then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.message ?? "Unable to load chains"); return d as { chains?: Chain[] }; })]).then(([p, c]) => { setProjects(p.projects ?? []); setChains(c.chains ?? []); }).catch(e => setError(e instanceof Error ? e.message : "Unable to load projects")).finally(() => setLoading(false)); }, []);
+  const filtered = useMemo(() => { const q = query.trim().toLowerCase(); return projects.filter(project => (category === "ALL" || project.category === category) && (chain === "ALL" || project.chain === chain) && (!q || `${project.name} ${project.description ?? ""}`.toLowerCase().includes(q))); }, [projects, category, chain, query]);
+  return <main className="min-h-screen bg-[#f7f8fa] text-[#17191f] dark:bg-[#08090c] dark:text-zinc-100"><SiteHeader /><div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8"><div className="mb-6 flex flex-col gap-4 border-b border-black/5 pb-5 dark:border-white/10 lg:flex-row lg:items-center lg:justify-between"><div><div className="text-[10px] font-black uppercase tracking-[.22em] text-zinc-400">Explore</div><div className="mt-2 flex items-center gap-2 text-sm text-zinc-400"><Link href="/" className="hover:text-violet-500">Home</Link><span>/</span><span className="font-semibold text-zinc-800 dark:text-zinc-200">Discover Projects</span></div></div><Link href="/projects/new" className="rounded-xl border border-black/10 bg-white px-4 py-2.5 text-xs font-bold text-zinc-700 shadow-sm hover:border-violet-300 hover:text-violet-500 dark:border-white/10 dark:bg-[#0f1015] dark:text-zinc-300">Submit a project</Link></div><section className="rounded-2xl border border-black/5 bg-white shadow-sm dark:border-white/10 dark:bg-[#0f1015]"><div className="border-b border-black/5 p-5 dark:border-white/10 sm:p-6"><div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between"><div><h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Discover Projects</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">Explore verified projects and discover communities, products and opportunities across Raven Oracle.</p></div><div className="text-xs font-semibold text-zinc-400">{filtered.length} projects</div></div><div className="mt-6 grid gap-3 lg:grid-cols-[1fr_auto]"><div className="rounded-xl border border-black/10 bg-[#fafafa] px-4 dark:border-white/10 dark:bg-black/20"><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search projects" className="w-full bg-transparent py-3 text-sm outline-none placeholder:text-zinc-400" /></div><select value={chain} onChange={e => setChain(e.target.value)} className="rounded-xl border border-black/10 bg-white px-4 py-3 text-sm text-zinc-700 outline-none dark:border-white/10 dark:bg-[#121318] dark:text-zinc-200"><option value="ALL">All chains</option>{chains.map(item => <option key={item.id} value={item.name}>{item.name}</option>)}</select></div><div className="mt-4 flex flex-wrap gap-2">{categories.map(item => <button key={item} onClick={() => setCategory(item)} className={`rounded-full border px-3.5 py-2 text-[10px] font-black tracking-[.08em] transition ${category === item ? "border-violet-500 bg-violet-500 text-white" : "border-black/10 bg-white text-zinc-600 hover:border-violet-300 hover:text-violet-500 dark:border-white/15 dark:bg-[#15161c] dark:text-zinc-200 dark:hover:border-violet-400 dark:hover:text-violet-300"}`}>{item}</button>)}</div></div>{error && <div className="m-5 rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-500">{error}</div>}{loading ? <div className="p-16 text-center text-sm text-zinc-500">Loading projects…</div> : filtered.length === 0 ? <div className="p-16 text-center"><h2 className="text-lg font-semibold">No projects found</h2><p className="mt-2 text-sm text-zinc-500">Try another search, category, or chain.</p></div> : <div className="grid gap-px overflow-hidden rounded-b-2xl bg-black/5 dark:bg-white/10 sm:grid-cols-2 xl:grid-cols-3">{filtered.map(project => <Link key={project.id} href={`/projects/${project.id}`} className="group bg-white dark:bg-[#0f1015]"><div className="relative h-52 overflow-hidden bg-gradient-to-br from-violet-100 via-slate-50 to-slate-100 dark:from-violet-950/40 dark:via-[#16171d] dark:to-[#0c0d11]">{project.bannerUrl ? <img src={project.bannerUrl} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" /> : <div className="h-full w-full bg-gradient-to-br from-violet-950/50 via-[#19151f] to-[#0b0c10]" />}<div className="absolute inset-x-0 top-0 flex items-start justify-between p-4"><span className="rounded-full border border-white/20 bg-black/40 px-3 py-1.5 text-[9px] font-black tracking-[.12em] text-white backdrop-blur">{project.category}</span><span className="rounded-full border border-emerald-400/20 bg-emerald-500/10 px-3 py-1.5 text-[9px] font-black text-emerald-300 backdrop-blur">VERIFIED</span></div></div><div className="p-5"><h2 className="truncate text-xl font-semibold group-hover:text-violet-500">{project.name}</h2><p className="mt-2 line-clamp-2 text-xs leading-5 text-zinc-500">{project.description || "Verified project on Raven Oracle."}</p><div className="mt-5 flex items-center justify-between border-t border-black/5 pt-4 text-[9px] font-black tracking-[.12em] text-zinc-400 dark:border-white/5"><span>{project.chain || "CHAIN TBA"}</span><span className="text-violet-500">VIEW PROJECT →</span></div></div></Link>)}</div>}</section></div></main>;
 }
