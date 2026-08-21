@@ -29,6 +29,7 @@ export async function getProjectApprovalReadiness(projectId: string) {
       logoUrl: true,
       bannerUrl: true,
       status: true,
+      rejectionReason: true,
       deletedAt: true,
     },
   });
