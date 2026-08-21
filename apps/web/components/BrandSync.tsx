@@ -4,9 +4,9 @@ import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 
 function brandMarkup(size: "header" | "footer") {
-  const iconSize = size === "header" ? 42 : 56;
+  const iconSize = size === "header" ? 42 : 58;
   const textSize = size === "header" ? 13 : 15;
-  return `<span data-raven-brand="true" style="display:inline-flex;align-items:center;gap:10px;line-height:1;text-decoration:none"><img src="/raven-logo-mark.svg" alt="Raven Oracle" width="${iconSize}" height="${iconSize}" style="display:block;width:${iconSize}px;height:${iconSize}px;object-fit:contain"/><span style="display:inline-flex;flex-direction:column;gap:4px"><strong style="font-size:${textSize}px;letter-spacing:.2em;color:inherit;font-weight:900">RAVEN</strong><small style="font-size:8px;letter-spacing:.3em;color:#8b5cf6;font-weight:800">ORACLE</small></span></span>`;
+  return `<span data-raven-brand="true" style="display:inline-flex;align-items:center;gap:10px;line-height:1;text-decoration:none"><img src="/raven-oracle-final.svg" alt="Raven Oracle" width="${iconSize}" height="${iconSize}" style="display:block;width:${iconSize}px;height:${iconSize}px;object-fit:contain"/><span style="display:inline-flex;flex-direction:column;gap:4px"><strong style="font-size:${textSize}px;letter-spacing:.2em;color:inherit;font-weight:900">RAVEN</strong><small style="font-size:8px;letter-spacing:.3em;color:#8b5cf6;font-weight:800">ORACLE</small></span></span>`;
 }
 
 function syncBranding() {
@@ -32,22 +32,17 @@ function syncBranding() {
       const text = (el.textContent || "").replace(/\s+/g, " ").trim();
       return /^RAVEN ORACLE$/i.test(text) && el.children.length <= 2;
     });
-
-    if (footerBrand && !footerBrand.querySelector("[data-raven-brand]")) {
-      footerBrand.innerHTML = brandMarkup("footer");
-    }
+    if (footerBrand && !footerBrand.querySelector("[data-raven-brand]")) footerBrand.innerHTML = brandMarkup("footer");
   });
 }
 
 export default function BrandSync() {
   const pathname = usePathname();
-
   useEffect(() => {
     syncBranding();
     const observer = new MutationObserver(() => syncBranding());
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
   }, [pathname]);
-
   return null;
 }
