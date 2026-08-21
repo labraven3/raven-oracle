@@ -1,0 +1,61 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import SiteHeader from "../../../../../components/SiteHeader";
+import { API_BASE_URL } from "@/lib/api-config";
+
+type Issue = { code: string; field: string; message: string };
+type Readiness = { ready: boolean; issues: Issue[]; project?: { name: string; status: string; projectType: string; chain: string | null } | null };
+
+async function api<T>(path: string) {
+  const response = await fetch(`${API_BASE_URL}${path}`, { credentials: "include", cache: "no-store" });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message ?? `Request failed (${response.status})`);
+  return data as T;
+}
+
+export default function ProjectApprovalPage() {
+  const { id } = useParams<{ id: string }>();
+  const [data, setData] = useState<Readiness | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    void api<Readiness>(`/project-approval/${id}`).then(setData).catch((e) => setError(e instanceof Error ? e.message : "Unable to load approval readiness")).finally(() => setLoading(false));
+  }, [id]);
+
+  return (
+    <main className="min-h-screen bg-[#06060a] text-zinc-100">
+      <SiteHeader />
+      <div className="mx-auto max-w-4xl px-5 py-10">
+        <Link href={`/dashboard/projects/${id}`} className="text-xs text-zinc-500 hover:text-violet-300">← Project dashboard</Link>
+        {loading ? <div className="py-20 text-center text-sm text-zinc-600">Checking project readiness…</div> : error ? <div className="mt-6 rounded-2xl border border-red-500/20 bg-red-950/20 p-6 text-sm text-red-300">{error}</div> : data && (
+          <section className="mt-8 rounded-3xl border border-white/10 bg-[#0d0c11] p-7 sm:p-9">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <span className="text-[9px] font-black tracking-[.2em] text-violet-300/60">SUBMISSION READINESS</span>
+                <h1 className="mt-2 text-4xl font-medium">{data.project?.name}</h1>
+                <p className="mt-2 text-xs text-zinc-600">{data.project?.projectType} · {data.project?.chain ?? "No chain"} · {data.project?.status}</p>
+              </div>
+              <div className={`rounded-full px-4 py-2 text-[10px] font-black ${data.ready ? "bg-emerald-500/10 text-emerald-300" : "bg-amber-500/10 text-amber-300"}`}>{data.ready ? "READY FOR REVIEW" : `${data.issues.length} ITEMS TO FIX`}</div>
+            </div>
+
+            {data.ready ? (
+              <div className="mt-8 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-6 text-sm leading-6 text-emerald-200">Your project has the required chain, project information, type and metadata. It is ready for admin review.</div>
+            ) : (
+              <div className="mt-8">
+                <h2 className="text-xl font-medium">Missing or invalid information</h2>
+                <div className="mt-4 space-y-3">
+                  {data.issues.map((issue) => <div key={`${issue.code}-${issue.field}`} className="rounded-2xl border border-amber-500/15 bg-amber-500/5 p-4"><div className="text-[10px] font-black uppercase tracking-[.12em] text-amber-300">{issue.field}</div><p className="mt-1 text-sm text-zinc-300">{issue.message}</p></div>)}
+                </div>
+                <Link href={`/dashboard/projects/${id}/metadata`} className="mt-6 inline-flex rounded-xl bg-violet-500 px-5 py-3 text-xs font-black text-white">Fix project information →</Link>
+              </div>
+            )}
+          </section>
+        )}
+      </div>
+    </main>
+  );
+}
