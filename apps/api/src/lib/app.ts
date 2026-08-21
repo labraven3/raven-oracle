@@ -28,6 +28,7 @@ import adminRouter from "../routes/admin.js";
 import adminRafflesRouter from "../routes/admin-raffles.js";
 import adminRaffleOperationsRouter from "../routes/admin-raffle-operations.js";
 import adminRaffleIntegrityRouter from "../routes/admin-raffle-integrity.js";
+import adminWinnerIntegrityRouter from "../routes/admin-winner-integrity.js";
 import adminChainsRouter from "../routes/admin-chains.js";
 import adminLoginMethodsRouter from "../routes/admin-login-methods.js";
 import adminProjectTypesRouter from "../routes/admin-project-types.js";
@@ -64,6 +65,7 @@ export function createApp() {
   app.use("/api/admin", adminRafflesRouter);
   app.use("/api/admin/raffle-operations", adminRaffleOperationsRouter);
   app.use("/api/admin/raffle-integrity", adminRaffleIntegrityRouter);
+  app.use("/api/admin/winner-integrity", adminWinnerIntegrityRouter);
   app.use("/api/admin/chains", adminChainsRouter);
   app.use("/api/admin/login-methods", adminLoginMethodsRouter);
   app.use("/api/admin/project-types", adminProjectTypesRouter);
