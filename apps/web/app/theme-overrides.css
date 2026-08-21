@@ -11,3 +11,6 @@ html.light [class*="bg-[#0"]{background-color:#fff!important} html.light [class*
 html.light input,html.light textarea,html.light select{background:#fff!important;color:#1f1f2b!important;border-color:#ddd8e8!important} html.light input::placeholder,html.light textarea::placeholder{color:#aaa6b4!important}
 html.light .hover\:bg-white\/5:hover{background:rgba(124,58,237,.06)!important} html.light .hover\:text-white:hover{color:#6d28d9!important}
 .raven-brand-logo{object-fit:contain;display:block}
+
+/* The homepage previously rendered its own legacy footer. SiteChrome now owns the single shared footer. */
+footer.relative.border-t.backdrop-blur-xl.mt-20{display:none!important}
