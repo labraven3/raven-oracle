@@ -28,6 +28,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { title: "User Management", icon: "👥", href: "/admin/users", description: "Manage users & bans" },
     { title: "Pending User Cleanup", icon: "🧹", href: "/admin/pending-users", description: "Remove unverified test accounts" },
     { title: "Raffle Management", icon: "🎟️", href: "/admin/raffles", description: "Cancel & review raffles" },
+    { title: "Create Raffle", icon: "➕", href: "/admin/raffles/create", description: "Create a new whitelist raffle" },
   ];
 
   const isActive = (href: string) => href === "/admin" ? pathname === href : pathname?.startsWith(href);
