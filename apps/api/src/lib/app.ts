@@ -21,6 +21,7 @@ import projectApprovalRouter from "../routes/project-approval.js";
 import chainsRouter from "../routes/chains.js";
 import rafflesRouter from "../routes/raffles.js";
 import publicRafflesRouter from "../routes/public-raffles.js";
+import homeRouter from "../routes/home.js";
 import raffleEntriesRouter from "../routes/raffle-entries.js";
 import raffleTasksRouter from "../routes/raffle-tasks.js";
 import raffleWinnersRouter from "../routes/raffle-winners.js";
@@ -53,6 +54,7 @@ export function createApp() {
   app.use("/api/auth/discord", discordAuthRouter);
   app.use("/api/auth/telegram", telegramAuthRouter);
   app.use("/api/wallets", walletsRouter);
+  app.use("/api/home", homeRouter);
   app.use("/api/projects/discovery", projectCatalogGuard, projectDiscoveryRouter);
   app.use("/api/projects/onboarding", projectCatalogGuard, projectOnboardingRouter);
   app.use("/api/projects", projectCatalogGuard, projectsRouter);
@@ -71,7 +73,7 @@ export function createApp() {
   app.use("/api/chat", chatRouter);
   app.use("/api/admin", projectApprovalGuard);
   app.use("/api/admin", adminRouter);
-  app.use("/api/admin", adminRafflesRouter);
+  app.use("/api/admin/raffles", adminRafflesRouter);
   app.use("/api/admin/raffle-operations", adminRaffleOperationsRouter);
   app.use("/api/admin/raffle-integrity", adminRaffleIntegrityRouter);
   app.use("/api/admin/chains", adminChainsRouter);
