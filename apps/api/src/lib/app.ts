@@ -73,7 +73,7 @@ export function createApp() {
   app.use("/api/chat", chatRouter);
   app.use("/api/admin", projectApprovalGuard);
   app.use("/api/admin", adminRouter);
-  app.use("/api/admin/raffles", adminRafflesRouter);
+  app.use("/api/admin", adminRafflesRouter);
   app.use("/api/admin/raffle-operations", adminRaffleOperationsRouter);
   app.use("/api/admin/raffle-integrity", adminRaffleIntegrityRouter);
   app.use("/api/admin/chains", adminChainsRouter);
