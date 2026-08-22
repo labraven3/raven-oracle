@@ -8,8 +8,8 @@ html.light .text-zinc-300{color:#474754!important}
 html.light .text-zinc-400{color:#626271!important}
 html.light .text-zinc-500{color:#777785!important}
 html.light .text-zinc-600{color:#8a8995!important}
-html.light .bg-[#06060a],html.light .bg-[#07070a]{background:#f7f7fb!important;color:#171722!important}
-html.light .bg-[#0d0c11],html.light .bg-[#111117],html.light .bg-[#121219],html.light .bg-[#15161c],html.light .bg-[#16161d]{background:#fff!important;color:#171722!important}
+html.light [class~="bg-[#06060a]"],html.light [class~="bg-[#07070a]"]{background:#f7f7fb!important;color:#171722!important}
+html.light [class~="bg-[#0d0c11]"],html.light [class~="bg-[#111117]"],html.light [class~="bg-[#121219]"],html.light [class~="bg-[#15161c]"],html.light [class~="bg-[#16161d]"]{background:#fff!important;color:#171722!important}
 html.light .border-white\/10{border-color:#e5e1ec!important}
 html.light .border-white\/5{border-color:#ece9f2!important}
 html.light button.border-white\/10,html.light a.border-white\/10{background:#fff!important;color:#333342!important}
