@@ -9,13 +9,13 @@ import type { Request } from "express";
  */
 
 interface AuthAuditParams {
-  userId?: string;
+  userId?: string | undefined;
   event: string;
   success: boolean;
-  provider?: string;
-  reason?: string;
-  metadata?: Record<string, unknown>;
-  req?: Request;
+  provider?: string | undefined;
+  reason?: string | undefined;
+  metadata?: Record<string, unknown> | undefined;
+  req?: Request | undefined;
 }
 
 export async function logAuthEvent(_params: AuthAuditParams): Promise<void> {
