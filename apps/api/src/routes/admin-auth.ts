@@ -54,7 +54,6 @@ function clearAdminSessionCookie(res: import("express").Response) {
   });
 }
 
-/** Admin login is separate from normal user login and always issues an admin-scoped JWT. */
 router.post("/login", adminLoginRateLimiter, async (req, res, next) => {
   try {
     const parsed = credentials.safeParse(req.body);
@@ -80,26 +79,26 @@ router.post("/login", adminLoginRateLimiter, async (req, res, next) => {
       return res.status(403).json({ success: false, message: "Admin access required." });
     }
 
-    if (user.role === "ADMIN" && !user.isAdminApproved) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { isAdminApproved: true, adminApprovedAt: new Date() },
-      });
-    }
-
-    if (user.role === "MODERATOR" && !user.isAdminApproved) {
+    if (user.role === "MODERATOR" && !user.adminApprovedAt) {
       logLoginFailed(parsed.data.email, "admin_not_approved", req).catch(console.error);
       return res.status(403).json({ success: false, message: "Moderator access pending approval." });
+    }
+
+    if (user.role === "ADMIN" && !user.adminApprovedAt) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { adminApprovedAt: new Date() },
+      });
     }
 
     const token = await createAuthToken(user.id, "admin");
     setAdminSessionCookie(res, token);
     logLoginSuccess(user.id, req).catch(console.error);
 
-    const safeUser = Object.fromEntries(
-      Object.entries(user).filter(([key]) => key !== "passwordHash")
-    );
-    safeUser.isAdminApproved = true;
+    const safeUser = {
+      ...Object.fromEntries(Object.entries(user).filter(([key]) => key !== "passwordHash")),
+      isAdminApproved: true,
+    };
 
     return res.json({ success: true, token, user: safeUser });
   } catch (e) {
