@@ -2,24 +2,21 @@ import { Router } from "express";
 import { scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { z } from "zod";
-import rateLimit from "express-rate-limit";
 import { prisma } from "../lib/prisma.js";
 import { createAuthToken } from "../services/auth.service.js";
 import { logLoginFailed, logLoginSuccess } from "../services/auth-audit.service.js";
 import { env } from "../config/env.js";
+import { simpleRateLimit } from "../middleware/simple-rate-limit.js";
 
 const router = Router();
 const scrypt = promisify(scryptCallback);
 const ADMIN_SESSION_COOKIE = "raven_admin_token";
 const SESSION_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 
-const adminLoginRateLimiter = rateLimit({
+const adminLoginRateLimiter = simpleRateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, message: "Too many login attempts. Please try again later." },
-  skipSuccessfulRequests: true,
+  message: "Too many login attempts. Please try again later.",
 });
 
 const credentials = z.object({
@@ -95,10 +92,10 @@ router.post("/login", adminLoginRateLimiter, async (req, res, next) => {
     setAdminSessionCookie(res, token);
     logLoginSuccess(user.id, req).catch(console.error);
 
-    const safeUser = {
-      ...Object.fromEntries(Object.entries(user).filter(([key]) => key !== "passwordHash")),
-      isAdminApproved: true,
-    };
+    const safeUser: Record<string, unknown> = Object.fromEntries(
+      Object.entries(user).filter(([key]) => key !== "passwordHash"),
+    );
+    safeUser.isAdminApproved = Boolean(user.adminApprovedAt);
 
     return res.json({ success: true, token, user: safeUser });
   } catch (e) {
