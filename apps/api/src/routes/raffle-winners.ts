@@ -62,11 +62,52 @@ router.get("/:raffleId/winners/export", requireAuth, async (req, res, next) => {
     if (!raffleId || !req.userId) return res.status(400).json({ success: false, message: "Invalid raffle or authentication" });
     const raffle = await getCreatorRaffle(raffleId, req.userId);
     if (!raffle) return res.status(403).json({ success: false, message: "Only the raffle creator can export the whitelist" });
-    const winners = await prisma.raffleWinner.findMany({ where: { raffleId }, orderBy: { selectionRank: "asc" }, select: { selectionRank: true, walletAddressSnapshot: true, status: true, notificationStatus: true, selectedAt: true, notifiedAt: true, user: { select: { email: true, emailVerifiedAt: true, displayName: true, username: true } } } });
+
+    const winners = await prisma.raffleWinner.findMany({
+      where: { raffleId },
+      orderBy: { selectionRank: "asc" },
+      select: {
+        selectionRank: true,
+        walletAddressSnapshot: true,
+        status: true,
+        notificationStatus: true,
+        selectedAt: true,
+        notifiedAt: true,
+        user: {
+          select: {
+            email: true,
+            emailVerifiedAt: true,
+            displayName: true,
+            username: true,
+            socialAccounts: {
+              where: { isActive: true, provider: { in: ["X", "DISCORD"] } },
+              select: { provider: true, providerUsername: true, displayName: true },
+            },
+          },
+        },
+      },
+    });
+
     const lines = [
-      ["rank", "wallet_address", "winner_status", "email", "email_verified", "notification_status", "selected_at", "notified_at"].map(csv).join(","),
-      ...winners.map((winner) => [winner.selectionRank, winner.walletAddressSnapshot, winner.status, winner.user.email ?? "", winner.user.emailVerifiedAt ? "yes" : "no", winner.notificationStatus, winner.selectedAt.toISOString(), winner.notifiedAt?.toISOString() ?? ""].map(csv).join(",")),
+      ["rank", "x_username", "discord_username", "wallet_address", "email", "email_verified", "winner_status", "notification_status", "selected_at", "notified_at"].map(csv).join(","),
+      ...winners.map((winner) => {
+        const x = winner.user.socialAccounts.find((account) => account.provider === "X");
+        const discord = winner.user.socialAccounts.find((account) => account.provider === "DISCORD");
+        return [
+          winner.selectionRank,
+          x?.providerUsername ?? x?.displayName ?? "",
+          discord?.providerUsername ?? discord?.displayName ?? "",
+          winner.walletAddressSnapshot,
+          winner.user.email ?? "",
+          winner.user.emailVerifiedAt ? "yes" : "no",
+          winner.status,
+          winner.notificationStatus,
+          winner.selectedAt.toISOString(),
+          winner.notifiedAt?.toISOString() ?? "",
+        ].map(csv).join(",");
+      }),
     ];
+
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="raven-oracle-${raffle.id}-winners.csv"`);
     return res.send(`\uFEFF${lines.join("\n")}`);
