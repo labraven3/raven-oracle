@@ -39,7 +39,7 @@ export default function SiteChrome({ children }: { children: ReactNode }) {
         <style>{`main > div.min-h-screen > nav.fixed.top-0.left-0.right-0{display:none!important}`}</style>
       )}
       <main className="flex-1">{children}</main>
-      {pathname !== "/" && <SiteFooter />}
+      <SiteFooter />
     </div>
   );
 }
