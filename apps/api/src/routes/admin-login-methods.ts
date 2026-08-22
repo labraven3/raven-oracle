@@ -13,16 +13,16 @@ async function requireAdmin(req: Request, res: Response, next: NextFunction) {
 
 router.use((req, res, next) => requireAuth(req, res, next, "admin"), requireAdmin);
 
-router.post("/", async (req, res, next) => {
-  try {
-    const ids = Array.isArray(req.body?.userIds) ? req.body.userIds.filter((id: unknown): id is string => typeof id === "string") : [];
-    if (!ids.length) return res.json({ success: true, methods: {} });
-    const logs = await prisma.authAuditLog.findMany({ where: { userId: { in: ids }, event: { in: ["LOGIN_SUCCESS", "OAUTH_LOGIN_SUCCESS"] }, success: true }, orderBy: { createdAt: "desc" }, select: { userId: true, provider: true, event: true, createdAt: true } });
-    const methods: Record<string, { provider: string; loggedInAt: string } | null> = {};
-    for (const id of ids) methods[id] = null;
-    for (const log of logs) if (log.userId && methods[log.userId] === null) methods[log.userId] = { provider: log.provider || (log.event === "LOGIN_SUCCESS" ? "EMAIL" : "OAUTH"), loggedInAt: log.createdAt.toISOString() };
-    return res.json({ success: true, methods });
-  } catch (error) { next(error); }
+router.post("/", async (req, res) => {
+  // Authentication-method history is intentionally unavailable until the
+  // canonical audit model is present in the Prisma schema. Return the same
+  // stable response shape so the admin UI remains functional.
+  const ids = Array.isArray(req.body?.userIds)
+    ? req.body.userIds.filter((id: unknown): id is string => typeof id === "string")
+    : [];
+  const methods: Record<string, { provider: string; loggedInAt: string } | null> = {};
+  for (const id of ids) methods[id] = null;
+  return res.json({ success: true, methods });
 });
 
 export default router;
