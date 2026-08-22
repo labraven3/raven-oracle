@@ -24,6 +24,10 @@
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
 
+    // Module compatibility
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+
     // Style Options
     // "noImplicitReturns": true,
     // "noImplicitOverride": true,
