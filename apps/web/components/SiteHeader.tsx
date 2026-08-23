@@ -58,7 +58,6 @@ export default function SiteHeader() {
   const nav = [
     ["/projects", "NFT Projects"],
     ["/raffles", "Raffles"],
-    ["/alpha", "King of Alpha"],
     ["/how-it-works", "How it Works"],
   ] as const;
 
