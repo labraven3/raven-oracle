@@ -6,22 +6,16 @@ import { API_BASE_URL } from "@/lib/api-config";
 
 async function readResponse(response: Response) {
   const text = await response.text();
-  if (!text) return {} as { message?: string; token?: string; authorizationUrl?: string };
-  try {
-    return JSON.parse(text) as { message?: string; token?: string; authorizationUrl?: string };
-  } catch {
-    return { message: response.ok ? "Unexpected server response." : `Server error (${response.status}).` };
-  }
+  if (!text) return {} as { message?: string; authorizationUrl?: string };
+  try { return JSON.parse(text) as { message?: string; authorizationUrl?: string }; }
+  catch { return { message: response.ok ? "Unexpected server response." : `Server error (${response.status}).` }; }
 }
 
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next") || "/dashboard";
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<"x" | "discord" | null>(null);
 
   useEffect(() => {
@@ -30,47 +24,15 @@ function LoginForm() {
     if (status === "error" && message) setError(message);
   }, [params]);
 
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    localStorage.removeItem("raven_token");
-    try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        cache: "no-store",
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await readResponse(response);
-      if (!response.ok) throw new Error(data.message || "Login failed");
-      if (typeof data.token !== "string" || !data.token) {
-        throw new Error("Login succeeded but no session token was returned.");
-      }
-      localStorage.setItem("raven_token", data.token);
-      const destination = next.startsWith("/") && !next.startsWith("/admin") ? next : "/dashboard";
-      router.replace(destination);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function oauthLogin(provider: "x" | "discord") {
     setError("");
     setOauthLoading(provider);
     localStorage.removeItem("raven_token");
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/${provider}/start`, {
-        credentials: "include",
-        cache: "no-store",
-      });
+      const returnTo = next.startsWith("/") && !next.startsWith("/admin") ? next : "/dashboard";
+      const response = await fetch(`${API_BASE_URL}/auth/${provider}/start?returnTo=${encodeURIComponent(returnTo)}`, { credentials: "include", cache: "no-store" });
       const data = await readResponse(response);
-      if (!response.ok || !data.authorizationUrl) {
-        throw new Error(data.message || `${provider === "x" ? "X" : "Discord"} login is unavailable.`);
-      }
+      if (!response.ok || !data.authorizationUrl) throw new Error(data.message || `${provider === "x" ? "X" : "Discord"} login is unavailable.`);
       window.location.assign(data.authorizationUrl);
     } catch (err) {
       setError(err instanceof Error ? err.message : "OAuth login failed");
@@ -87,21 +49,21 @@ function LoginForm() {
             <h1 className="text-3xl font-black text-white">Login</h1>
             <p className="mt-2 text-sm text-zinc-500">Raven Oracle Platform</p>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <button disabled={!!oauthLoading || loading} onClick={() => void oauthLogin("x")} className="flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-black/30 px-4 py-3 font-bold text-white hover:border-white/20 disabled:opacity-50">𝕏 <span>{oauthLoading === "x" ? "Connecting…" : "Continue with X"}</span></button>
-            <button disabled={!!oauthLoading || loading} onClick={() => void oauthLogin("discord")} className="flex items-center justify-center gap-2 rounded-lg bg-[#5865F2] px-4 py-3 font-bold text-white hover:bg-[#4f5bd5] disabled:opacity-50">◉ <span>{oauthLoading === "discord" ? "Connecting…" : "Continue with Discord"}</span></button>
+
+          <div className="space-y-3">
+            <button disabled={!!oauthLoading} onClick={() => void oauthLogin("x")} className="flex w-full items-center justify-center gap-3 rounded-lg border border-white/10 bg-black/30 px-4 py-3 font-bold text-white hover:border-white/20 disabled:opacity-50">
+              <span className="text-lg">𝕏</span><span>{oauthLoading === "x" ? "Connecting…" : "Continue with X"}</span>
+            </button>
+            <button disabled={!!oauthLoading} onClick={() => void oauthLogin("discord")} className="flex w-full items-center justify-center gap-3 rounded-lg bg-[#5865F2] px-4 py-3 font-bold text-white hover:bg-[#4f5bd5] disabled:opacity-50">
+              <span>◉</span><span>{oauthLoading === "discord" ? "Connecting…" : "Continue with Discord"}</span>
+            </button>
           </div>
-          <div className="my-6 flex items-center gap-3"><div className="h-px flex-1 bg-white/10" /><span className="text-[10px] font-bold text-zinc-600">OR LOGIN WITH EMAIL</span><div className="h-px flex-1 bg-white/10" /></div>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div><label className="mb-2 block text-sm font-bold text-white">Email</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full rounded-lg border border-white/10 bg-black/40 px-4 py-3 text-white outline-none focus:ring-2 focus:ring-violet-500" placeholder="your@email.com" /></div>
-            <div><label className="mb-2 block text-sm font-bold text-white">Password</label><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full rounded-lg border border-white/10 bg-black/40 px-4 py-3 text-white outline-none focus:ring-2 focus:ring-violet-500" placeholder="Password" /></div>
-            {error && <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">⚠️ {error}</div>}
-            <button disabled={loading || !!oauthLoading} className="w-full rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 py-3 font-black text-white disabled:opacity-50">{loading ? "Logging in…" : "Login"}</button>
-          </form>
-          <div className="mt-6 border-t border-white/10 pt-6 text-center">
-            <p className="text-sm text-zinc-600">Don&apos;t have an account? <Link href="/register" className="font-bold text-violet-400">Sign up</Link></p>
-            <p className="mt-3 text-[11px] text-zinc-600">You can also connect X and Discord later from Account Settings.</p>
-            <Link href="/" className="mt-4 inline-block text-xs text-zinc-600">← Back to Home</Link>
+
+          {error && <div className="mt-5 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">⚠️ {error}</div>}
+
+          <div className="mt-7 border-t border-white/10 pt-5 text-center">
+            <p className="text-[11px] leading-5 text-zinc-600">After logging in, you can add and verify your email from your Profile.</p>
+            <Link href="/" className="mt-4 inline-block text-xs text-zinc-600 hover:text-zinc-300">← Back to Home</Link>
           </div>
         </div>
       </div>
@@ -110,9 +72,5 @@ function LoginForm() {
 }
 
 export default function LoginPage() {
-  return (
-    <Suspense fallback={<main className="min-h-screen flex items-center justify-center bg-[#0a0a0f] px-4"><div className="text-sm text-zinc-500">Loading login…</div></main>}>
-      <LoginForm />
-    </Suspense>
-  );
+  return <Suspense fallback={<main className="min-h-screen flex items-center justify-center bg-[#0a0a0f] px-4"><div className="text-sm text-zinc-500">Loading login…</div></main>}><LoginForm /></Suspense>;
 }
