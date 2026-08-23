@@ -144,25 +144,66 @@ async function getXAccessToken(
   return decryptXToken(account.accessTokenEncrypted);
 }
 
+
+function extractXUsername(value: string): string | null {
+  const raw = value.trim();
+  if (!raw) return null;
+
+  if (/^\d+$/.test(raw)) return raw;
+
+  const at = raw.match(/@([A-Za-z0-9_]{1,15})/);
+  if (at) return at[1];
+
+  try {
+    const url = new URL(raw);
+    if (
+      ["x.com", "www.x.com", "twitter.com", "www.twitter.com"].includes(
+        url.hostname.toLowerCase(),
+      )
+    ) {
+      const username = url.pathname.split("/").filter(Boolean)[0];
+      if (username && /^[A-Za-z0-9_]{1,15}$/.test(username)) {
+        return username;
+      }
+    }
+  } catch {}
+
+  if (/^[A-Za-z0-9_]{1,15}$/.test(raw)) {
+    return raw;
+  }
+
+  return null;
+}
+
+function extractXTweetId(value: string): string | null {
+  const raw = value.trim();
+
+  if (/^\d+$/.test(raw)) return raw;
+
+  const match = raw.match(
+    /(?:https?:\/\/)?(?:www\.)?(?:x\.com|twitter\.com)\/[^/]+\/status\/(\d+)/i,
+  );
+
+  return match?.[1] ?? null;
+}
+
 async function resolveXUserId(
   accessToken: string,
   target: string,
 ): Promise<string | null> {
-  // Accept a numeric X user ID directly.
-  if (/^\d+$/.test(target)) {
-    return target;
+  const usernameOrId = extractXUsername(target);
+
+  if (!usernameOrId) {
+    return null;
   }
 
-  // Also accept @username or plain username.
-  const username = target.replace(/^@/, "").trim();
-
-  if (!username) {
-    return null;
+  if (/^\d+$/.test(usernameOrId)) {
+    return usernameOrId;
   }
 
   const response = await xRequest(
     accessToken,
-    `/users/by/username/${encodeURIComponent(username)}`,
+    `/users/by/username/${encodeURIComponent(usernameOrId)}`,
   );
 
   const data = await response.json() as {
@@ -180,7 +221,6 @@ async function resolveXUserId(
 
   return data.data.id;
 }
-
 async function verifyXFollow(
   userId: string,
   target: string,
@@ -286,6 +326,15 @@ async function verifyXLike(
     };
   }
 
+  const tweetId = extractXTweetId(targetTweetId);
+
+  if (!tweetId) {
+    return {
+      verified: false,
+      reason: "Invalid X post URL or tweet ID configured for this task",
+    };
+  }
+
   const response = await xRequest(
     accessToken,
     `/users/${encodeURIComponent(account.providerAccountId)}/liked_tweets?max_results=100`,
@@ -313,7 +362,7 @@ async function verifyXLike(
   }
 
   const liked = data.data.some(
-    (tweet) => tweet.id === targetTweetId,
+    (tweet) => tweet.id === tweetId,
   );
 
   return {
@@ -354,9 +403,18 @@ async function verifyXRepost(
     };
   }
 
+  const tweetId = extractXTweetId(targetTweetId);
+
+  if (!tweetId) {
+    return {
+      verified: false,
+      reason: "Invalid X post URL or tweet ID configured for this task",
+    };
+  }
+
   const response = await xRequest(
     accessToken,
-    `/tweets/${encodeURIComponent(targetTweetId)}/retweeted_by?max_results=100`,
+    `/tweets/${encodeURIComponent(tweetId)}/retweeted_by?max_results=100`,
   );
 
   const data = await response.json() as {
@@ -406,6 +464,17 @@ export async function verifyRaffleTask(
 ): Promise<VerificationResult> {
   const task = await prisma.raffleTask.findUnique({
     where: { id: taskId },
+    include: {
+      raffle: {
+        select: {
+          project: {
+            select: {
+              xUrl: true,
+            },
+          },
+        },
+      },
+    },
   });
 
   if (!task) {
@@ -434,24 +503,28 @@ export async function verifyRaffleTask(
       );
       break;
 
-    case "X_FOLLOW":
-      result = await verifyXFollow(
-        userId,
-        task.target,
-      );
+    case "X_FOLLOW": {
+      const target =
+        task.targetUrl ||
+        task.target ||
+        task.raffle.project?.xUrl ||
+        "";
+
+      result = await verifyXFollow(userId, target);
       break;
+    }
 
     case "X_LIKE":
       result = await verifyXLike(
         userId,
-        task.target,
+        task.targetUrl || task.target,
       );
       break;
 
     case "X_REPOST":
       result = await verifyXRepost(
         userId,
-        task.target,
+        task.targetUrl || task.target,
       );
       break;
 
