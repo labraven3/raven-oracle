@@ -18,17 +18,29 @@ export function createDiscordAuthorizationUrl(userId: string | null = null, retu
 async function exchangeCode(code: string) { validateDiscordOAuthConfig(); const body = new URLSearchParams({ client_id: env.DISCORD_CLIENT_ID!, client_secret: env.DISCORD_CLIENT_SECRET!, grant_type: "authorization_code", code, redirect_uri: env.DISCORD_REDIRECT_URI! }); const response = await fetch(DISCORD_TOKEN_URL, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body }); const data = await response.json() as { access_token?: string; refresh_token?: string; expires_in?: number; error?: string; error_description?: string }; if (!response.ok || !data.access_token) throw new Error(data.error_description || data.error || "Discord token exchange failed"); return data; }
 async function getDiscordUser(accessToken: string) { const response = await fetch(DISCORD_ME_URL, { headers: { Authorization: `Bearer ${accessToken}` } }); const data = await response.json() as { id: string; username?: string; global_name?: string | null; avatar?: string | null; email?: string | null; verified?: boolean }; if (!response.ok || !data.id) throw new Error("Unable to retrieve Discord profile"); return data; }
 function discordAvatarUrl(userId: string, avatar: string | null | undefined) { return avatar ? `https://cdn.discordapp.com/avatars/${userId}/${avatar}.png` : null; }
+
 export async function connectDiscordAccount(code: string, state: string) {
-  const stateData = decryptState(state); const token = await exchangeCode(code); const discordUser = await getDiscordUser(token.access_token!); const discordEmail = discordUser.email?.trim().toLowerCase() || null; const verifiedDiscordEmail = Boolean(discordEmail && discordUser.verified);
+  const stateData = decryptState(state);
+  const token = await exchangeCode(code);
+  const discordUser = await getDiscordUser(token.access_token!);
+
   const existing = await prisma.socialAccount.findUnique({ where: { provider_providerAccountId: { provider: "DISCORD", providerAccountId: discordUser.id } } });
   if (existing && stateData.userId && existing.userId !== stateData.userId) throw new Error("This Discord account is already connected to another Raven Oracle account");
+
+  // Discord identity is the login identity. Do not use Discord email to identify,
+  // block, or auto-verify a Raven Oracle account. Email is managed from Profile.
   let user = existing ? await prisma.user.findUnique({ where: { id: existing.userId } }) : null;
   if (!user && stateData.userId) user = await prisma.user.findUnique({ where: { id: stateData.userId } });
-  if (!user && verifiedDiscordEmail) user = await prisma.user.findUnique({ where: { email: discordEmail! } });
-  if (!user) user = await prisma.user.create({ data: { email: verifiedDiscordEmail ? discordEmail : null, emailVerifiedAt: verifiedDiscordEmail ? new Date() : null, status: verifiedDiscordEmail ? "ACTIVE" : "PENDING", username: discordUser.username ?? null, displayName: discordUser.global_name ?? discordUser.username ?? null, avatarUrl: discordAvatarUrl(discordUser.id, discordUser.avatar) } });
-  else if (stateData.userId && user.id === stateData.userId && !user.email && verifiedDiscordEmail) { const conflict = await prisma.user.findUnique({ where: { email: discordEmail! } }); if (conflict && conflict.id !== user.id) throw new Error("That Discord email is already attached to another Raven Oracle account"); user = await prisma.user.update({ where: { id: user.id }, data: { email: discordEmail, emailVerifiedAt: new Date(), status: "ACTIVE" } }); }
-  else if (verifiedDiscordEmail && user.email && user.email !== discordEmail) throw new Error("This Discord account uses an email already different from the Raven Oracle account email");
-  const account = await prisma.socialAccount.upsert({ where: { provider_providerAccountId: { provider: "DISCORD", providerAccountId: discordUser.id } }, create: { userId: user.id, provider: "DISCORD", providerAccountId: discordUser.id, providerUsername: discordUser.username ?? null, displayName: discordUser.global_name ?? discordUser.username ?? null, avatarUrl: discordAvatarUrl(discordUser.id, discordUser.avatar), accessTokenEncrypted: encrypt(token.access_token!), refreshTokenEncrypted: token.refresh_token ? encrypt(token.refresh_token) : null, tokenExpiresAt: token.expires_in ? new Date(Date.now() + token.expires_in * 1000) : null, isActive: true, disconnectedAt: null }, update: { userId: user.id, providerUsername: discordUser.username ?? null, displayName: discordUser.global_name ?? discordUser.username ?? null, avatarUrl: discordAvatarUrl(discordUser.id, discordUser.avatar), accessTokenEncrypted: encrypt(token.access_token!), ...(token.refresh_token ? { refreshTokenEncrypted: encrypt(token.refresh_token) } : {}), tokenExpiresAt: token.expires_in ? new Date(Date.now() + token.expires_in * 1000) : null, isActive: true, disconnectedAt: null }, select: { id: true, provider: true, providerAccountId: true, providerUsername: true, displayName: true, avatarUrl: true, isActive: true, connectedAt: true } });
-  const authToken = await createAuthToken(user.id); return { account, user, authToken, emailRequired: !user.emailVerifiedAt, login: !stateData.userId, returnTo: stateData.returnTo };
+  if (!user) user = await prisma.user.create({ data: { email: null, emailVerifiedAt: null, status: "ACTIVE", username: discordUser.username ?? null, displayName: discordUser.global_name ?? discordUser.username ?? null, avatarUrl: discordAvatarUrl(discordUser.id, discordUser.avatar) } });
+
+  const account = await prisma.socialAccount.upsert({
+    where: { provider_providerAccountId: { provider: "DISCORD", providerAccountId: discordUser.id } },
+    create: { userId: user.id, provider: "DISCORD", providerAccountId: discordUser.id, providerUsername: discordUser.username ?? null, displayName: discordUser.global_name ?? discordUser.username ?? null, avatarUrl: discordAvatarUrl(discordUser.id, discordUser.avatar), accessTokenEncrypted: encrypt(token.access_token!), refreshTokenEncrypted: token.refresh_token ? encrypt(token.refresh_token) : null, tokenExpiresAt: token.expires_in ? new Date(Date.now() + token.expires_in * 1000) : null, isActive: true, disconnectedAt: null },
+    update: { userId: user.id, providerUsername: discordUser.username ?? null, displayName: discordUser.global_name ?? discordUser.username ?? null, avatarUrl: discordAvatarUrl(discordUser.id, discordUser.avatar), accessTokenEncrypted: encrypt(token.access_token!), ...(token.refresh_token ? { refreshTokenEncrypted: encrypt(token.refresh_token) } : {}), tokenExpiresAt: token.expires_in ? new Date(Date.now() + token.expires_in * 1000) : null, isActive: true, disconnectedAt: null },
+    select: { id: true, provider: true, providerAccountId: true, providerUsername: true, displayName: true, avatarUrl: true, isActive: true, connectedAt: true },
+  });
+
+  const authToken = await createAuthToken(user.id);
+  return { account, user, authToken, emailRequired: !user.emailVerifiedAt, login: !stateData.userId, returnTo: stateData.returnTo };
 }
 export { decrypt };
