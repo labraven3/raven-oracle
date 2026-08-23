@@ -21,16 +21,10 @@ export default function SiteHeader() {
       const tokenPresent = Boolean(localStorage.getItem("raven_token"));
       if (!cancelled) { setIsLoggedIn(tokenPresent); setAuthChecked(true); }
       try {
-        const response = await fetch(`${API_BASE_URL}/auth/me`, {
-          credentials: "include",
-          cache: "no-store",
-          headers: tokenPresent ? { Authorization: `Bearer ${localStorage.getItem("raven_token")}` } : undefined,
-        });
+        const response = await fetch(`${API_BASE_URL}/auth/me`, { credentials: "include", cache: "no-store", headers: tokenPresent ? { Authorization: `Bearer ${localStorage.getItem("raven_token")}` } : undefined });
         if (!cancelled && response.ok) setIsLoggedIn(true);
         else if (!cancelled && !tokenPresent) setIsLoggedIn(false);
-      } catch {
-        if (!cancelled) setIsLoggedIn(tokenPresent);
-      }
+      } catch { if (!cancelled) setIsLoggedIn(tokenPresent); }
     };
     void syncAuth();
     const onStorage = (event: StorageEvent) => { if (event.key === "raven_token") void syncAuth(); };
@@ -39,27 +33,16 @@ export default function SiteHeader() {
     window.addEventListener("storage", onStorage);
     window.addEventListener("raven-auth-changed", onAuthChanged);
     window.addEventListener("pageshow", onPageShow);
-    return () => {
-      cancelled = true;
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("raven-auth-changed", onAuthChanged);
-      window.removeEventListener("pageshow", onPageShow);
-    };
+    return () => { cancelled = true; window.removeEventListener("storage", onStorage); window.removeEventListener("raven-auth-changed", onAuthChanged); window.removeEventListener("pageshow", onPageShow); };
   }, [pathname]);
 
   useEffect(() => {
-    const onPointerDown = (event: MouseEvent) => {
-      if (profileRef.current && !profileRef.current.contains(event.target as Node)) setProfileOpen(false);
-    };
+    const onPointerDown = (event: MouseEvent) => { if (profileRef.current && !profileRef.current.contains(event.target as Node)) setProfileOpen(false); };
     document.addEventListener("mousedown", onPointerDown);
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, []);
 
-  const nav = [
-    ["/projects", "NFT Projects"],
-    ["/raffles", "Raffles"],
-    ["/how-it-works", "How it Works"],
-  ] as const;
+  const nav = [["/projects", "NFT Projects"], ["/raffles", "Raffles"], ["/how-it-works", "How it Works"]] as const;
 
   return (
     <nav className="sticky top-0 z-50 border-b border-white/[.08] bg-black/70 backdrop-blur-xl">
@@ -77,7 +60,7 @@ export default function SiteHeader() {
               {profileOpen && <div className="absolute right-0 mt-2 w-48 rounded-xl border border-white/10 bg-[#0d0c11] p-2 shadow-2xl"><Link href="/account" onClick={() => setProfileOpen(false)} className="block rounded-lg px-3 py-2.5 text-xs font-bold text-zinc-200 hover:bg-white/5">My Profile</Link><button type="button" onClick={() => { toggleTheme(); setProfileOpen(false); }} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-xs font-bold text-zinc-200 hover:bg-white/5"><span>Theme</span><span>{theme === "dark" ? "Dark" : "Light"}</span></button></div>}
             </div>
           ) : (
-            <><Link href="/login" className="rounded-lg border border-white/10 px-2.5 py-2 text-[9px] font-bold text-white hover:bg-white/5 sm:px-4 sm:text-xs">Login</Link><Link href="/register" className="rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 px-2.5 py-2 text-[9px] font-black text-white shadow-lg shadow-violet-500/20 sm:px-4 sm:text-xs">Sign Up</Link></>
+            <Link href="/login" className="rounded-lg border border-white/10 px-3 py-2 text-[9px] font-bold text-white hover:bg-white/5 sm:px-4 sm:text-xs">Login</Link>
           )}
         </div>
       </div>
