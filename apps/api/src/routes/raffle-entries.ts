@@ -8,7 +8,8 @@ import { verifyCaptchaToken } from "../services/captcha.service.js";
 import { verifyRaffleEligibility } from "../services/raffle-eligibility.service.js";
 
 const router = Router();
-const enterSchema = z.object({ walletAddressId: z.string().uuid(), captchaToken: z.string().trim().optional() });
+const enterSchema = z.object({ walletAddressId: z.string().uuid().optional(), captchaToken: z.string().trim().optional() });
+const walletAttachSchema = z.object({ walletAddressId: z.string().uuid() });
 function getIdParam(value: string | string[] | undefined) { return Array.isArray(value) ? value[0] : value; }
 function rules(value: Prisma.JsonValue): Prisma.InputJsonObject {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -36,22 +37,26 @@ router.post("/:raffleId/entries", requireAuth, async (req, res, next) => {
       return res.status(400).json({ success: false, message: captcha.reason || "Captcha verification is required", captchaConfigured: captcha.configured });
     }
 
-    const wallet = await prisma.walletAddress.findFirst({ where: { id: parsed.data.walletAddressId, userId: req.userId, status: "ACTIVE", deletedAt: null } });
-    if (!wallet) return res.status(400).json({ success: false, message: "Wallet does not belong to this user or is inactive" });
     const existingUserEntry = await prisma.raffleEntry.findUnique({ where: { raffleId_userId: { raffleId, userId: req.userId } } });
-    if (existingUserEntry) return res.status(409).json({ success: false, message: "You have already entered this raffle", entry: existingUserEntry });
-    const existingWalletEntry = await prisma.raffleEntry.findUnique({ where: { raffleId_walletAddressId: { raffleId, walletAddressId: wallet.id } } });
-    if (existingWalletEntry) return res.status(409).json({ success: false, message: "This wallet has already entered this raffle", entry: existingWalletEntry });
+    if (existingUserEntry) return res.status(409).json({ success: false, message: "You have already started this raffle entry", entry: existingUserEntry });
+
+    let wallet: { id: string; address: string; chain: "EVM" | "SOLANA"; network: string } | null = null;
+    if (parsed.data.walletAddressId) {
+      wallet = await prisma.walletAddress.findFirst({ where: { id: parsed.data.walletAddressId, userId: req.userId, status: "ACTIVE", deletedAt: null }, select: { id: true, address: true, chain: true, network: true } });
+      if (!wallet) return res.status(400).json({ success: false, message: "Wallet does not belong to this user or is inactive" });
+      const existingWalletEntry = await prisma.raffleEntry.findUnique({ where: { raffleId_walletAddressId: { raffleId, walletAddressId: wallet.id } } });
+      if (existingWalletEntry) return res.status(409).json({ success: false, message: "This wallet has already entered this raffle", entry: existingWalletEntry });
+    }
 
     const entry = await prisma.raffleEntry.create({
       data: {
         raffleId,
         userId: req.userId,
-        walletAddressId: wallet.id,
-        walletAddressSnapshot: wallet.address,
+        walletAddressId: wallet?.id ?? null,
+        walletAddressSnapshot: wallet?.address ?? null,
         status: "PENDING",
         captchaPassed: captchaRequired ? captcha.verified : (captcha.configured ? captcha.verified : null),
-        eligibilityReasons: { pending: "Eligibility evaluation has not yet completed" },
+        eligibilityReasons: { pending: wallet ? "Eligibility evaluation has not yet completed" : "Complete the required tasks, then submit your payout wallet" },
         accountAgeDaysAtEntry: null,
         walletAgeDaysAtEntry: null,
         socialVerifiedAtEntry: false,
@@ -75,8 +80,30 @@ router.get("/:raffleId/entries/me", requireAuth, async (req, res, next) => {
     const raffleId = getIdParam(req.params.raffleId);
     if (!raffleId || !req.userId) return res.status(400).json({ success: false, message: "Invalid raffle or authentication" });
     const entry = await prisma.raffleEntry.findUnique({ where: { raffleId_userId: { raffleId, userId: req.userId } }, include: { walletAddress: { select: { id: true, address: true, normalizedAddress: true, chain: true, network: true } } } });
-    if (!entry) return res.status(404).json({ success: false, message: "You have not entered this raffle" });
+    if (!entry) return res.status(404).json({ success: false, message: "You have not started this raffle entry" });
     return res.json({ success: true, entry });
+  } catch (error) { next(error); }
+});
+
+router.patch("/:raffleId/entries/me/wallet", requireAuth, async (req, res, next) => {
+  try {
+    const raffleId = getIdParam(req.params.raffleId);
+    if (!raffleId || !req.userId) return res.status(400).json({ success: false, message: "Invalid raffle or authentication" });
+    const parsed = walletAttachSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ success: false, message: "A wallet address is required", errors: z.treeifyError(parsed.error) });
+    const raffle = await prisma.raffle.findUnique({ where: { id: raffleId }, select: { id: true, status: true, startsAt: true, endsAt: true } });
+    if (!raffle) return res.status(404).json({ success: false, message: "Raffle not found" });
+    const now = new Date();
+    if (raffle.status !== "ACTIVE" || now < raffle.startsAt || now > raffle.endsAt) return res.status(400).json({ success: false, message: "This raffle is not accepting wallet submissions" });
+    const entry = await prisma.raffleEntry.findUnique({ where: { raffleId_userId: { raffleId, userId: req.userId } } });
+    if (!entry) return res.status(404).json({ success: false, message: "Complete the raffle tasks first" });
+    if (["WINNER", "NOT_SELECTED", "DISQUALIFIED"].includes(entry.status)) return res.status(400).json({ success: false, message: "This raffle entry can no longer be changed" });
+    const wallet = await prisma.walletAddress.findFirst({ where: { id: parsed.data.walletAddressId, userId: req.userId, status: "ACTIVE", deletedAt: null }, select: { id: true, address: true, chain: true, network: true } });
+    if (!wallet) return res.status(400).json({ success: false, message: "Wallet does not belong to this user or is inactive" });
+    const used = await prisma.raffleEntry.findFirst({ where: { raffleId, walletAddressId: wallet.id, userId: { not: req.userId } }, select: { id: true } });
+    if (used) return res.status(409).json({ success: false, message: "This wallet has already been used in this raffle" });
+    const updated = await prisma.raffleEntry.update({ where: { id: entry.id }, data: { walletAddressId: wallet.id, walletAddressSnapshot: wallet.address, status: "PENDING" }, include: { walletAddress: { select: { id: true, address: true, normalizedAddress: true, chain: true, network: true } } } });
+    return res.json({ success: true, entry: updated });
   } catch (error) { next(error); }
 });
 
@@ -104,10 +131,7 @@ router.post("/:raffleId/entries/evaluate", requireAuth, async (req, res, next) =
     const pending = await prisma.raffleEntry.findMany({ where: { raffleId, status: "PENDING" }, select: { id: true } });
     let eligible = 0; let ineligible = 0; let failed = 0;
     for (const entry of pending) {
-      try {
-        const result = await evaluateRaffleEntry(entry.id);
-        if (result.status === "ELIGIBLE") eligible += 1; else ineligible += 1;
-      } catch { failed += 1; }
+      try { const result = await evaluateRaffleEntry(entry.id); if (result.status === "ELIGIBLE") eligible += 1; else ineligible += 1; } catch { failed += 1; }
     }
     const counts = await prisma.raffleEntry.groupBy({ by: ["status"], where: { raffleId }, _count: { _all: true } });
     return res.json({ success: true, evaluated: pending.length, eligible, ineligible, failed, counts: Object.fromEntries(counts.map((row) => [row.status, row._count._all])) });
@@ -132,7 +156,7 @@ router.post("/:raffleId/entries/me/verify-tasks", requireAuth, async (req, res, 
     const raffleId = getIdParam(req.params.raffleId);
     if (!raffleId || !req.userId) return res.status(400).json({ success: false, message: "Invalid raffle or authentication" });
     const entry = await prisma.raffleEntry.findUnique({ where: { raffleId_userId: { raffleId, userId: req.userId } } });
-    if (!entry) return res.status(404).json({ success: false, message: "You must enter the raffle before verifying tasks" });
+    if (!entry) return res.status(404).json({ success: false, message: "Start the raffle entry before verifying tasks" });
     const result = await verifyRaffleEligibility(raffleId, entry.id, req.userId);
     return res.json({ success: true, allRequiredTasksVerified: result.eligible, verifiedCount: result.verifiedCount, totalTasks: result.totalTasks, requiredTasks: result.requiredTasks, tasks: result.tasks, failedRequiredTasks: result.failedRequiredTasks, eligibility: result.eligibility, entry: result.entry });
   } catch (error) {
@@ -147,7 +171,7 @@ router.post("/:raffleId/entries/me/verify", requireAuth, async (req, res, next) 
     const raffleId = getIdParam(req.params.raffleId);
     if (!raffleId || !req.userId) return res.status(400).json({ success: false, message: "Invalid raffle or authentication" });
     const entry = await prisma.raffleEntry.findUnique({ where: { raffleId_userId: { raffleId, userId: req.userId } } });
-    if (!entry) return res.status(404).json({ success: false, message: "Enter the raffle before verifying eligibility" });
+    if (!entry) return res.status(404).json({ success: false, message: "Start the raffle entry before verifying eligibility" });
     const result = await verifyRaffleEligibility(raffleId, entry.id, req.userId);
     return res.json({ success: true, ...result });
   } catch (error) {
