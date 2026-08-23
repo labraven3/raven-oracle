@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
+        source: "/raffles/:id",
+        destination: "/raffle-entry/:id",
+      },
+      {
         source: "/api/raffles/public",
         destination: `${API_ORIGIN}/api/raffles`,
       },
