@@ -99,6 +99,7 @@ export default function RafflePage() {
   const canEnter = raffle?.status === "ACTIVE" && Date.now() >= new Date(raffle.startsAt).getTime() && Date.now() <= new Date(raffle.endsAt).getTime();
   const connected = (p: "X" | "DISCORD") => socials.some((social) => social.provider === p && social.isActive !== false);
   const captchaRequired = hasCaptcha(raffle?.entryRules);
+  const confirmed = entry?.status === "ELIGIBLE" && Boolean(entry.walletAddressSnapshot);
 
   const requireLogin = () => router.push(`/login?next=${encodeURIComponent(`/raffles/${id}`)}`);
 
@@ -139,8 +140,7 @@ export default function RafflePage() {
 
   const verifyTask = async (task: Task) => {
     if (!user) return requireLogin();
-    const currentEntry = entry ?? await startEntry();
-    if (!currentEntry) return;
+    if (!entry) return setMessage("Click Enter Raffle first, then complete the required tasks.");
     if (task.targetUrl) window.open(task.targetUrl, "_blank", "noopener,noreferrer");
     setBusy(true);
     try {
@@ -155,6 +155,7 @@ export default function RafflePage() {
 
   const addAndAttachWallet = async () => {
     if (!user) return requireLogin();
+    if (!entry) return setMessage("Enter the raffle first.");
     if (!allRequiredVerified) return setMessage("Complete all required tasks first.");
     if (captchaRequired && entry?.captchaPassed !== true) return setMessage("Complete the CAPTCHA above before submitting your wallet.");
     if (!address.trim()) return setMessage("Paste your payout wallet address.");
@@ -172,6 +173,7 @@ export default function RafflePage() {
 
   const attachExistingWallet = async () => {
     if (!user || !walletId) return;
+    if (!entry) return setMessage("Enter the raffle first.");
     if (!allRequiredVerified) return setMessage("Complete all required tasks first.");
     if (captchaRequired && entry?.captchaPassed !== true) return setMessage("Complete the CAPTCHA above before submitting your wallet.");
     setBusy(true);
@@ -208,18 +210,18 @@ export default function RafflePage() {
 
             <div className={`mt-6 rounded-3xl border p-6 sm:p-7 ${card}`}>
               <div className="flex items-end justify-between gap-4"><div><span className={`text-[9px] font-black tracking-[.2em] ${faint}`}>01 · COMMUNITY TASKS</span><h2 className="mt-2 text-2xl font-semibold">Complete the requirements</h2></div><span className={`text-xs ${muted}`}>{verifiedRequired}/{required.length} required</span></div>
+              {!entry && canEnter && <div className="mt-5 rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4"><b className="text-sm">Ready to enter?</b><p className={`mt-1 text-xs ${muted}`}>Click Enter Raffle to create your entry. You can then complete the tasks below.</p><button onClick={() => void startEntry()} disabled={busy} className="mt-3 w-full rounded-xl bg-violet-500 px-5 py-3 text-xs font-black text-white disabled:opacity-50">{busy ? "Entering…" : "Enter Raffle"}</button></div>}
               <div className="mt-6 space-y-3">
                 {tasks.map((task) => {
                   const result = results[task.id];
                   const p = provider(task.type);
                   const isConnected = connected(p);
                   return <div key={task.id} className={`rounded-2xl border p-4 transition ${result?.verified ? "border-emerald-500/30 bg-emerald-500/5" : dark ? "border-white/10 bg-black/10" : "border-zinc-200 bg-zinc-50"}`}>
-                    <div className="flex items-center gap-4"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-violet-500/10 text-lg text-violet-400">{icon(task.type)}</span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><b className="text-sm">{task.title}</b>{task.isRequired && <span className="text-[8px] font-black tracking-[.12em] text-violet-400">REQUIRED</span>}</div><p className={`mt-1 text-xs ${faint}`}>{task.description || label(task.type)} · {task.target}</p>{result?.reason && !result.verified && <p className="mt-2 text-[10px] text-red-400">{result.reason}</p>}</div>{result?.verified ? <span className="shrink-0 text-xs font-bold text-emerald-400">✓ Verified</span> : !isConnected ? <button onClick={() => connectSocial(p.toLowerCase() as "x" | "discord")} disabled={busy} className="shrink-0 rounded-lg bg-violet-500 px-3 py-2 text-[9px] font-black text-white">Connect {p === "X" ? "X" : "Discord"}</button> : <button onClick={() => verifyTask(task)} disabled={busy} className="shrink-0 rounded-lg border border-violet-500/30 px-3 py-2 text-[9px] font-black text-violet-400 hover:bg-violet-500/10">{task.targetUrl ? "Open & verify" : "Verify"}</button>}</div>
+                    <div className="flex items-center gap-4"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-violet-500/10 text-lg text-violet-400">{icon(task.type)}</span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><b className="text-sm">{task.title}</b>{task.isRequired && <span className="text-[8px] font-black tracking-[.12em] text-violet-400">REQUIRED</span>}</div><p className={`mt-1 text-xs ${faint}`}>{task.description || label(task.type)} · {task.target}</p>{result?.reason && !result.verified && <p className="mt-2 text-[10px] text-red-400">{result.reason}</p>}</div>{result?.verified ? <span className="shrink-0 text-xs font-bold text-emerald-400">✓ Verified</span> : !isConnected ? <button onClick={() => connectSocial(p.toLowerCase() as "x" | "discord")} disabled={busy} className="shrink-0 rounded-lg bg-violet-500 px-3 py-2 text-[9px] font-black text-white">Connect {p === "X" ? "X" : "Discord"}</button> : <button onClick={() => void verifyTask(task)} disabled={busy || !entry} className="shrink-0 rounded-lg border border-violet-500/30 px-3 py-2 text-[9px] font-black text-violet-400 hover:bg-violet-500/10 disabled:opacity-40">{entry ? (task.targetUrl ? "Open & verify" : "Verify") : "Enter raffle first"}</button>}</div>
                   </div>;
                 })}
               </div>
               {tasks.length === 0 && <div className={`mt-5 rounded-xl border border-dashed p-8 text-center text-sm ${muted}`}>No tasks have been configured for this raffle.</div>}
-              {!entry && canEnter && <button onClick={() => void startEntry()} disabled={busy} className="mt-5 w-full rounded-xl bg-violet-500 px-5 py-3 text-xs font-black text-white disabled:opacity-50">Start Entry & Begin Tasks</button>}
             </div>
           </section>
 
@@ -227,18 +229,21 @@ export default function RafflePage() {
             <div className={`rounded-3xl border p-6 ${card}`}>
               <span className={`text-[9px] font-black tracking-[.2em] ${faint}`}>02 · FINAL ENTRY</span>
               <h2 className="mt-2 text-2xl font-semibold">Secure your spot</h2>
-              <p className={`mt-2 text-xs leading-5 ${muted}`}>Finish the tasks, then paste the wallet address where your prize should be sent.</p>
+              <p className={`mt-2 text-xs leading-5 ${muted}`}>{entry ? "Finish the tasks, then paste the wallet address where your prize should be sent." : "Enter the raffle first, then complete the required tasks."}</p>
 
               <div className="mt-6 space-y-3">
+                <div className={`flex items-center justify-between rounded-xl border p-3 ${soft}`}><span className={`text-xs ${muted}`}>Entry</span><b className={entry ? "text-emerald-400" : "text-zinc-500"}>{entry ? "Started" : "Not entered"}</b></div>
                 <div className={`flex items-center justify-between rounded-xl border p-3 ${soft}`}><span className={`text-xs ${muted}`}>Required tasks</span><b className={allRequiredVerified ? "text-emerald-400" : "text-zinc-400"}>{verifiedRequired}/{required.length}</b></div>
                 <div className={`flex items-center justify-between rounded-xl border p-3 ${soft}`}><span className={`text-xs ${muted}`}>X account</span><b className={connected("X") ? "text-emerald-400" : "text-zinc-500"}>{connected("X") ? "Connected" : "Needed"}</b></div>
                 <div className={`flex items-center justify-between rounded-xl border p-3 ${soft}`}><span className={`text-xs ${muted}`}>Discord</span><b className={connected("DISCORD") ? "text-emerald-400" : "text-zinc-500"}>{connected("DISCORD") ? "Connected" : "Needed if required"}</b></div>
               </div>
 
-              {allRequiredVerified && <div className="mt-5 rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4"><div className="text-[9px] font-black tracking-[.16em] text-violet-400">WALLET SUBMISSION</div><p className={`mt-1 text-xs ${muted}`}>No wallet connection is required. Paste the payout address below.</p><div className="mt-4 grid grid-cols-2 gap-2"><button onClick={() => setChain("EVM")} className={`rounded-lg border px-3 py-2 text-[9px] font-black ${chain === "EVM" ? "border-violet-500 bg-violet-500 text-white" : "border-white/10 text-zinc-400"}`}>EVM</button><button onClick={() => setChain("SOLANA")} className={`rounded-lg border px-3 py-2 text-[9px] font-black ${chain === "SOLANA" ? "border-violet-500 bg-violet-500 text-white" : "border-white/10 text-zinc-400"}`}>SOLANA</button></div><input value={address} onChange={(e) => setAddress(e.target.value)} placeholder={chain === "EVM" ? "0x…" : "Solana address…"} className={`mt-3 w-full rounded-xl border bg-transparent px-3 py-3 text-xs outline-none focus:border-violet-500 ${dark ? "border-white/10" : "border-zinc-200"}`} /><button onClick={() => void addAndAttachWallet()} disabled={busy || !address.trim()} className="mt-3 w-full rounded-xl bg-violet-500 px-4 py-3 text-xs font-black text-white disabled:opacity-40">Submit Wallet & Enter</button>{wallets.length > 0 && <><div className={`my-3 text-center text-[9px] ${faint}`}>or use saved wallet</div><select value={walletId} onChange={(e) => setWalletId(e.target.value)} className={`w-full rounded-xl border bg-transparent px-3 py-3 text-xs outline-none ${dark ? "border-white/10" : "border-zinc-200"}`}>{wallets.map((wallet) => <option key={wallet.id} value={wallet.id}>{wallet.chain} · {wallet.address.slice(0, 8)}…{wallet.address.slice(-6)}</option>)}</select><button onClick={() => void attachExistingWallet()} disabled={busy || !walletId} className="mt-2 w-full rounded-xl border border-violet-500/30 px-4 py-3 text-xs font-black text-violet-400 disabled:opacity-40">Use Saved Wallet</button></>}</div>}
+              {!entry && <div className="mt-5"><button onClick={() => void startEntry()} disabled={busy || !canEnter} className="w-full rounded-xl bg-violet-500 px-5 py-3 text-xs font-black text-white disabled:opacity-40">{busy ? "Entering…" : canEnter ? "Enter Raffle" : raffle.status === "SCHEDULED" ? `Starts in ${countdown(raffle.startsAt)}` : "Entry closed"}</button></div>}
 
-              {entry?.status === "ELIGIBLE" && <div className="mt-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4"><b className="text-sm text-emerald-400">✓ Entry confirmed</b><p className={`mt-1 text-xs ${muted}`}>Your tasks and payout wallet passed the current eligibility checks.</p></div>}
-              {entry?.walletAddressSnapshot && entry.status !== "ELIGIBLE" && <div className={`mt-5 rounded-xl border p-3 ${soft}`}><span className={`block text-[8px] font-black tracking-[.15em] ${faint}`}>PAYOUT WALLET</span><span className="mt-1 block truncate text-xs">{entry.walletAddressSnapshot}</span></div>}
+              {entry && allRequiredVerified && !confirmed && <div className="mt-5 rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4"><div className="text-[9px] font-black tracking-[.16em] text-violet-400">WALLET SUBMISSION</div><p className={`mt-1 text-xs ${muted}`}>No wallet connection is required. Paste the payout address below.</p><div className="mt-4 grid grid-cols-2 gap-2"><button onClick={() => setChain("EVM")} className={`rounded-lg border px-3 py-2 text-[9px] font-black ${chain === "EVM" ? "border-violet-500 bg-violet-500 text-white" : "border-white/10 text-zinc-400"}`}>EVM</button><button onClick={() => setChain("SOLANA")} className={`rounded-lg border px-3 py-2 text-[9px] font-black ${chain === "SOLANA" ? "border-violet-500 bg-violet-500 text-white" : "border-white/10 text-zinc-400"}`}>SOLANA</button></div><input value={address} onChange={(e) => setAddress(e.target.value)} placeholder={chain === "EVM" ? "0x…" : "Solana address…"} className={`mt-3 w-full rounded-xl border bg-transparent px-3 py-3 text-xs outline-none focus:border-violet-500 ${dark ? "border-white/10" : "border-zinc-200"}`} /><button onClick={() => void addAndAttachWallet()} disabled={busy || !address.trim()} className="mt-3 w-full rounded-xl bg-violet-500 px-4 py-3 text-xs font-black text-white disabled:opacity-40">Submit Wallet & Enter</button>{wallets.length > 0 && <><div className={`my-3 text-center text-[9px] ${faint}`}>or use saved wallet</div><select value={walletId} onChange={(e) => setWalletId(e.target.value)} className={`w-full rounded-xl border bg-transparent px-3 py-3 text-xs outline-none ${dark ? "border-white/10" : "border-zinc-200"}`}>{wallets.map((wallet) => <option key={wallet.id} value={wallet.id}>{wallet.chain} · {wallet.address.slice(0, 8)}…{wallet.address.slice(-6)}</option>)}</select><button onClick={() => void attachExistingWallet()} disabled={busy || !walletId} className="mt-2 w-full rounded-xl border border-violet-500/30 px-4 py-3 text-xs font-black text-violet-400 disabled:opacity-40">Use Saved Wallet</button></>}</div>}
+
+              {confirmed && <div className="mt-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4"><b className="text-sm text-emerald-400">✓ Entry confirmed</b><p className={`mt-1 text-xs ${muted}`}>Your tasks and payout wallet passed the current eligibility checks.</p></div>}
+              {entry?.walletAddressSnapshot && !confirmed && <div className={`mt-5 rounded-xl border p-3 ${soft}`}><span className={`block text-[8px] font-black tracking-[.15em] ${faint}`}>PAYOUT WALLET</span><span className="mt-1 block truncate text-xs">{entry.walletAddressSnapshot}</span></div>}
               {message && <div className="mt-4 rounded-xl border border-violet-500/20 bg-violet-500/5 p-3 text-xs text-violet-300">{message}</div>}
             </div>
           </aside>
