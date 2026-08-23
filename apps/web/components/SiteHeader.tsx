@@ -19,46 +19,26 @@ export default function SiteHeader() {
     let cancelled = false;
     const syncAuth = async () => {
       const tokenPresent = Boolean(localStorage.getItem("raven_token"));
-
-      // Keep the authenticated UI immediately when a Raven token exists.
-      // This prevents Login / Sign Up from flashing or replacing Profile
-      // during a full navigation such as clicking the brand logo.
-      if (!cancelled) {
-        setIsLoggedIn(tokenPresent);
-        setAuthChecked(true);
-      }
-
+      if (!cancelled) { setIsLoggedIn(tokenPresent); setAuthChecked(true); }
       try {
         const response = await fetch(`${API_BASE_URL}/auth/me`, {
           credentials: "include",
           cache: "no-store",
-          headers: tokenPresent
-            ? { Authorization: `Bearer ${localStorage.getItem("raven_token")}` }
-            : undefined,
+          headers: tokenPresent ? { Authorization: `Bearer ${localStorage.getItem("raven_token")}` } : undefined,
         });
-
-        if (!cancelled && response.ok) {
-          setIsLoggedIn(true);
-        } else if (!cancelled && !tokenPresent) {
-          setIsLoggedIn(false);
-        }
+        if (!cancelled && response.ok) setIsLoggedIn(true);
+        else if (!cancelled && !tokenPresent) setIsLoggedIn(false);
       } catch {
-        // Network/API failures must not log a locally authenticated user out.
         if (!cancelled) setIsLoggedIn(tokenPresent);
       }
     };
-
     void syncAuth();
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === "raven_token") void syncAuth();
-    };
+    const onStorage = (event: StorageEvent) => { if (event.key === "raven_token") void syncAuth(); };
     const onAuthChanged = () => void syncAuth();
     const onPageShow = () => void syncAuth();
-
     window.addEventListener("storage", onStorage);
     window.addEventListener("raven-auth-changed", onAuthChanged);
     window.addEventListener("pageshow", onPageShow);
-
     return () => {
       cancelled = true;
       window.removeEventListener("storage", onStorage);
@@ -75,36 +55,30 @@ export default function SiteHeader() {
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, []);
 
+  const nav = [
+    ["/projects", "NFT Projects"],
+    ["/raffles", "Raffles"],
+    ["/alpha", "King of Alpha"],
+    ["/how-it-works", "How it Works"],
+  ] as const;
+
   return (
-    <nav className="sticky top-0 z-50 border-b border-white/10 bg-black/40 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
+    <nav className="sticky top-0 z-50 border-b border-white/[.08] bg-black/70 backdrop-blur-xl">
+      <div className="mx-auto flex min-h-[58px] max-w-[1380px] items-center gap-3 px-4 sm:px-6 lg:px-10">
         <Link href="/" className="shrink-0"><RavenLogo compact /></Link>
-        <div className="hidden items-center gap-8 text-sm md:flex">
-          <Link href="/projects" className="text-zinc-400 transition-colors hover:text-white">NFT Projects</Link>
-          <Link href="/raffles" className="text-zinc-400 transition-colors hover:text-white">Raffles</Link>
-          <Link href="/alpha" className="text-zinc-400 transition-colors hover:text-white">King of Alpha</Link>
-          <Link href="/how-it-works" className="text-zinc-400 transition-colors hover:text-white">How it Works</Link>
+        <div className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex min-w-max items-center justify-center gap-4 px-1 py-1 text-[8px] font-bold sm:gap-6 sm:text-xs lg:gap-8">
+            {nav.map(([href, label]) => <Link key={href} href={href} className={`whitespace-nowrap transition-colors ${pathname === href || pathname.startsWith(`${href}/`) ? "text-white" : "text-zinc-500 hover:text-white"}`}>{label}</Link>)}
+          </div>
         </div>
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           {!authChecked ? null : isLoggedIn ? (
             <div className="relative" ref={profileRef}>
-              <button type="button" onClick={() => setProfileOpen((open) => !open)} aria-expanded={profileOpen} className="rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 px-4 py-2 text-xs font-black text-white shadow-lg shadow-violet-500/30">
-                Profile
-              </button>
-              {profileOpen && (
-                <div className="absolute right-0 mt-2 w-48 rounded-xl border border-black/10 bg-white p-2 shadow-2xl dark:border-white/10 dark:bg-[#0d0c11]">
-                  <Link href="/account" onClick={() => setProfileOpen(false)} className="block rounded-lg px-3 py-2.5 text-xs font-bold text-zinc-800 hover:bg-black/5 dark:text-zinc-200 dark:hover:bg-white/5">My Profile</Link>
-                  <button type="button" onClick={() => { toggleTheme(); setProfileOpen(false); }} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-xs font-bold text-zinc-800 hover:bg-black/5 dark:text-zinc-200 dark:hover:bg-white/5">
-                    <span>Theme</span><span>{theme === "dark" ? "Dark" : "Light"}</span>
-                  </button>
-                </div>
-              )}
+              <button type="button" onClick={() => setProfileOpen((open) => !open)} aria-expanded={profileOpen} className="rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 px-3 py-2 text-[9px] font-black text-white shadow-lg shadow-violet-500/20 sm:px-4 sm:text-xs">Profile</button>
+              {profileOpen && <div className="absolute right-0 mt-2 w-48 rounded-xl border border-white/10 bg-[#0d0c11] p-2 shadow-2xl"><Link href="/account" onClick={() => setProfileOpen(false)} className="block rounded-lg px-3 py-2.5 text-xs font-bold text-zinc-200 hover:bg-white/5">My Profile</Link><button type="button" onClick={() => { toggleTheme(); setProfileOpen(false); }} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-xs font-bold text-zinc-200 hover:bg-white/5"><span>Theme</span><span>{theme === "dark" ? "Dark" : "Light"}</span></button></div>}
             </div>
           ) : (
-            <>
-              <Link href="/login" className="rounded-lg border border-white/10 px-4 py-2 text-xs font-bold hover:bg-white/5">Login</Link>
-              <Link href="/register" className="rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 px-4 py-2 text-xs font-black text-white shadow-lg shadow-violet-500/30">Sign Up</Link>
-            </>
+            <><Link href="/login" className="rounded-lg border border-white/10 px-2.5 py-2 text-[9px] font-bold text-white hover:bg-white/5 sm:px-4 sm:text-xs">Login</Link><Link href="/register" className="rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 px-2.5 py-2 text-[9px] font-black text-white shadow-lg shadow-violet-500/20 sm:px-4 sm:text-xs">Sign Up</Link></>
           )}
         </div>
       </div>
