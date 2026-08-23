@@ -1,6 +1,6 @@
 "use client";
 import { Suspense, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { API_BASE_URL } from "@/lib/api-config";
 
@@ -12,7 +12,6 @@ async function readResponse(response: Response) {
 }
 
 function LoginForm() {
-  const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next") || "/dashboard";
   const [error, setError] = useState("");
@@ -30,7 +29,7 @@ function LoginForm() {
     localStorage.removeItem("raven_token");
     try {
       const returnTo = next.startsWith("/") && !next.startsWith("/admin") ? next : "/dashboard";
-      const response = await fetch(`${API_BASE_URL}/auth/${provider}/start?returnTo=${encodeURIComponent(returnTo)}`, { credentials: "include", cache: "no-store" });
+      const response = await fetch(`${API_BASE_URL}/auth/${provider}/start?login=1&returnTo=${encodeURIComponent(returnTo)}`, { credentials: "omit", cache: "no-store" });
       const data = await readResponse(response);
       if (!response.ok || !data.authorizationUrl) throw new Error(data.message || `${provider === "x" ? "X" : "Discord"} login is unavailable.`);
       window.location.assign(data.authorizationUrl);
