@@ -24,24 +24,18 @@ export async function drawRaffle(raffleId: string, requestingUserId: string) {
   return prisma.$transaction(async (tx) => {
     const raffle = await tx.raffle.findUnique({ where: { id: raffleId } });
     if (!raffle) throw new Error("Raffle not found");
-    if (raffle.createdByUserId !== requestingUserId) {
-      throw new Error("Only the raffle creator can draw this raffle");
-    }
+    if (raffle.createdByUserId !== requestingUserId) throw new Error("Only the raffle creator can draw this raffle");
     if (raffle.status === "COMPLETED") throw new Error("Raffle has already been drawn");
     if (raffle.status === "CANCELLED") throw new Error("Cancelled raffle cannot be drawn");
-    if (raffle.status !== "CLOSED") {
-      throw new Error("Raffle must be closed before drawing winners");
-    }
-    if (new Date() < raffle.endsAt) {
-      throw new Error("Raffle end time has not been reached");
-    }
+    if (raffle.status !== "CLOSED") throw new Error("Raffle must be closed before drawing winners");
+    if (new Date() < raffle.endsAt) throw new Error("Raffle end time has not been reached");
 
     const eligibleEntries = await tx.raffleEntry.findMany({
-      where: { raffleId, status: "ELIGIBLE" },
+      where: { raffleId, status: "ELIGIBLE", walletAddressId: { not: null }, walletAddressSnapshot: { not: null } },
       orderBy: { id: "asc" },
       select: { id: true, userId: true, walletAddressSnapshot: true },
     });
-    if (eligibleEntries.length === 0) throw new Error("No eligible entries available");
+    if (eligibleEntries.length === 0) throw new Error("No eligible entries with payout wallets available");
 
     const winnerCount = Math.min(raffle.winnerCount, eligibleEntries.length);
     const entryIds = eligibleEntries.map((entry) => entry.id);
@@ -55,8 +49,7 @@ export async function drawRaffle(raffleId: string, requestingUserId: string) {
       const index = randomIndex(randomness, remaining.length);
       selectedIndexes.push(index);
       const selected = remaining.splice(index, 1)[0];
-      if (!selected) throw new Error("Winner selection failed");
-
+      if (!selected || !selected.walletAddressSnapshot) throw new Error("Winner selection failed: payout wallet missing");
       await tx.raffleWinner.create({
         data: {
           raffleId,
@@ -71,10 +64,7 @@ export async function drawRaffle(raffleId: string, requestingUserId: string) {
       await tx.raffleEntry.update({ where: { id: selected.id }, data: { status: "WINNER" } });
     }
 
-    await tx.raffleEntry.updateMany({
-      where: { raffleId, status: "ELIGIBLE" },
-      data: { status: "NOT_SELECTED" },
-    });
+    await tx.raffleEntry.updateMany({ where: { raffleId, status: "ELIGIBLE" }, data: { status: "NOT_SELECTED" } });
 
     const snapshot = await tx.raffleEligibilitySnapshot.create({
       data: {
@@ -89,16 +79,8 @@ export async function drawRaffle(raffleId: string, requestingUserId: string) {
       },
     });
 
-    const updatedRaffle = await tx.raffle.update({
-      where: { id: raffleId },
-      data: { status: "COMPLETED", fairnessAlgorithmVersion: ALGORITHM_VERSION },
-    });
-
-    const winners = await tx.raffleWinner.findMany({
-      where: { raffleId },
-      orderBy: { selectionRank: "asc" },
-    });
-
+    const updatedRaffle = await tx.raffle.update({ where: { id: raffleId }, data: { status: "COMPLETED", fairnessAlgorithmVersion: ALGORITHM_VERSION } });
+    const winners = await tx.raffleWinner.findMany({ where: { raffleId }, orderBy: { selectionRank: "asc" } });
     return { raffle: updatedRaffle, snapshot, winners };
   });
 }
