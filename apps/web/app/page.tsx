@@ -7,26 +7,25 @@ import { API_BASE_URL } from "@/lib/api-config";
 
 type Project = { id: string; name: string; description?: string | null; logoUrl?: string | null; category?: string | null };
 type Raffle = { id: string; title: string; prizeName: string; prizeQuantity: number; startsAt: string; endsAt: string; status: string; winnerCount: number; project?: { id: string; name?: string | null; logoUrl?: string | null } | null; _count?: { entries: number; winners: number; tasks: number } };
-
-type OgCollection = { name: string; chain: string; mark: string; tone: string; subtitle: string };
+type OgCollection = { name: string; chain: string; image: string; subtitle: string };
 type Ecosystem = { name: string; mark: string; detail: string };
 
 const OG_COLLECTIONS: OgCollection[] = [
-  { name: "Bored Ape Yacht Club", chain: "Ethereum", mark: "🦍", tone: "from-amber-300 via-orange-500 to-red-700", subtitle: "10K iconic apes" },
-  { name: "CryptoPunks", chain: "Ethereum", mark: "👾", tone: "from-cyan-300 via-sky-500 to-indigo-700", subtitle: "OG pixel legends" },
-  { name: "Pudgy Penguins", chain: "Ethereum", mark: "🐧", tone: "from-sky-200 via-cyan-400 to-blue-700", subtitle: "8,888 penguins" },
-  { name: "Azuki", chain: "Ethereum", mark: "⛩️", tone: "from-rose-300 via-fuchsia-500 to-violet-700", subtitle: "Anime-inspired icons" },
-  { name: "Doodles", chain: "Ethereum", mark: "🌈", tone: "from-pink-300 via-yellow-300 to-cyan-400", subtitle: "Colorful culture" },
-  { name: "Moonbirds", chain: "Ethereum", mark: "🦉", tone: "from-violet-300 via-indigo-500 to-slate-800", subtitle: "Collective owls" },
+  { name: "Bored Ape Yacht Club", chain: "Ethereum", image: "https://cdn.sanity.io/images/cg92vzda/production/37007d3de60678ca6a37467cbe97cf5febbf663b-1360x2000.jpg?auto=format&fit=max&q=75&w=1200", subtitle: "10K iconic apes" },
+  { name: "CryptoPunks", chain: "Ethereum", image: "https://media.nftnewstoday.com/4691/conversions/cryptopunks--optimized.webp", subtitle: "OG pixel legends" },
+  { name: "Pudgy Penguins", chain: "Ethereum", image: "https://thecryptokrew.com/wp-content/uploads/2024/03/pudgy-penguins-huddle.jpg", subtitle: "8,888 penguins" },
+  { name: "Azuki", chain: "Ethereum", image: "https://bloomrewards.ghost.io/content/images/2023/05/data-src-image-7a30970e-ed45-4521-ae05-c21f9bf03f0d.png", subtitle: "Anime-inspired icons" },
+  { name: "Doodles", chain: "Ethereum", image: "https://imageio.forbes.com/specials-images/imageserve/631fd33431b0b6a8ed7ec50a/0x0.jpg?fit=bounds&format=jpg&height=900&width=1600", subtitle: "Colorful culture" },
+  { name: "Moonbirds", chain: "Ethereum", image: "https://www.coinspeaker.com/wp-content/uploads/2022/09/what-are-moonbirds-guide-to-the-pfp-nft-collection.jpg", subtitle: "10K pixel owls" },
 ];
 
 const ECOSYSTEMS: Ecosystem[] = [
-  { name: "Ethereum", mark: "Ξ", detail: "NFT blue chips" },
-  { name: "Solana", mark: "≋", detail: "Fast NFT culture" },
+  { name: "Ethereum", mark: "Ξ", detail: "Blue-chip NFT home" },
+  { name: "Solana", mark: "≋", detail: "Fast-moving NFT scene" },
   { name: "Bitcoin", mark: "₿", detail: "Ordinals & Runes" },
   { name: "Polygon", mark: "◇", detail: "Gaming & brands" },
   { name: "Base", mark: "●", detail: "Onchain creators" },
-  { name: "Robinhood", mark: "◈", detail: "NFT marketplace" },
+  { name: "Robinhood", mark: "◈", detail: "Digital asset platform" },
 ];
 
 async function readHome() {
@@ -54,18 +53,6 @@ function remaining(value: string) {
   return days ? `${days}d ${hours}h` : hours ? `${hours}h ${minutes % 60}m` : `${minutes}m`;
 }
 
-function CollectionVisual({ collection }: { collection: OgCollection }) {
-  return <div className={`relative h-full w-full overflow-hidden rounded-[24px] bg-gradient-to-br ${collection.tone}`}>
-    <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/30 blur-3xl" />
-    <div className="absolute -bottom-12 -left-8 h-44 w-44 rounded-full bg-black/30 blur-3xl" />
-    <div className="absolute inset-3 rounded-[19px] border border-white/30 bg-black/15 backdrop-blur-[2px]" />
-    <div className="absolute inset-0 grid place-items-center">
-      <div className="relative grid h-36 w-36 place-items-center rounded-[34px] border border-white/40 bg-black/20 text-7xl shadow-2xl backdrop-blur-md transition duration-700 group-hover:scale-110 sm:h-48 sm:w-48 sm:text-8xl">{collection.mark}<div className="absolute -right-2 -top-2 h-5 w-5 animate-pulse rounded-full bg-white shadow-[0_0_25px_rgba(255,255,255,.9)]" /></div>
-    </div>
-    <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-3"><div><div className="text-[8px] font-black uppercase tracking-[.22em] text-white/70">{collection.chain}</div><div className="mt-1 text-sm font-black text-white sm:text-base">{collection.name}</div></div><div className="rounded-full border border-white/20 bg-black/30 px-2.5 py-1 text-[8px] font-black text-white/80 backdrop-blur">OG</div></div>
-  </div>;
-}
-
 function OgShowcase() {
   const [index, setIndex] = useState(0);
   const [ecoIndex, setEcoIndex] = useState(0);
@@ -73,22 +60,37 @@ function OgShowcase() {
   const ecosystem = ECOSYSTEMS[ecoIndex];
 
   useEffect(() => {
-    const collectionTimer = window.setInterval(() => setIndex((value) => (value + 1) % OG_COLLECTIONS.length), 4200);
-    const ecosystemTimer = window.setInterval(() => setEcoIndex((value) => (value + 1) % ECOSYSTEMS.length), 2800);
+    const collectionTimer = window.setInterval(() => setIndex((value) => (value + 1) % OG_COLLECTIONS.length), 4500);
+    const ecosystemTimer = window.setInterval(() => setEcoIndex((value) => (value + 1) % ECOSYSTEMS.length), 3000);
     return () => { window.clearInterval(collectionTimer); window.clearInterval(ecosystemTimer); };
   }, []);
 
-  return <div className="relative min-h-[390px] overflow-hidden rounded-[30px] border border-violet-400/15 bg-[#08070e] sm:min-h-[500px]">
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(124,58,237,.34),transparent_38%),radial-gradient(circle_at_88%_18%,rgba(34,211,238,.14),transparent_25%),radial-gradient(circle_at_8%_85%,rgba(236,72,153,.12),transparent_25%)]" />
-    <div className="absolute left-1/2 top-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-600/15 blur-[100px]" />
-    <div className="absolute left-5 top-5 z-20 rounded-full border border-white/10 bg-black/35 px-3 py-2 text-[8px] font-black tracking-[.2em] text-violet-200 backdrop-blur-xl">OG COLLECTIONS</div>
-    <div className="absolute right-5 top-5 z-20 flex gap-1.5">{OG_COLLECTIONS.map((item, i) => <button aria-label={`Show ${item.name}`} key={item.name} onClick={() => setIndex(i)} className={`h-1.5 rounded-full transition-all ${i === index ? "w-7 bg-white" : "w-1.5 bg-white/30"}`} />)}</div>
-    <div className="absolute inset-x-0 top-[52px] flex justify-center sm:top-[62px]">
-      <div key={collection.name} className="group relative h-[275px] w-[275px] rotate-[-2deg] rounded-[34px] border border-white/20 bg-gradient-to-br from-white/10 to-white/[.02] p-3 shadow-[0_0_90px_rgba(139,92,246,.32)] transition-all duration-700 animate-[pulse_4s_ease-in-out_infinite] sm:h-[350px] sm:w-[350px] sm:p-4">
-        <CollectionVisual collection={collection} />
+  return <div className="relative min-h-[410px] overflow-hidden rounded-[30px] border border-violet-400/15 bg-[#08070e] sm:min-h-[510px]">
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(124,58,237,.34),transparent_38%),radial-gradient(circle_at_88%_15%,rgba(34,211,238,.16),transparent_25%),radial-gradient(circle_at_8%_85%,rgba(236,72,153,.12),transparent_25%)]" />
+    <div className="absolute left-1/2 top-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-600/20 blur-[100px]" />
+    <div className="absolute left-5 top-5 z-30 rounded-full border border-white/10 bg-black/45 px-3 py-2 text-[8px] font-black tracking-[.22em] text-violet-200 backdrop-blur-xl">OG COLLECTIONS</div>
+    <div className="absolute right-5 top-5 z-30 flex gap-1.5">{OG_COLLECTIONS.map((item, i) => <button aria-label={`Show ${item.name}`} key={item.name} onClick={() => setIndex(i)} className={`h-1.5 rounded-full transition-all duration-500 ${i === index ? "w-8 bg-white shadow-[0_0_12px_rgba(255,255,255,.7)]" : "w-1.5 bg-white/30 hover:bg-white/60"}`} />)}</div>
+
+    <div className="absolute inset-x-0 top-[55px] flex justify-center sm:top-[65px]">
+      <div key={collection.name} className="group relative h-[285px] w-[285px] rotate-[-2deg] rounded-[34px] border border-white/20 bg-white/[.04] p-3 shadow-[0_0_100px_rgba(139,92,246,.32)] animate-[fadeIn_.7s_ease-out] sm:h-[355px] sm:w-[355px] sm:p-4">
+        <div className="absolute -inset-5 -z-10 rounded-[45px] bg-violet-500/10 blur-2xl transition duration-700 group-hover:bg-fuchsia-500/20" />
+        <div className="relative h-full w-full overflow-hidden rounded-[25px] border border-white/20 bg-black">
+          <img src={collection.image} alt={`${collection.name} NFT collection`} className="h-full w-full object-cover transition duration-[4500ms] ease-out group-hover:scale-105" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-black/10" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,transparent_30%,rgba(0,0,0,.38))]" />
+          <div className="absolute bottom-4 left-4 right-4 sm:bottom-5 sm:left-5 sm:right-5"><div className="text-[8px] font-black uppercase tracking-[.22em] text-white/60">{collection.chain}</div><div className="mt-1 text-base font-black text-white sm:text-xl">{collection.name}</div><div className="mt-1 text-[9px] font-medium text-white/60">{collection.subtitle}</div></div>
+        </div>
+        <div className="absolute -right-2 -top-2 h-5 w-5 animate-pulse rounded-full bg-white shadow-[0_0_25px_rgba(255,255,255,.9)]" />
       </div>
     </div>
-    <div className="absolute bottom-5 left-5 right-5 z-20 flex items-center justify-between gap-4 sm:bottom-7 sm:left-7 sm:right-7"><div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/55 px-3 py-2.5 backdrop-blur-xl sm:px-4 sm:py-3"><div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-400 to-fuchsia-500 text-lg shadow-lg">{ecosystem.mark}</div><div><div className="text-[7px] font-black tracking-[.2em] text-zinc-500">NFT ECOSYSTEM & MARKET</div><div className="text-xs font-black text-white">{ecosystem.name}</div><div className="text-[8px] text-zinc-500">{ecosystem.detail}</div></div></div><div className="hidden rounded-full border border-white/10 bg-black/40 px-3 py-2 text-[8px] font-black uppercase tracking-[.18em] text-zinc-400 backdrop-blur sm:block">{collection.subtitle}</div></div>
+
+    <div className="absolute bottom-5 left-5 right-5 z-30 flex items-center justify-between gap-4 sm:bottom-7 sm:left-7 sm:right-7">
+      <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/60 px-3 py-2.5 backdrop-blur-xl sm:px-4 sm:py-3">
+        <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-400 to-fuchsia-500 text-lg font-black shadow-lg">{ecosystem.mark}</div>
+        <div><div className="text-[7px] font-black tracking-[.2em] text-zinc-500">ECOSYSTEM</div><div className="text-xs font-black text-white">{ecosystem.name}</div><div className="text-[8px] text-zinc-500">{ecosystem.detail}</div></div>
+      </div>
+      <div className="hidden rounded-full border border-white/10 bg-black/45 px-3 py-2 text-[8px] font-black uppercase tracking-[.18em] text-zinc-400 backdrop-blur sm:block">{collection.subtitle}</div>
+    </div>
   </div>;
 }
 
@@ -119,16 +121,14 @@ export default function Home() {
   return <main className={dark ? "min-h-screen overflow-x-hidden bg-[#050507] text-white" : "min-h-screen overflow-x-hidden bg-[#f7f7fb] text-zinc-950"}>
     <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"><div className="absolute left-[4%] top-[8%] h-[32rem] w-[32rem] rounded-full bg-violet-700/10 blur-[150px]"/><div className="absolute right-[-10%] top-[35%] h-[30rem] w-[30rem] rounded-full bg-cyan-500/5 blur-[150px]"/></div>
 
-    <section className="mx-auto w-full max-w-[1380px] px-5 pb-10 pt-24 sm:px-8 lg:px-10 lg:pb-16 lg:pt-28"><div className="grid items-center gap-8 lg:grid-cols-[.82fr_1.18fr] lg:gap-12"><div className="min-w-0"><div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[.035] px-4 py-2 text-[9px] font-black tracking-[.24em] text-violet-300"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-violet-400"/> NFT RAFFLE ECOSYSTEM</div><h1 className="max-w-3xl text-5xl font-black leading-[.94] tracking-[-.065em] sm:text-6xl lg:text-[72px]">The next generation of<span className="block bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-300 bg-clip-text pb-2 text-transparent">NFT whitelists.</span></h1><p className="mt-6 max-w-xl text-base leading-7 text-zinc-400 sm:text-lg">Discover real NFT projects, enter verified raffles, complete community tasks and earn whitelist spots through Raven Oracle.</p><div className="mt-8 flex flex-wrap gap-3"><Link href="/raffles" className="rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-6 py-3.5 text-sm font-black text-white shadow-xl shadow-violet-500/20 transition hover:-translate-y-1">Explore Raffles</Link><Link href="/projects" className="rounded-xl border border-white/10 bg-white/[.025] px-6 py-3.5 text-sm font-bold text-white transition hover:-translate-y-1 hover:bg-white/[.05]">Explore Projects</Link></div><div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-[8px] font-black tracking-[.13em] text-zinc-500"><span>✓ VERIFIED PROJECTS</span><span>✓ FAIR RAFFLES</span><span>✓ DISCORD VERIFIED</span><span>✓ X VERIFIED</span></div></div><OgShowcase/></div></section>
+    <section className="mx-auto w-full max-w-[1380px] px-5 pb-10 pt-24 sm:px-8 lg:px-10 lg:pb-16 lg:pt-28"><div className="grid items-center gap-8 lg:grid-cols-[.82fr_1.18fr] lg:gap-12"><div className="min-w-0"><div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[.035] px-4 py-2 text-[9px] font-black tracking-[.24em] text-violet-300"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-violet-400"/> NFT RAFFLE ECOSYSTEM</div><h1 className="max-w-3xl text-5xl font-black leading-[.94] tracking-[-.065em] sm:text-6xl lg:text-[76px]">The next generation of<span className="block bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-300 bg-clip-text pb-2 text-transparent">NFT whitelists.</span></h1><p className="mt-6 max-w-xl text-base leading-7 text-zinc-400 sm:text-lg">Discover real NFT projects, enter verified raffles, complete community tasks and earn whitelist spots through Raven Oracle.</p><div className="mt-8 flex flex-wrap gap-3"><Link href="/raffles" className="rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-6 py-3.5 text-sm font-black text-white shadow-xl shadow-violet-500/20 transition hover:-translate-y-1">Explore Raffles</Link><Link href="/projects" className="rounded-xl border border-white/10 bg-white/[.025] px-6 py-3.5 text-sm font-bold text-white transition hover:-translate-y-1 hover:bg-white/[.05]">Explore Projects</Link></div><div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-[8px] font-black tracking-[.13em] text-zinc-500"><span>✓ VERIFIED PROJECTS</span><span>✓ FAIR RAFFLES</span><span>✓ DISCORD VERIFIED</span><span>✓ X VERIFIED</span></div></div><OgShowcase/></div></section>
 
     <section className="border-y border-white/[.06] bg-white/[.018]"><div className="mx-auto grid w-full max-w-[1380px] grid-cols-2 sm:grid-cols-4 lg:grid-cols-5">{[[loading ? "—" : projects.length.toLocaleString(), "VERIFIED PROJECTS"],[loading ? "—" : activeRaffles.length.toLocaleString(), "LIVE RAFFLES"],["100%", "FAIR DRAW"],["6+", "ECOSYSTEMS"],["24/7", "DISCOVERY"]].map(([value,label],i)=><div key={label} className={`px-4 py-5 text-center ${i < 4 ? "border-r border-white/[.06]" : "hidden lg:block"}`}><div className="text-xl font-black sm:text-2xl">{value}</div><div className="mt-1 text-[7px] font-black tracking-[.18em] text-zinc-600">{label}</div></div>)}</div></section>
 
     <section className="mx-auto w-full max-w-[1380px] px-5 py-14 sm:px-8 lg:px-10 lg:py-20"><div className="mb-7 flex items-end justify-between gap-4"><div><div className="text-[9px] font-black tracking-[.24em] text-violet-400">DISCOVER</div><h2 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">NFT Projects</h2></div><Link href="/projects" className="text-xs font-black text-white transition hover:text-violet-300">View all →</Link></div>{apiError && <div className="mb-5 rounded-xl border border-amber-400/20 bg-amber-400/5 px-4 py-3 text-sm text-amber-200">Project data is temporarily unavailable.</div>}<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{loading ? [0,1,2,3].map((i)=><div key={i} className="h-52 animate-pulse rounded-2xl border border-white/[.06] bg-white/[.02]"/>) : projects.slice(0,4).map((project)=><ProjectCard key={project.id} project={project}/>)}{!loading && projects.length === 0 && !apiError && <div className="col-span-full rounded-2xl border border-dashed border-white/10 py-16 text-center text-sm text-zinc-500">No approved NFT projects yet.</div>}</div></section>
 
-    <section className="border-y border-white/[.05] bg-white/[.012]"><div className="mx-auto w-full max-w-[1380px] px-5 py-14 sm:px-8 lg:px-10 lg:py-20"><div className="mb-8 flex items-end justify-between gap-4"><div><div className="text-[9px] font-black tracking-[.24em] text-cyan-400">RAFFLES</div><h2 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">What's happening</h2></div><div className="flex rounded-xl border border-white/10 bg-white/[.02] p-1"><button onClick={()=>setTab("trending")} className={`rounded-lg px-4 py-2 text-[10px] font-black transition ${tab === "trending" ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white" : "text-zinc-500"}`}>TRENDING</button><button onClick={()=>setTab("upcoming")} className={`rounded-lg px-4 py-2 text-[10px] font-black transition ${tab === "upcoming" ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white" : "text-zinc-500"}`}>UPCOMING</button></div></div><div className="grid gap-4 md:grid-cols-2">{loading ? [0,1].map((i)=><div key={i} className="h-56 animate-pulse rounded-2xl border border-white/[.06] bg-white/[.02]"/>) : displayedRaffles.slice(0,4).map((raffle)=><RaffleCard key={raffle.id} raffle={raffle}/>)}{!loading && displayedRaffles.length === 0 && <div className="col-span-full rounded-2xl border border-dashed border-white/10 py-16 text-center text-sm text-zinc-500">No {tab === "trending" ? "live" : "upcoming"} raffles right now.</div>}</div></div></section>
+    <section className="border-y border-white/[.06] bg-white/[.012]"><div className="mx-auto w-full max-w-[1380px] px-5 py-14 sm:px-8 lg:px-10 lg:py-20"><div className="mb-7 flex items-end justify-between gap-4"><div><div className="text-[9px] font-black tracking-[.24em] text-cyan-400">RAFFLES</div><h2 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">What's happening</h2></div><div className="flex rounded-xl border border-white/10 bg-white/[.025] p-1"><button onClick={() => setTab("trending")} className={`rounded-lg px-4 py-2 text-xs font-black transition ${tab === "trending" ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-lg" : "text-zinc-500"}`}>TRENDING</button><button onClick={() => setTab("upcoming")} className={`rounded-lg px-4 py-2 text-xs font-black transition ${tab === "upcoming" ? "bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-lg" : "text-zinc-500"}`}>UPCOMING</button></div></div><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{displayedRaffles.slice(0,6).map((raffle)=><RaffleCard key={raffle.id} raffle={raffle}/>)}{!loading && displayedRaffles.length === 0 && <div className="col-span-full rounded-2xl border border-dashed border-white/10 py-16 text-center text-sm text-zinc-500">No {tab === "trending" ? "live" : "upcoming"} raffles right now.</div>}</div></div></section>
 
-    <section className="mx-auto w-full max-w-[1380px] px-5 py-8 sm:px-8 lg:px-10"><div className="overflow-hidden rounded-2xl border border-white/[.07] bg-white/[.02] px-5 py-4"><div className="flex min-w-max animate-[marquee_22s_linear_infinite] gap-10 text-[9px] font-black tracking-wider text-violet-300"><span>◈ OG COLLECTIONS</span><span>Ξ ETHEREUM NFTS</span><span>≋ SOLANA CULTURE</span><span>₿ BITCOIN ORDINALS</span><span>◇ MULTICHAIN DISCOVERY</span><span>◈ OG COLLECTIONS</span><span>Ξ ETHEREUM NFTS</span><span>≋ SOLANA CULTURE</span><span>₿ BITCOIN ORDINALS</span></div></div></section>
-
-    <style jsx>{`@keyframes marquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}`}</style>
+    <div className="mx-auto max-w-[1380px] px-5 py-5 sm:px-8 lg:px-10"><div className="flex gap-8 overflow-hidden rounded-2xl border border-white/[.07] bg-white/[.018] px-5 py-4 text-[8px] font-black tracking-[.16em] text-violet-300"><span className="whitespace-nowrap">@0xRaven entered a raffle</span><span className="whitespace-nowrap">@AlphaHunter won a WL spot</span><span className="whitespace-nowrap">@Web3Legend entered a raffle</span><span className="whitespace-nowrap">@MoonBag won 3 WL spots</span></div></div>
   </main>;
 }
