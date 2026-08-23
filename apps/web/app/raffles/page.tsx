@@ -32,7 +32,7 @@ export default function RafflesPage() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`${API_BASE_URL}/raffles/public`, { cache: "no-store" })
+    fetch(`${API_BASE_URL}/raffles`, { cache: "no-store" })
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.message ?? "Unable to load raffles");
