@@ -2,6 +2,7 @@ import { Router } from "express";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
+import { requireAuth } from "../middleware/auth.js";
 import { evaluateRaffleEntry } from "../services/eligibility.service.js";
 import { verifyCaptchaToken } from "../services/captcha.service.js";
 import { verifyRaffleEligibility } from "../services/raffle-eligibility.service.js";
