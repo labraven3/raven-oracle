@@ -67,31 +67,13 @@ router.post("/:projectId", async (req, res, next) => {
   try {
     if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
     const projectId = getId(req, res); if (!projectId) return;
-    const owner = await ownedProject(projectId, req.userId); if (owner.error) return res.status(owner.error[0]).json({ success: false, message: owner.error[1] });
+    const owner = await ownedProject(projectId, req.userId); if (owner.error) return res.status(owner.error[0]).json({ success: owner.error[1] });
     const parsed = draftSchema.safeParse(req.body ?? {});
     if (!parsed.success) return res.status(400).json({ success: false, message: "Invalid draft data", errors: parsed.error.issues });
     const draft = parsed.data;
     const placeholderStart = new Date(Date.now() + 24 * 60 * 60 * 1000);
     const placeholderEnd = new Date(Date.now() + 48 * 60 * 60 * 1000);
-    const created = await prisma.raffle.create({
-      data: {
-        projectId,
-        createdByUserId: req.userId,
-        title: draft.title || "Untitled Draft",
-        description: draft.description || null,
-        prizeName: draft.prizeName || "TBD",
-        prizeDescription: draft.prizeDescription || null,
-        prizeQuantity: draft.prizeQuantity,
-        startsAt: draft.startsAt ? new Date(draft.startsAt) : placeholderStart,
-        endsAt: draft.endsAt ? new Date(draft.endsAt) : placeholderEnd,
-        entryRules: { draft },
-        status: "DRAFT",
-        maxEntriesPerUser: draft.maxEntriesPerUser,
-        winnerCount: draft.winnerCount,
-        fairnessAlgorithmVersion: draft.fairnessAlgorithmVersion,
-      },
-      select: { id: true },
-    });
+    const created = await prisma.raffle.create({ data: { projectId, createdByUserId: req.userId, title: draft.title || "Untitled Draft", description: draft.description || null, prizeName: draft.prizeName || "TBD", prizeDescription: draft.prizeDescription || null, prizeQuantity: draft.prizeQuantity, startsAt: draft.startsAt ? new Date(draft.startsAt) : placeholderStart, endsAt: draft.endsAt ? new Date(draft.endsAt) : placeholderEnd, entryRules: { draft }, status: "DRAFT", maxEntriesPerUser: draft.maxEntriesPerUser, winnerCount: draft.winnerCount, fairnessAlgorithmVersion: draft.fairnessAlgorithmVersion }, select: { id: true } });
     return res.status(201).json({ success: true, draftId: created.id });
   } catch (error) { next(error); }
 });
@@ -115,7 +97,7 @@ router.delete("/:projectId/:draftId", async (req, res, next) => {
   try {
     if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
     const projectId = getId(req, res); if (!projectId) return;
-    const owner = await ownedProject(projectId, req.userId); if (owner.error) return res.status(owner.error[0]).json({ success: false, message: owner.error[1] });
+    const owner = await ownedProject(projectId, req.userId); if (owner.error) return res.status(owner.error[0]).json({ message: owner.error[1] });
     const existing = await prisma.raffle.findFirst({ where: { id: req.params.draftId, projectId, createdByUserId: req.userId, status: "DRAFT", cancelledAt: null }, select: { id: true } });
     if (!existing) return res.status(404).json({ success: false, message: "Draft not found" });
     await prisma.raffle.update({ where: { id: existing.id }, data: { status: "CANCELLED", cancelledAt: new Date(), entryRules: { draftDeleted: true } } });
@@ -141,7 +123,7 @@ router.post("/:projectId/:draftId/publish", async (req, res, next) => {
     if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || endsAt <= startsAt || endsAt <= now) return res.status(400).json({ success: false, message: "Invalid raffle dates" });
     if (data.winnerCount > data.prizeQuantity) return res.status(400).json({ success: false, message: "Winner count cannot exceed prize quantity" });
     const raffle = await prisma.$transaction(async (tx) => {
-      const updated = await tx.raffle.update({ where: { id: existing.id }, data: { title: data.title, description: data.description || null, prizeName: data.prizeName, prizeDescription: data.prizeDescription || null, prizeQuantity: data.prizeQuantity, startsAt, endsAt, status: startsAt > now ? "SCHEDULED" : "ACTIVE", maxEntriesPerUser: data.maxEntriesPerUser, winnerCount: data.winnerCount, fairnessAlgorithmVersion: data.fairnessAlgorithmVersion, entryRules: { tasks: data.tasks } } });
+      const updated = await tx.raffle.update({ where: { id: existing.id }, data: { title: data.title, description: data.description || null, prizeName: data.prizeName, prizeDescription: data.prizeDescription || null, prizeQuantity: data.prizeQuantity, startsAt, endsAt, status: startsAt > now ? "SCHEDULED" : "ACTIVE", maxEntriesPerUser: data.maxEntriesPerUser, winnerCount: data.winnerCount, fairnessAlgorithmVersion: data.fairnessAlgorithmVersion, entryRules: { tasks: data.tasks, walletRequired: true, socialRequired: true } } });
       if (data.tasks.length) await tx.raffleTask.createMany({ data: data.tasks.map((task, index) => ({ raffleId: updated.id, type: task.type, title: task.title, description: task.description || null, target: task.target, targetUrl: task.targetUrl || null, isRequired: task.isRequired, sortOrder: index })) });
       return updated;
     });
