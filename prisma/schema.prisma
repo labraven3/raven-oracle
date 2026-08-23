@@ -258,6 +258,7 @@ model RaffleEntry {
   @@index([raffleId, status])
   @@index([userId])
   @@index([walletAddressId])
+  @@index([enteredAt])
 }
 model RaffleWinner {
   id String @id @default(uuid()) @db.Uuid
@@ -267,17 +268,166 @@ model RaffleWinner {
   walletAddressSnapshot String
   selectionRank Int
   status RaffleWinnerStatus @default(SELECTED)
-  notificationStatus NotificationStatus @default(PENDING)
+  selectedAt DateTime @default(now())
   notifiedAt DateTime?
+  notificationStatus NotificationStatus @default(PENDING)
   claimedAt DateTime?
-  expiredAt DateTime?
-  replacementOfWinnerId String?
-  replacementWinnerId String?
+  claimReference String?
+  replacedByWinnerId String? @db.Uuid
+  replacementReason String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   raffle Raffle @relation(fields: [raffleId], references: [id], onDelete: Cascade)
-  entry RaffleEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entry RaffleEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  replacedByWinner RaffleWinner? @relation("WinnerReplacement", fields: [replacedByWinnerId], references: [id])
+  replacements RaffleWinner[] @relation("WinnerReplacement")
   @@unique([raffleId, selectionRank])
+  @@unique([raffleId, entryId])
   @@index([raffleId])
   @@index([userId])
-  @@index([entryId])
+  @@index([status])
+  @@index([notificationStatus])
+}
+model RaffleEligibilitySnapshot {
+  id String @id @default(uuid()) @db.Uuid
+  raffleId String @db.Uuid
+  eligibleEntryCount Int
+  eligibleEntryIdsHash String
+  snapshotJsonRef String?
+  randomnessSource String
+  randomnessRequestRef String?
+  randomnessValueHash String?
+  algorithmVersion String
+  winnerIndexResults Json
+  createdAt DateTime @default(now())
+  raffle Raffle @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  @@index([raffleId])
+  @@index([createdAt])
+}
+model AlphaSubmission {
+  id String @id @default(uuid()) @db.Uuid
+  submittedByUserId String @db.Uuid
+  projectId String? @db.Uuid
+  title String
+  description String
+  evidenceLinks Json
+  opportunityType OpportunityType
+  expectedResult String?
+  status AlphaSubmissionStatus @default(SUBMITTED)
+  reviewedByUserId String? @db.Uuid
+  reviewedAt DateTime?
+  rejectionReason String?
+  pointsAwarded Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  submittedBy User @relation("AlphaSubmitter", fields: [submittedByUserId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  reviewedBy User? @relation("AlphaReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  pointTxns PointTransaction[]
+  @@index([submittedByUserId])
+  @@index([projectId])
+  @@index([status])
+  @@index([reviewedByUserId])
+  @@index([createdAt])
+}
+model PointTransaction {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  amount Int
+  type PointTransactionType
+  reason String
+  alphaSubmissionId String? @db.Uuid
+  raffleId String? @db.Uuid
+  auditLogId String? @db.Uuid
+  createdByUserId String? @db.Uuid
+  metadata Json?
+  createdAt DateTime @default(now())
+  user User @relation("PointRecipient", fields: [userId], references: [id], onDelete: Restrict)
+  createdBy User? @relation("PointCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  alphaSubmission AlphaSubmission? @relation(fields: [alphaSubmissionId], references: [id], onDelete: SetNull)
+  raffle Raffle? @relation(fields: [raffleId], references: [id], onDelete: SetNull)
+  auditLog AuditLog? @relation(fields: [auditLogId], references: [id], onDelete: SetNull)
+  @@index([userId])
+  @@index([type])
+  @@index([alphaSubmissionId])
+  @@index([raffleId])
+  @@index([createdAt])
+}
+model ChatChannel {
+  id String @id @default(uuid()) @db.Uuid
+  name String
+  slug String @unique
+  type ChatChannelType @default(GENERAL)
+  projectId String? @db.Uuid
+  raffleId String? @db.Uuid
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  raffle Raffle? @relation(fields: [raffleId], references: [id], onDelete: SetNull)
+  messages ChatMessage[]
+  @@index([type])
+  @@index([projectId])
+  @@index([raffleId])
+  @@index([isActive])
+}
+model ChatMessage {
+  id String @id @default(uuid()) @db.Uuid
+  channelId String @db.Uuid
+  userId String @db.Uuid
+  message String
+  moderationStatus ChatMessageStatus @default(VISIBLE)
+  moderatedByUserId String? @db.Uuid
+  moderatedAt DateTime?
+  discordMessageId String?
+  discordChannelId String?
+  bridgeSource ChatBridgeSource @default(WEB)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  channel ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user User @relation("ChatAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  moderatedBy User? @relation("ChatModerator", fields: [moderatedByUserId], references: [id], onDelete: SetNull)
+  @@index([channelId, createdAt])
+  @@index([userId])
+  @@index([moderationStatus])
+  @@index([discordMessageId])
+}
+model AuditLog {
+  id String @id @default(uuid()) @db.Uuid
+  actorUserId String? @db.Uuid
+  action AuditAction
+  entityType String
+  entityId String
+  summary String
+  before Json?
+  after Json?
+  metadata Json?
+  riskContext Json?
+  createdAt DateTime @default(now())
+  actor User? @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  pointTxns PointTransaction[]
+  @@index([actorUserId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+model AuthAuditLog {
+  id String @id @default(uuid()) @db.Uuid
+  userId String? @db.Uuid
+  event AuthAuditEvent
+  success Boolean
+  provider String?
+  ipAddress String?
+  userAgent String?
+  reason String?
+  metadata Json?
+  createdAt DateTime @default(now())
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  @@index([userId])
+  @@index([event])
+  @@index([createdAt])
+  @@index([userId, event])
 }
