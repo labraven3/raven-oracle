@@ -152,7 +152,8 @@ function extractXUsername(value: string): string | null {
   if (/^\d+$/.test(raw)) return raw;
 
   const at = raw.match(/@([A-Za-z0-9_]{1,15})/);
-  if (at) return at[1];
+  const atUsername = at?.[1];
+  if (atUsername) return atUsername;
 
   try {
     const url = new URL(raw);
