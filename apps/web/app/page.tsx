@@ -14,9 +14,9 @@ const OG_COLLECTIONS: OgCollection[] = [
   { name: "Bored Ape Yacht Club", chain: "Ethereum", image: "https://cdn.sanity.io/images/cg92vzda/production/37007d3de60678ca6a37467cbe97cf5febbf663b-1360x2000.jpg?auto=format&fit=max&q=75&w=1200", subtitle: "10K iconic apes" },
   { name: "CryptoPunks", chain: "Ethereum", image: "https://media.nftnewstoday.com/4691/conversions/cryptopunks--optimized.webp", subtitle: "OG pixel legends" },
   { name: "Pudgy Penguins", chain: "Ethereum", image: "https://thecryptokrew.com/wp-content/uploads/2024/03/pudgy-penguins-huddle.jpg", subtitle: "8,888 penguins" },
-  { name: "Azuki", chain: "Ethereum", image: "https://bloomrewards.ghost.io/content/images/2023/05/data-src-image-7a30970e-ed45-4521-ae05-c21f9bf03f0d.png", subtitle: "Anime-inspired icons" },
+  { name: "Azuki", chain: "Ethereum", image: "https://nextmoney.jp/wp-content/uploads/2022/04/%E3%82%B9%E3%82%AF%E3%83%AA%E3%83%BC%E3%83%B3%E3%82%B7%E3%83%A7%E3%83%83%E3%83%88-2022-04-12-16.42.14.jpg", subtitle: "Anime-inspired icons" },
   { name: "Doodles", chain: "Ethereum", image: "https://imageio.forbes.com/specials-images/imageserve/631fd33431b0b6a8ed7ec50a/0x0.jpg?fit=bounds&format=jpg&height=900&width=1600", subtitle: "Colorful culture" },
-  { name: "Moonbirds", chain: "Ethereum", image: "https://www.coinspeaker.com/wp-content/uploads/2022/09/what-are-moonbirds-guide-to-the-pfp-nft-collection.jpg", subtitle: "10K pixel owls" },
+  { name: "Moonbirds", chain: "Ethereum", image: "https://nextnftmint.com/uploads/media/moonbirds_nft.webp", subtitle: "10K pixel owls" },
 ];
 
 const ECOSYSTEMS: Ecosystem[] = [
