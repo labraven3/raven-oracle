@@ -51,7 +51,7 @@ async function parseXError(response: Response) {
   return data?.detail || data?.title || data?.errors?.[0]?.detail || data?.errors?.[0]?.message || `X API request failed (${response.status})`;
 }
 
-async function verifyFollow(userId: string, target: string, fallback: string | null) : Promise<VerificationResult> {
+async function verifyFollow(userId: string, target: string, fallback?: string | null): Promise<VerificationResult> {
   const token = await getToken(userId);
   if ("error" in token) return { verified: false, reason: token.error };
 
@@ -92,8 +92,6 @@ async function verifyLike(userId: string, target: string): Promise<VerificationR
   const tweetId = extractTweetId(target);
   if (!tweetId) return { verified: false, reason: "This Like task has no valid X post URL" };
 
-  // Check the authenticated user's own liked-posts list. This is more reliable than
-  // /liking_users, which is capped at 100 users for a post.
   let page = 0;
   let paginationToken: string | undefined;
   do {
@@ -147,7 +145,7 @@ export async function verifyXTask(taskId: string, entryId: string, userId: strin
   if (!entry || entry.userId !== userId) throw new Error("This raffle entry does not belong to you");
 
   const result = task.type === "X_FOLLOW"
-    ? await verifyFollow(userId, task.targetUrl || task.target, task.raffle.project?.xUrl)
+    ? await verifyFollow(userId, task.targetUrl || task.target, task.raffle.project?.xUrl ?? null)
     : task.type === "X_LIKE"
       ? await verifyLike(userId, task.targetUrl || task.target)
       : await verifyRepost(userId, task.targetUrl || task.target);
