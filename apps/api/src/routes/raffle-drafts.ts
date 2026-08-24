@@ -136,14 +136,13 @@ router.post("/:projectId/:draftId/publish", async (req, res, next) => {
     if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
     const projectId = getId(req, res); if (!projectId) return;
     const owner = await ownedProject(projectId, req.userId); if (owner.error) return res.status(owner.error[0]).json({ success: false, message: owner.error[1] });
-    if (owner.project.status !== "APPROVED") return res.status(400).json({ success: false, message: "Your project must be approved before you can publish a raffle" });
     const existing = await prisma.raffle.findFirst({ where: { id: req.params.draftId, projectId, createdByUserId: req.userId, status: "DRAFT", cancelledAt: null } });
     if (!existing) return res.status(404).json({ success: false, message: "Draft not found" });
     const draft = draftData(existing); const parsed = draftSchema.safeParse(draft);
     if (!parsed.success) return res.status(400).json({ success: false, message: "Invalid draft data", errors: parsed.error.issues });
     const data = parsed.data;
     if (!data.title.trim() || !data.prizeName.trim()) return res.status(400).json({ success: false, message: "Raffle title and prize are required before publishing" });
-    if (!data.startsAt || !data.endsAt) return res.status(400).json({ success: false, message: "Start and end times are required before publishing" });
+    if (!data.startsAt || !data.endsAt) return res.status(400).json({ success: false, message: "Start and end time are required before publishing" });
     const taskIssue = validatePublishedTasks(data.tasks);
     if (taskIssue) return res.status(400).json({ success: false, message: taskIssue });
     const startsAt = new Date(data.startsAt); const endsAt = new Date(data.endsAt); const now = new Date();
