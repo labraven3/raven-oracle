@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/raffles/:id",
-        destination: "/raffle-entry/:id",
+        destination: "/raffle/:id",
       },
       {
         source: "/api/raffles/public",
