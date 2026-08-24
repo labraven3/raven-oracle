@@ -11,28 +11,18 @@ router.get("/", async (_req, res, next) => {
       prisma.project.findMany({
         where: { deletedAt: null, status: { in: ["APPROVED", "SUBMITTED"] }, category: "NFT" },
         orderBy: { createdAt: "desc" },
-        take: 100,
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          description: true,
-          logoUrl: true,
-          bannerUrl: true,
-          category: true,
-          status: true,
-          createdAt: true,
-        },
+        take: 12,
+        select: { id: true, name: true, slug: true, description: true, logoUrl: true, bannerUrl: true, category: true, status: true, createdAt: true },
       }),
       prisma.raffle.findMany({
         where: {
           cancelledAt: null,
           projectId: { not: null },
-          status: { in: ["SCHEDULED", "ACTIVE", "COMPLETED"] },
+          status: { in: ["SCHEDULED", "ACTIVE"] },
           project: { status: { in: ["APPROVED", "SUBMITTED"] }, category: "NFT", deletedAt: null },
         },
         orderBy: [{ status: "asc" }, { startsAt: "desc" }],
-        take: 100,
+        take: 30,
         include: {
           project: { select: { id: true, name: true, logoUrl: true, status: true } },
           _count: { select: { entries: true, winners: true, tasks: true } },
@@ -57,16 +47,14 @@ router.get("/", async (_req, res, next) => {
         project: raffle.project,
         _count: raffle._count,
       };
-    }).filter((raffle) => ["SCHEDULED", "ACTIVE", "COMPLETED"].includes(raffle.status));
+    }).filter((raffle) => ["SCHEDULED", "ACTIVE"].includes(raffle.status));
 
-    res.json({
+    res.setHeader("Cache-Control", "public, max-age=20, stale-while-revalidate=60");
+    return res.json({
       success: true,
       projects,
       raffles: normalizedRaffles,
-      stats: {
-        projects: projects.length,
-        liveRaffles: normalizedRaffles.filter((raffle) => raffle.status === "ACTIVE").length,
-      },
+      stats: { projects: projects.length, liveRaffles: normalizedRaffles.filter((raffle) => raffle.status === "ACTIVE").length },
     });
   } catch (error) {
     next(error);
