@@ -29,7 +29,7 @@ router.get("/", async (req, res, next) => {
     const type = parseType(req.query.projectType);
     const chain = typeof req.query.chain === "string" && req.query.chain !== "ALL" ? req.query.chain.trim() : undefined;
     const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
-    const limit = Math.min(Math.max(Number.parseInt(String(req.query.limit ?? "60"), 10) || 60, 1), 100);
+    const limit = Math.min(Math.max(Number.parseInt(String(req.query.limit ?? "24"), 10) || 24, 1), 60);
 
     const where: Prisma.ProjectWhereInput = {
       deletedAt: null,
@@ -47,7 +47,7 @@ router.get("/", async (req, res, next) => {
     const projects = await prisma.project.findMany({
       where,
       orderBy: { createdAt: "desc" },
-      take: 100,
+      take: limit,
       select: {
         id: true,
         name: true,
@@ -88,6 +88,7 @@ router.get("/", async (req, res, next) => {
       ]),
     );
 
+    res.setHeader("Cache-Control", "public, max-age=20, stale-while-revalidate=60");
     return res.json({
       success: true,
       projects: filtered,
