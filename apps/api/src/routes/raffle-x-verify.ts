@@ -4,6 +4,7 @@ import { env } from "../config/env.js";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { verifyRaffleTask } from "../services/raffle-task-verification.service.js";
+import { verifyXTask } from "../services/raffle-x-task-verification.service.js";
 
 const router = Router();
 
@@ -133,6 +134,7 @@ router.post("/:raffleId/tasks/:taskId/verify", requireAuth, async (req, res, nex
       return res.status(400).json({ success: false, message: "This entry was started after the raffle ended" });
     }
 
+    let result;
     if (["X_FOLLOW", "X_LIKE", "X_REPOST"].includes(task.type)) {
       const refreshed = await refreshXSession(req.userId);
       if (!refreshed.ok) {
@@ -144,9 +146,11 @@ router.post("/:raffleId/tasks/:taskId/verify", requireAuth, async (req, res, nex
           reason: refreshed.reason,
         });
       }
+      result = await verifyXTask(taskId, entry.id, req.userId);
+    } else {
+      result = await verifyRaffleTask(taskId, entry.id, req.userId);
     }
 
-    const result = await verifyRaffleTask(taskId, entry.id, req.userId);
     return res.json({ success: true, taskId, entryId: entry.id, ...result });
   } catch (error) {
     next(error);
