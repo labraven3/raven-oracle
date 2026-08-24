@@ -33,7 +33,7 @@ router.get("/", async (req, res, next) => {
 
     const where: Prisma.ProjectWhereInput = {
       deletedAt: null,
-      status: "APPROVED",
+      status: { in: ["APPROVED", "SUBMITTED"] },
       ...(search
         ? {
             OR: [
