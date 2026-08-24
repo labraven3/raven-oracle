@@ -66,10 +66,12 @@ export async function getProjectApprovalReadiness(projectId: string) {
 
   if (!row) issues.push({ code: "MISSING_CLASSIFICATION", field: "projectType", message: "Project type metadata has not been configured." });
 
+  // NFT approval intentionally only requires a positive supply now.
+  // Collection contract and NFT standard are no longer required.
   if (type === "NFT") {
-    if (!stringValue(metadata, "collectionContractAddress")) issues.push({ code: "MISSING_COLLECTION_CONTRACT", field: "collectionContractAddress", message: "NFT collection contract is required." });
-    if (!Number.isFinite(numberValue(metadata, "supply")) || numberValue(metadata, "supply") <= 0) issues.push({ code: "MISSING_NFT_SUPPLY", field: "supply", message: "NFT supply must be a positive number." });
-    if (!stringValue(metadata, "standard")) issues.push({ code: "MISSING_NFT_STANDARD", field: "standard", message: "NFT standard is required." });
+    if (!Number.isFinite(numberValue(metadata, "supply")) || numberValue(metadata, "supply") <= 0) {
+      issues.push({ code: "MISSING_NFT_SUPPLY", field: "supply", message: "NFT supply must be a positive number." });
+    }
   }
 
   if (type === "TOKEN") {
