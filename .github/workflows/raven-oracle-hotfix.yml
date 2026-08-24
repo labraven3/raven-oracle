@@ -1,0 +1,374 @@
+name: Raven Oracle hotfix
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  hotfix:
+    if: github.event.head_commit.message != 'fix: harden raffle verification and lifecycle'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Apply production fixes
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          def patch(path, old, new, label):
+              p = Path(path)
+              text = p.read_text()
+              if old not in text:
+                  raise SystemExit(f"Patch target not found: {label} in {path}")
+              p.write_text(text.replace(old, new, 1))
+
+          # ------------------------------------------------------------
+          # 1) X OAuth: refresh expiring access tokens instead of turning
+          #    an expired session into the misleading "unable to resolve"
+          #    target error.
+          # ------------------------------------------------------------
+          xoauth = Path('apps/api/src/services/x-oauth.service.ts')
+          text = xoauth.read_text()
+          anchor = 'async function getXUser(accessToken: string) {'
+          if 'export async function refreshXAccessToken' not in text:
+              refresh_fn = r'''export async function refreshXAccessToken(userId: string) {
+  validateXOAuthConfig();
+  const account = await prisma.socialAccount.findFirst({
+    where: { userId, provider: "X", isActive: true },
+  });
+  if (!account?.refreshTokenEncrypted) throw new Error("X session expired. Please reconnect X.");
+
+  const refreshToken = decrypt(account.refreshTokenEncrypted);
+  const body = new URLSearchParams({
+    refresh_token: refreshToken,
+    grant_type: "refresh_token",
+    client_id: env.X_CLIENT_ID!,
+  });
+  const credentials = Buffer.from(`${env.X_CLIENT_ID}:${env.X_CLIENT_SECRET}`).toString("base64");
+  const response = await fetch(X_TOKEN_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Basic ${credentials}`,
+    },
+    body,
+  });
+  const data = await response.json() as {
+    access_token?: string;
+    refresh_token?: string;
+    expires_in?: number;
+    error?: string;
+    error_description?: string;
+  };
+  if (!response.ok || !data.access_token) {
+    throw new Error(data.error_description || data.error || `X token refresh failed (${response.status})`);
+  }
+
+  const updated = await prisma.socialAccount.update({
+    where: { id: account.id },
+    data: {
+      accessTokenEncrypted: encrypt(data.access_token),
+      ...(data.refresh_token ? { refreshTokenEncrypted: encrypt(data.refresh_token) } : {}),
+      tokenExpiresAt: data.expires_in ? new Date(Date.now() + data.expires_in * 1000) : null,
+      isActive: true,
+      disconnectedAt: null,
+    },
+    select: {
+      id: true,
+      userId: true,
+      provider: true,
+      providerAccountId: true,
+      providerUsername: true,
+      displayName: true,
+      avatarUrl: true,
+      isActive: true,
+      connectedAt: true,
+    },
+  });
+
+  return { accessToken: data.access_token, account: updated };
+}
+
+'''
+              if anchor not in text:
+                  raise SystemExit('X OAuth insertion anchor missing')
+              text = text.replace(anchor, refresh_fn + anchor, 1)
+              xoauth.write_text(text)
+
+          # ------------------------------------------------------------
+          # 2) X task verification: refresh expiring sessions and expose
+          #    the real X API failure rather than a generic resolution error.
+          # ------------------------------------------------------------
+          verify = Path('apps/api/src/services/raffle-task-verification.service.ts')
+          text = verify.read_text()
+          patch(
+              verify,
+              'import { decrypt as decryptXToken } from "./x-oauth.service.js";\n',
+              'import { decrypt as decryptXToken, refreshXAccessToken } from "./x-oauth.service.js";\n',
+              'X oauth imports',
+          )
+
+          start = text.index('async function getXAccessToken(userId: string): Promise')
+          end = text.index('\nfunction extractXUsername', start)
+          replacement = '''async function getXAccessToken(userId: string): Promise<{ account: { providerAccountId: string }; accessToken: string } | { error: string }> {
+  let account = await getXAccount(userId);
+  if (!account) return { error: "Connect your X account first" };
+  if (!account.accessTokenEncrypted) return { error: "X account has no usable access token" };
+
+  const refreshWindow = Date.now() + 60_000;
+  if (account.refreshTokenEncrypted && account.tokenExpiresAt && account.tokenExpiresAt.getTime() <= refreshWindow) {
+    try {
+      const refreshed = await refreshXAccessToken(userId);
+      account = await getXAccount(userId) ?? account;
+      return { account: { providerAccountId: refreshed.account.providerAccountId }, accessToken: refreshed.accessToken };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "X session refresh failed. Reconnect X and try again." };
+    }
+  }
+
+  try {
+    return { account: { providerAccountId: account.providerAccountId }, accessToken: decryptXToken(account.accessTokenEncrypted) };
+  } catch {
+    return { error: "Unable to decrypt X access token. Reconnect X and try again." };
+  }
+}
+'''
+          text = text[:start] + replacement + text[end:]
+
+          old_resolve = '''  const response = await xRequest(accessToken, `/users/by/username/${encodeURIComponent(usernameOrId)}`);
+  const data = await response.json().catch(() => null) as { data?: { id: string }; detail?: string } | null;
+  return response.ok ? data?.data?.id ?? null : null;
+}'''
+          new_resolve = '''  const response = await xRequest(accessToken, `/users/by/username/${encodeURIComponent(usernameOrId)}`);
+  const data = await response.json().catch(() => null) as { data?: { id: string }; detail?: string; title?: string } | null;
+  if (!response.ok) {
+    throw new Error(data?.detail || data?.title || `X account lookup failed (${response.status})`);
+  }
+  return data?.data?.id ?? null;
+}'''
+          patch(verify, old_resolve, new_resolve, 'X username resolution')
+
+          old_follow = '''  const targetUserId = await resolveXUserId(tokenData.accessToken, targetValue);
+  if (!targetUserId) return { verified: false, reason: "Unable to resolve the required X account", evidence: { target: targetValue } };
+'''
+          new_follow = '''  let targetUserId: string | null;
+  try {
+    targetUserId = await resolveXUserId(tokenData.accessToken, targetValue);
+  } catch (error) {
+    return {
+      verified: false,
+      reason: error instanceof Error ? error.message : "Unable to resolve the required X account",
+      evidence: { target: targetValue },
+    };
+  }
+  if (!targetUserId) return { verified: false, reason: "The X task target is empty or invalid", evidence: { target: targetValue } };
+'''
+          patch(verify, old_follow, new_follow, 'X follow target handling')
+          verify.write_text(text)
+
+          # ------------------------------------------------------------
+          # 3) Creator project deletion (NFT only) as a safe soft delete.
+          #    Existing raffles/winners remain auditable; open raffles are
+          #    cancelled so they cannot keep accepting entries.
+          # ------------------------------------------------------------
+          projects = Path('apps/api/src/routes/projects.ts')
+          text = projects.read_text()
+          marker = 'router.get("/:id/manage", requireAuth, async (req, res, next) => {'
+          delete_project = '''router.delete("/:id", requireAuth, async (req, res, next) => {
+  try {
+    if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
+    const projectId = getProjectId(req, res);
+    if (!projectId) return;
+
+    await ensureProjectSchema();
+    await ensureProjectTypeSchema();
+
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { id: true, name: true, deletedAt: true, submittedByUserId: true },
+    });
+    if (!project || project.deletedAt) return res.status(404).json({ success: false, message: "Project not found" });
+    if (project.submittedByUserId !== req.userId) return res.status(403).json({ success: false, message: "You do not own this project" });
+
+    const typeRows = await getProjectTypes([projectId]);
+    if ((typeRows.get(projectId) ?? "NFT") !== "NFT") {
+      return res.status(400).json({ success: false, message: "Only NFT projects can be deleted from creator dashboard." });
+    }
+
+    const now = new Date();
+    await prisma.$transaction(async (tx) => {
+      await tx.raffle.updateMany({
+        where: {
+          projectId,
+          status: { in: ["DRAFT", "SCHEDULED", "ACTIVE", "CLOSED"] },
+          cancelledAt: null,
+        },
+        data: { status: "CANCELLED", cancelledAt: now },
+      });
+      await tx.project.update({
+        where: { id: projectId },
+        data: { deletedAt: now, status: "ARCHIVED" },
+      });
+    });
+
+    return res.json({ success: true, message: "NFT project deleted", projectId });
+  } catch (error) { next(error); }
+});
+
+'''
+          if marker not in text:
+              raise SystemExit('Project manage route anchor missing')
+          text = text.replace(marker, delete_project + marker, 1)
+          projects.write_text(text)
+
+          # ------------------------------------------------------------
+          # 4) Creator raffle deletion + robust end-of-raffle transition.
+          #    Completed raffles remain retained for winner/export audit.
+          # ------------------------------------------------------------
+          raffles = Path('apps/api/src/routes/raffles.ts')
+          text = raffles.read_text()
+          marker = 'router.patch("/:id", requireAuth, async (req, res, next) => {'
+          delete_raffle = '''router.delete("/:id", requireAuth, asyncRoute(async (req, res) => {
+  if (!req.userId) { res.status(401).json({ success: false, message: "Authentication required" }); return; }
+  const raffleId = getRaffleId(req, res);
+  if (!raffleId) return;
+  const raffle = await prisma.raffle.findUnique({
+    where: { id: raffleId },
+    select: { id: true, createdByUserId: true, status: true, cancelledAt: true, _count: { select: { winners: true } } },
+  });
+  if (!raffle) { res.status(404).json({ success: false, message: "Raffle not found" }); return; }
+  if (raffle.createdByUserId !== req.userId) { res.status(403).json({ success: false, message: "Only the raffle creator can delete this raffle" }); return; }
+  if (raffle._count.winners > 0 || raffle.status === "COMPLETED") {
+    res.status(400).json({ success: false, message: "Completed raffles with winners are retained so winner exports remain auditable." });
+    return;
+  }
+  if (raffle.cancelledAt || raffle.status === "CANCELLED") {
+    res.status(400).json({ success: false, message: "Raffle is already deleted" });
+    return;
+  }
+  const deleted = await prisma.raffle.update({ where: { id: raffleId }, data: { status: "CANCELLED", cancelledAt: new Date() } });
+  res.json({ success: true, message: "Raffle deleted", raffle: deleted });
+}));
+
+'''
+          if marker not in text:
+              raise SystemExit('Raffle patch anchor missing')
+          text = text.replace(marker, delete_raffle + marker, 1)
+
+          # Allow draw to close an expired ACTIVE/SCHEDULED raffle in the same request.
+          old_draw = '''  const raffle = await prisma.raffle.findUnique({ where: { id: raffleId }, select: { createdByUserId: true, status: true, endsAt: true } });
+    if (!raffle) return res.status(404).json({ success: false, message: "Raffle not found" });
+    if (raffle.createdByUserId !== req.userId) return res.status(403).json({ success: false, message: "Only the raffle creator can draw this raffle" });
+    if (raffle.status !== "CLOSED") return res.status(400).json({ success: false, message: "Raffle entries must be closed before drawing winners" });
+    if (new Date() < raffle.endsAt) return res.status(400).json({ success: false, message: "Raffle cannot be drawn before its end time" });
+'''
+          new_draw = '''  let raffle = await prisma.raffle.findUnique({ where: { id: raffleId }, select: { createdByUserId: true, status: true, endsAt: true } });
+    if (!raffle) return res.status(404).json({ success: false, message: "Raffle not found" });
+    if (raffle.createdByUserId !== req.userId) return res.status(403).json({ success: false, message: "Only the raffle creator can draw this raffle" });
+    if (["SCHEDULED", "ACTIVE"].includes(raffle.status) && new Date() >= raffle.endsAt) {
+      raffle = await prisma.raffle.update({ where: { id: raffleId }, data: { status: "CLOSED" }, select: { createdByUserId: true, status: true, endsAt: true } });
+    }
+    if (raffle.status !== "CLOSED") return res.status(400).json({ success: false, message: "Raffle entries must be closed before drawing winners" });
+    if (new Date() < raffle.endsAt) return res.status(400).json({ success: false, message: "Raffle cannot be drawn before its end time" });
+'''
+          patch(raffles, old_draw, new_draw, 'expired raffle draw transition')
+          raffles.write_text(text)
+
+          # ------------------------------------------------------------
+          # 5) Winners endpoint also closes expired raffles, so the creator
+          #    sees DRAW immediately after the countdown reaches zero.
+          # ------------------------------------------------------------
+          winners = Path('apps/api/src/routes/raffle-winners.ts')
+          text = winners.read_text()
+          old = '''    const raffle = await prisma.raffle.findUnique({ where: { id: raffleId }, select: { id: true, createdByUserId: true, status: true, title: true, winnerCount: true, prizeName: true } });
+    if (!raffle) return res.status(404).json({ success: false, message: "Raffle not found" });
+    const isCreator = raffle.createdByUserId === req.userId;
+'''
+          new = '''    let raffle = await prisma.raffle.findUnique({ where: { id: raffleId }, select: { id: true, createdByUserId: true, status: true, endsAt: true, title: true, winnerCount: true, prizeName: true } });
+    if (!raffle) return res.status(404).json({ success: false, message: "Raffle not found" });
+    if (["SCHEDULED", "ACTIVE"].includes(raffle.status) && new Date() >= raffle.endsAt) {
+      raffle = await prisma.raffle.update({ where: { id: raffleId }, data: { status: "CLOSED" }, select: { id: true, createdByUserId: true, status: true, endsAt: true, title: true, winnerCount: true, prizeName: true } });
+    }
+    const isCreator = raffle.createdByUserId === req.userId;
+'''
+          patch(winners, old, new, 'winner page auto-close')
+          winners.write_text(text)
+
+          # ------------------------------------------------------------
+          # 6) Creator dashboard UI: delete raffle, remove raffle tasks,
+          #    delete NFT project.
+          # ------------------------------------------------------------
+          dashboard = Path('apps/web/app/dashboard/projects/[id]/page.tsx')
+          text = dashboard.read_text()
+          text = text.replace(
+              'const [project, setProject] = useState<Project | null>(null); const [metadata, setMetadata] = useState<Metadata>({}); const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [busy, setBusy] = useState(false); const [message, setMessage] = useState("");',
+              'const [project, setProject] = useState<Project | null>(null); const [metadata, setMetadata] = useState<Metadata>({}); const [loading, setLoading] = useState(true); const [error, setError] = useState(""); const [busy, setBusy] = useState(false); const [deleteBusy, setDeleteBusy] = useState<string | null>(null); const [message, setMessage] = useState("");',
+              1,
+          )
+          old_methods = '''  const addTask = () => setTasks((items) => [...items, { type: "X_FOLLOW", title: "", description: "", target: "", targetUrl: "", isRequired: true }]);
+'''
+          new_methods = '''  const addTask = () => setTasks((items) => [...items, { type: "X_FOLLOW", title: "", description: "", target: "", targetUrl: "", isRequired: true }]);
+  const deleteRaffle = async (raffleId: string, title: string) => {
+    if (!window.confirm(`Delete raffle "${title}"? This cancels it and removes it from active/public listings.`)) return;
+    setDeleteBusy(raffleId); setMessage("");
+    try { await api(`/raffles/${raffleId}`, { method: "DELETE" }); setMessage("Raffle deleted."); await load(); }
+    catch (error) { setMessage(error instanceof Error ? error.message : "Unable to delete raffle"); }
+    finally { setDeleteBusy(null); }
+  };
+  const deleteProject = async () => {
+    if (!project || project.projectType !== "NFT") return;
+    if (!window.confirm(`Delete NFT project "${project.name}"? Existing winner history is retained, while open raffles are cancelled.`)) return;
+    setDeleteBusy("project"); setMessage("");
+    try { await api(`/projects/${project.id}`, { method: "DELETE" }); router.push("/dashboard"); }
+    catch (error) { setMessage(error instanceof Error ? error.message : "Unable to delete project"); }
+    finally { setDeleteBusy(null); }
+  };
+'''
+          patch(dashboard, old_methods, new_methods, 'creator dashboard delete handlers')
+
+          old_controls = '''<div className="flex flex-wrap gap-2"><Link href={`/dashboard/projects/${project.id}/approval`} className={`rounded-xl px-4 py-3 text-xs font-black ${project.status === "REJECTED" ? "border border-red-500/25 bg-red-500/5 text-red-300" : "border border-violet-500/25 bg-violet-500/5 text-violet-300"}`}>{project.status === "REJECTED" ? "Review rejection →" : "Review approval status →"}</Link><Link href={`/dashboard/projects/${project.id}/metadata`} className="rounded-xl border border-white/10 px-4 py-3 text-xs font-black text-zinc-300 hover:bg-white/5">Edit information →</Link><Link href={`/dashboard/projects/${project.id}/drafts`} className="rounded-xl border border-white/10 px-4 py-3 text-xs font-black text-zinc-300 hover:bg-white/5">Raffle drafts →</Link></div>'''
+          new_controls = '''<div className="flex flex-wrap gap-2"><Link href={`/dashboard/projects/${project.id}/approval`} className={`rounded-xl px-4 py-3 text-xs font-black ${project.status === "REJECTED" ? "border border-red-500/25 bg-red-500/5 text-red-300" : "border border-violet-500/25 bg-violet-500/5 text-violet-300"}`}>{project.status === "REJECTED" ? "Review rejection →" : "Review approval status →"}</Link><Link href={`/dashboard/projects/${project.id}/metadata`} className="rounded-xl border border-white/10 px-4 py-3 text-xs font-black text-zinc-300 hover:bg-white/5">Edit information →</Link><Link href={`/dashboard/projects/${project.id}/drafts`} className="rounded-xl border border-white/10 px-4 py-3 text-xs font-black text-zinc-300 hover:bg-white/5">Raffle drafts →</Link>{type === "NFT" && <button onClick={() => void deleteProject()} disabled={deleteBusy === "project"} className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-xs font-black text-red-300 disabled:opacity-40">{deleteBusy === "project" ? "Deleting…" : "Delete NFT project"}</button>}</div>'''
+          # type is declared below this section, so move the type declaration earlier.
+          if old_controls in text:
+              text = text.replace('  const type = project.projectType ?? "NFT"; const summary = metadataSummary(type, metadata);', '', 1)
+              text = text.replace('  const old = "";', '', 0)
+              text = text.replace('  return <main className="min-h-screen', '  const type = project.projectType ?? "NFT"; const summary = metadataSummary(type, metadata);\n  return <main className="min-h-screen', 1)
+              text = text.replace(old_controls, new_controls, 1)
+          else:
+              raise SystemExit('Dashboard controls anchor missing')
+
+          old_raffles = '''{project.raffles.length === 0 ? <div className="mt-6 rounded-xl border border-dashed border-white/10 p-10 text-center text-sm text-zinc-600">No raffles published yet.</div> : <div className="mt-5 space-y-3">{project.raffles.map((raffle) => <Link key={raffle.id} href={`/raffles/${raffle.id}`} className="block rounded-xl border border-white/10 bg-black/20 p-4 hover:border-violet-400/30"><div className="flex items-center justify-between gap-3"><b>{raffle.title}</b><span className="text-[9px] font-black text-zinc-500">{raffle.status}</span></div><p className="mt-1 text-xs text-zinc-500">{raffle.prizeName} · {raffle._count.entries} entries · {raffle._count.tasks} tasks</p></Link>)}</div>}'''
+          new_raffles = '''{project.raffles.length === 0 ? <div className="mt-6 rounded-xl border border-dashed border-white/10 p-10 text-center text-sm text-zinc-600">No raffles published yet.</div> : <div className="mt-5 space-y-3">{project.raffles.map((raffle) => <div key={raffle.id} className="rounded-xl border border-white/10 bg-black/20 p-4"><div className="flex items-center justify-between gap-3"><Link href={`/raffles/${raffle.id}`} className="min-w-0 flex-1 hover:text-violet-300"><b>{raffle.title}</b><p className="mt-1 text-xs text-zinc-500">{raffle.prizeName} · {raffle._count.entries} entries · {raffle._count.tasks} tasks</p></Link><div className="flex items-center gap-2"><span className="text-[9px] font-black text-zinc-500">{raffle.status}</span>{!['COMPLETED','CANCELLED'].includes(raffle.status) && <button onClick={() => void deleteRaffle(raffle.id, raffle.title)} disabled={deleteBusy === raffle.id} className="rounded-lg border border-red-500/20 px-2.5 py-1.5 text-[9px] font-black text-red-300 disabled:opacity-40">{deleteBusy === raffle.id ? "…" : "Delete"}</button>}</div></div></div>)}</div>}'''
+          patch(dashboard, old_raffles, new_raffles, 'raffle list delete action')
+
+          old_task = '''<div key={index} className="rounded-xl border border-white/10 p-3 space-y-2"><select value={task.type} onChange={(e) => updateTask(index, { type: e.target.value as Task["type"] })}><option value="DISCORD_JOIN">Discord Join</option><option value="X_FOLLOW">X Follow</option><option value="X_LIKE">X Like</option><option value="X_REPOST">X Repost</option></select><label className="flex items-center gap-2 text-[10px] text-zinc-500"><input type="checkbox" checked={task.isRequired} onChange={(e) => updateTask(index, { isRequired: e.target.checked })} className="w-auto" /> Required task</label><input required value={task.title} onChange={(e) => updateTask(index, { title: e.target.value })} placeholder="Task title" /><input required value={task.target} onChange={(e) => updateTask(index, { target: e.target.value })} placeholder="X username / post ID / Discord server ID" /><input value={task.targetUrl} onChange={(e) => updateTask(index, { targetUrl: e.target.value })} placeholder="Target URL (optional)" /></div>'''
+          new_task = '''<div key={index} className="rounded-xl border border-white/10 p-3 space-y-2"><div className="flex items-center justify-between gap-2"><b className="text-[10px] text-zinc-500">Task {index + 1}</b><button type="button" onClick={() => setTasks((items) => items.filter((_, i) => i !== index))} disabled={tasks.length === 1} className="rounded-lg border border-red-500/20 px-2 py-1 text-[9px] font-black text-red-300 disabled:opacity-25">Delete task</button></div><select value={task.type} onChange={(e) => updateTask(index, { type: e.target.value as Task["type"] })}><option value="DISCORD_JOIN">Discord Join</option><option value="X_FOLLOW">X Follow</option><option value="X_LIKE">X Like</option><option value="X_REPOST">X Repost</option></select><label className="flex items-center gap-2 text-[10px] text-zinc-500"><input type="checkbox" checked={task.isRequired} onChange={(e) => updateTask(index, { isRequired: e.target.checked })} className="w-auto" /> Required task</label><input required value={task.title} onChange={(e) => updateTask(index, { title: e.target.value })} placeholder="Task title" /><input required value={task.target} onChange={(e) => updateTask(index, { target: e.target.value })} placeholder="X username / post ID / Discord server ID" /><input value={task.targetUrl} onChange={(e) => updateTask(index, { targetUrl: e.target.value })} placeholder="Target URL (optional)" /></div>'''
+          patch(dashboard, old_task, new_task, 'raffle task delete button')
+          dashboard.write_text(text)
+
+          print('Patch application completed.')
+          PY
+
+      - name: Validate
+        run: |
+          npm ci
+          npm run typecheck
+
+      - name: Commit validated hotfix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f scripts/one-shot-hotfix.sh .github/workflows/raven-oracle-hotfix.yml
+          git add -A
+          git commit -m 'fix: harden raffle verification and lifecycle'
+          git push origin main
