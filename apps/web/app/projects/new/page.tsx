@@ -26,6 +26,12 @@ function isoOrUndefined(value: string) {
   return new Date(`${value}T00:00:00.000Z`).toISOString();
 }
 
+function normalizeUrl(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
 export default function NewProject() {
   const router = useRouter();
   const [chains, setChains] = useState<Chain[]>([]);
@@ -33,7 +39,7 @@ export default function NewProject() {
   const [tokenMeta, setTokenMeta] = useState({ symbol: "", contractAddress: "", tokenStandard: "", decimals: "", launchDate: "" });
   const [airdropMeta, setAirdropMeta] = useState({ snapshotDate: "", claimDate: "", allocation: "", eligibility: "", claimUrl: "" });
   const [otherMeta, setOtherMeta] = useState({ subtype: "", externalUrl: "", notes: "" });
-  const [nftMeta, setNftMeta] = useState({ collectionContractAddress: "", supply: "", standard: "" });
+  const [nftMeta, setNftMeta] = useState({ supply: "", mintDate: "TBD" });
   const [logoName, setLogoName] = useState("");
   const [bannerName, setBannerName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -74,9 +80,8 @@ export default function NewProject() {
     };
     if (form.projectType === "OTHER") return otherMeta;
     return {
-      collectionContractAddress: nftMeta.collectionContractAddress,
       supply: nftMeta.supply ? Number(nftMeta.supply) : undefined,
-      standard: nftMeta.standard,
+      mintDate: nftMeta.mintDate.trim() || "TBD",
     };
   };
 
@@ -89,7 +94,17 @@ export default function NewProject() {
     if (form.projectType === "TOKEN" && (!tokenMeta.symbol.trim() || !tokenMeta.contractAddress.trim())) return setMessage("Token symbol and contract address are required.");
     setBusy(true); setMessage("");
     try {
-      const data = await api<{ project: { id: string; name: string; projectType: ProjectType } }>("/projects/", { method: "POST", body: JSON.stringify(form) });
+      const payload = {
+        ...form,
+        websiteUrl: normalizeUrl(form.websiteUrl),
+        xUrl: normalizeUrl(form.xUrl),
+        discordUrl: normalizeUrl(form.discordUrl),
+      };
+
+      const data = await api<{ project: { id: string; name: string; projectType: ProjectType } }>("/projects/", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
       await api(`/project-metadata/${data.project.id}`, { method: "PUT", body: JSON.stringify({ projectType: data.project.projectType, metadata: metadataForType() }) });
       setMessage(`Project “${data.project.name}” (${data.project.projectType}) submitted for approval.`);
       setTimeout(() => router.push(`/dashboard/projects/${data.project.id}`), 400);
@@ -114,7 +129,7 @@ export default function NewProject() {
 
         <div className="mt-6 rounded-xl border border-violet-500/15 bg-violet-500/[.03] p-5">
           <div className="text-[9px] font-black tracking-[.2em] text-violet-300/70">TYPE-SPECIFIC DATA</div>
-          {form.projectType === "NFT" && <div className="mt-4 grid gap-4 md:grid-cols-3"><label>Collection contract<input value={nftMeta.collectionContractAddress} onChange={e => setNftMeta({ ...nftMeta, collectionContractAddress: e.target.value })} placeholder="0x… / Solana address" /></label><label>Supply<input type="number" min="1" value={nftMeta.supply} onChange={e => setNftMeta({ ...nftMeta, supply: e.target.value })} placeholder="10000" /></label><label>Standard<input value={nftMeta.standard} onChange={e => setNftMeta({ ...nftMeta, standard: e.target.value })} placeholder="ERC-721 / SPL" /></label></div>}
+          {form.projectType === "NFT" && <div className="mt-4 grid gap-4 md:grid-cols-2"><label>Supply<input type="number" min="1" value={nftMeta.supply} onChange={e => setNftMeta({ ...nftMeta, supply: e.target.value })} placeholder="10000" /></label><label>Mint date<input value={nftMeta.mintDate} onChange={e => setNftMeta({ ...nftMeta, mintDate: e.target.value })} placeholder="TBD or 2026-09-01" /></label></div>}
           {form.projectType === "TOKEN" && <div className="mt-4 grid gap-4 md:grid-cols-2"><label>Symbol <span className="text-violet-300">*</span><input value={tokenMeta.symbol} onChange={e => setTokenMeta({ ...tokenMeta, symbol: e.target.value })} placeholder="RAVEN" /></label><label>Contract address <span className="text-violet-300">*</span><input value={tokenMeta.contractAddress} onChange={e => setTokenMeta({ ...tokenMeta, contractAddress: e.target.value })} placeholder="0x… / token address" /></label><label>Token standard<input value={tokenMeta.tokenStandard} onChange={e => setTokenMeta({ ...tokenMeta, tokenStandard: e.target.value })} placeholder="ERC-20 / SPL" /></label><label>Decimals<input type="number" min="0" max="36" value={tokenMeta.decimals} onChange={e => setTokenMeta({ ...tokenMeta, decimals: e.target.value })} placeholder="18" /></label><label>Launch date<input type="date" value={tokenMeta.launchDate} onChange={e => setTokenMeta({ ...tokenMeta, launchDate: e.target.value })} /></label></div>}
           {form.projectType === "AIRDROP" && <div className="mt-4 grid gap-4 md:grid-cols-2"><label>Snapshot date<input type="date" value={airdropMeta.snapshotDate} onChange={e => setAirdropMeta({ ...airdropMeta, snapshotDate: e.target.value })} /></label><label>Claim date<input type="date" value={airdropMeta.claimDate} onChange={e => setAirdropMeta({ ...airdropMeta, claimDate: e.target.value })} /></label><label>Allocation<input value={airdropMeta.allocation} onChange={e => setAirdropMeta({ ...airdropMeta, allocation: e.target.value })} placeholder="100M tokens / 5% supply" /></label><label>Claim URL<input value={airdropMeta.claimUrl} onChange={e => setAirdropMeta({ ...airdropMeta, claimUrl: e.target.value })} placeholder="https://project.com/claim" /></label><label className="md:col-span-2">Eligibility<textarea value={airdropMeta.eligibility} onChange={e => setAirdropMeta({ ...airdropMeta, eligibility: e.target.value })} placeholder="Who qualifies and what actions are required?" /></label></div>}
           {form.projectType === "OTHER" && <div className="mt-4 grid gap-4 md:grid-cols-2"><label>Subtype<input value={otherMeta.subtype} onChange={e => setOtherMeta({ ...otherMeta, subtype: e.target.value })} placeholder="Tool, Game, Community…" /></label><label>External URL<input value={otherMeta.externalUrl} onChange={e => setOtherMeta({ ...otherMeta, externalUrl: e.target.value })} placeholder="https://example.com" /></label><label className="md:col-span-2">Notes<textarea value={otherMeta.notes} onChange={e => setOtherMeta({ ...otherMeta, notes: e.target.value })} placeholder="Additional project details" /></label></div>}
