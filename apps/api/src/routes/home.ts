@@ -9,7 +9,7 @@ router.get("/", async (_req, res, next) => {
 
     const [projects, raffles] = await Promise.all([
       prisma.project.findMany({
-        where: { deletedAt: null, status: "APPROVED", category: "NFT" },
+        where: { deletedAt: null, status: { in: ["APPROVED", "SUBMITTED"] }, category: "NFT" },
         orderBy: { createdAt: "desc" },
         take: 100,
         select: {
@@ -20,6 +20,7 @@ router.get("/", async (_req, res, next) => {
           logoUrl: true,
           bannerUrl: true,
           category: true,
+          status: true,
           createdAt: true,
         },
       }),
@@ -28,12 +29,12 @@ router.get("/", async (_req, res, next) => {
           cancelledAt: null,
           projectId: { not: null },
           status: { in: ["SCHEDULED", "ACTIVE", "COMPLETED"] },
-          project: { status: "APPROVED", category: "NFT", deletedAt: null },
+          project: { status: { in: ["APPROVED", "SUBMITTED"] }, category: "NFT", deletedAt: null },
         },
         orderBy: [{ status: "asc" }, { startsAt: "desc" }],
         take: 100,
         include: {
-          project: { select: { id: true, name: true, logoUrl: true } },
+          project: { select: { id: true, name: true, logoUrl: true, status: true } },
           _count: { select: { entries: true, winners: true, tasks: true } },
         },
       }),
