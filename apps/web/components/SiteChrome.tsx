@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import SiteHeader from "./SiteHeader";
 import SiteFooter from "./SiteFooter";
+import CreatorQuickActions from "./CreatorQuickActions";
 
 const routesWithOwnHeader = [
   "/account",
@@ -39,6 +40,7 @@ export default function SiteChrome({ children }: { children: ReactNode }) {
       {isHome && (
         <style>{`main > div.min-h-screen > nav.fixed.top-0.left-0.right-0{display:none!important}`}</style>
       )}
+      <CreatorQuickActions />
       <main className="flex-1">{children}</main>
       <SiteFooter />
     </div>
