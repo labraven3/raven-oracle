@@ -39,6 +39,7 @@ import adminProjectTypesRouter from "../routes/admin-project-types.js";
 import adminProjectChainsRouter from "../routes/admin-project-chains.js";
 import adminLoginMethodsRouter from "../routes/admin-login-methods.js";
 import pendingUserCleanupRouter from "../routes/pending-user-cleanup.js";
+import raffleXVerifyRouter from "../routes/raffle-x-verify.js";
 import raffleHotfixRouter from "../routes/raffle-hotfix.js";
 
 export function createApp() {
@@ -58,6 +59,7 @@ export function createApp() {
   app.use("/api/home", homeRouter);
   app.use("/api/projects/discovery", projectCatalogGuard, projectDiscoveryRouter);
   app.use("/api/projects/onboarding", projectCatalogGuard, projectOnboardingRouter);
+  app.use("/api/raffles", raffleXVerifyRouter);
   app.use("/api/raffles", raffleHotfixRouter);
   app.use("/api/projects", raffleHotfixRouter);
   app.use("/api/projects", projectCatalogGuard, projectsRouter);
