@@ -6,7 +6,28 @@ import { useRouter } from "next/navigation";
 import SiteHeader from "../../../components/SiteHeader";
 import { API_BASE_URL } from "@/lib/api-config";
 
-type Project = { id: string; name: string; projectType?: "NFT" | "TOKEN" | "AIRDROP" | "OTHER"; category: string; status: string; logoUrl?: string | null; chain?: string | null; raffles: Array<{ id: string; title: string; status: string; prizeName: string; startsAt: string; endsAt: string; winnerCount: number; _count: { entries: number; winners: number; tasks: number } }> };
+type Raffle = {
+  id: string;
+  title: string;
+  status: string;
+  prizeName: string;
+  startsAt: string;
+  endsAt: string;
+  winnerCount: number;
+  _count: { entries: number; winners: number; tasks: number };
+};
+
+type Project = {
+  id: string;
+  name: string;
+  projectType?: "NFT" | "TOKEN" | "AIRDROP" | "OTHER";
+  category: string;
+  status: string;
+  logoUrl?: string | null;
+  chain?: string | null;
+  raffles: Raffle[];
+};
+
 type Draft = { id: string; title: string; prizeName: string; updatedAt: string; winnerCount: number; prizeQuantity: number };
 
 async function api<T>(path: string, options: RequestInit = {}) {
@@ -22,7 +43,10 @@ async function api<T>(path: string, options: RequestInit = {}) {
 
 const buckets = ["DRAFT", "SCHEDULED", "ACTIVE", "CLOSED", "COMPLETED"] as const;
 type Bucket = (typeof buckets)[number];
-function formatDate(value: string) { return new Date(value).toLocaleString([], { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" }); }
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleString([], { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
+}
 
 export default function CreatorStudioPage() {
   const router = useRouter();
@@ -34,10 +58,13 @@ export default function CreatorStudioPage() {
   const [creatingProjectId, setCreatingProjectId] = useState<string | null>(null);
 
   const load = async () => {
+    setLoading(true);
+    setError("");
     try {
       const projectData = await api<{ projects: Project[] }>("/projects/mine");
       const list = projectData.projects ?? [];
       setProjects(list);
+
       const draftEntries = await Promise.all(list.map(async (project) => {
         try {
           const result = await api<{ drafts: Draft[] }>(`/raffle-drafts/${project.id}`);
@@ -48,7 +75,7 @@ export default function CreatorStudioPage() {
       }));
       setDrafts(Object.fromEntries(draftEntries));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unable to load Creator Studio");
+      setError(e instanceof Error ? e.message : "Unable to load Creator Dashboard");
     } finally {
       setLoading(false);
     }
@@ -57,10 +84,6 @@ export default function CreatorStudioPage() {
   useEffect(() => { void load(); }, []);
 
   const createRaffle = async (project: Project) => {
-    if (project.status !== "APPROVED") {
-      setError(`${project.name} must be approved before a raffle can be published.`);
-      return;
-    }
     setCreatingProjectId(project.id);
     setError("");
     try {
@@ -89,13 +112,10 @@ export default function CreatorStudioPage() {
   };
 
   const rows = useMemo(() => {
-    const draftRows = bucket === "DRAFT"
-      ? projects.flatMap((project) => (drafts[project.id] ?? []).map((draft) => ({ kind: "draft" as const, project, draft })))
-      : [];
-    const raffleRows = bucket !== "DRAFT"
-      ? projects.flatMap((project) => project.raffles.filter((raffle) => raffle.status === bucket).map((raffle) => ({ kind: "raffle" as const, project, raffle })))
-      : [];
-    return [...draftRows, ...raffleRows];
+    if (bucket === "DRAFT") {
+      return projects.flatMap((project) => (drafts[project.id] ?? []).map((draft) => ({ kind: "draft" as const, project, draft })));
+    }
+    return projects.flatMap((project) => project.raffles.filter((raffle) => raffle.status === bucket).map((raffle) => ({ kind: "raffle" as const, project, raffle })));
   }, [bucket, projects, drafts]);
 
   const counts = useMemo(() => {
@@ -107,35 +127,79 @@ export default function CreatorStudioPage() {
     return result;
   }, [projects, drafts]);
 
-  return <main className="min-h-screen bg-[#06060a] text-zinc-100">
-    <SiteHeader />
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="flex flex-col gap-5 border-b border-white/10 pb-7 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <Link href="/dashboard" className="text-xs text-zinc-600 hover:text-violet-300">← Dashboard</Link>
-          <span className="mt-5 block text-[9px] font-black tracking-[.22em] text-violet-300/70">CREATOR STUDIO</span>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight sm:text-5xl">Manage your projects.</h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-500">Draft, schedule, run and review every raffle from one creator workspace.</p>
+  return (
+    <main className="min-h-screen bg-[#06060a] text-zinc-100">
+      <SiteHeader />
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="flex flex-col gap-5 border-b border-white/10 pb-7 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <Link href="/dashboard" className="text-xs text-zinc-600 hover:text-violet-300">← Dashboard</Link>
+            <span className="mt-5 block text-[9px] font-black tracking-[.22em] text-violet-300/70">CREATOR DASHBOARD</span>
+            <h1 className="mt-2 text-4xl font-semibold tracking-tight sm:text-5xl">Create and manage.</h1>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-zinc-500">Every project you submit can be turned into a raffle immediately. Approval is not a creator-side requirement.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/projects/new" className="rounded-xl border border-white/10 bg-white/[.03] px-5 py-3 text-xs font-black text-zinc-200">+ New NFT Project</Link>
+            <a href="#projects" className="rounded-xl bg-violet-500 px-5 py-3 text-xs font-black text-white">+ Create Raffle</a>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/projects/new" className="rounded-xl border border-white/10 bg-white/[.03] px-5 py-3 text-xs font-black text-zinc-200">+ New Project</Link>
-          {projects.filter((project) => project.status === "APPROVED").length === 1 && (() => { const project = projects.find((item) => item.status === "APPROVED")!; return <button onClick={() => void createRaffle(project)} disabled={creatingProjectId === project.id} className="rounded-xl bg-violet-500 px-5 py-3 text-xs font-black text-white disabled:opacity-50">{creatingProjectId === project.id ? "Opening…" : "+ Create Raffle"}</button>; })()}
+
+        {error && <div className="mt-6 rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-300">{error}</div>}
+
+        <section id="projects" className="mt-7 rounded-3xl border border-white/10 bg-[#0d0c11] p-5 sm:p-7">
+          <div className="flex items-center justify-between gap-4">
+            <div><span className="text-[9px] font-black tracking-[.18em] text-violet-300/60">YOUR PROJECTS</span><h2 className="mt-2 text-2xl font-semibold">Create a raffle</h2></div>
+            <span className="text-[10px] font-black tracking-[.12em] text-zinc-600">{projects.length} PROJECT{projects.length === 1 ? "" : "S"}</span>
+          </div>
+
+          {loading ? <div className="py-12 text-center text-sm text-zinc-600">Loading projects…</div> : projects.length === 0 ? (
+            <div className="mt-5 rounded-2xl border border-dashed border-white/10 p-12 text-center">
+              <p className="text-sm text-zinc-500">Create your first NFT project.</p>
+              <Link href="/projects/new" className="mt-3 inline-block rounded-lg bg-violet-500 px-4 py-2 text-xs font-black text-white">Create Project</Link>
+            </div>
+          ) : (
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              {projects.map((project) => (
+                <div key={project.id} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-black/10 p-4">
+                  <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-black">
+                    {project.logoUrl ? <img src={project.logoUrl} alt="" className="h-full w-full object-cover" /> : project.name.slice(0, 1)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold">{project.name}</div>
+                    <div className="mt-1 text-[10px] text-zinc-600">{project.status} · {project.projectType ?? project.category} · {project.chain ?? "Chain TBA"}</div>
+                  </div>
+                  <button onClick={() => void createRaffle(project)} disabled={creatingProjectId === project.id} className="shrink-0 rounded-lg bg-violet-500 px-3 py-2 text-[10px] font-black text-white disabled:opacity-40">
+                    {creatingProjectId === project.id ? "Opening…" : "Create Raffle"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          {buckets.map((item) => <button key={item} onClick={() => setBucket(item)} className={`rounded-2xl border p-4 text-left transition ${bucket === item ? "border-violet-400/40 bg-violet-500/5" : "border-white/10 bg-[#0d0c11] hover:border-white/20"}`}><span className="text-[9px] font-black tracking-[.15em] text-zinc-600">{item}</span><b className="mt-2 block text-3xl">{counts[item]}</b></button>)}
         </div>
+
+        <section className="mt-7 rounded-3xl border border-white/10 bg-[#0d0c11] p-5 sm:p-7">
+          <div className="flex items-center justify-between gap-4"><div><span className="text-[9px] font-black tracking-[.18em] text-violet-300/60">{bucket}</span><h2 className="mt-2 text-2xl font-semibold">{bucket === "DRAFT" ? "Saved drafts" : `${bucket.toLowerCase()} raffles`}</h2></div><span className="text-[10px] font-black tracking-[.12em] text-zinc-600">{rows.length} ITEM{rows.length === 1 ? "" : "S"}</span></div>
+          {loading ? <div className="py-16 text-center text-sm text-zinc-600">Loading…</div> : rows.length === 0 ? <div className="mt-6 rounded-2xl border border-dashed border-white/10 p-14 text-center"><h3 className="text-lg font-semibold">No {bucket.toLowerCase()} items</h3><p className="mt-2 text-sm text-zinc-500">Use Create Raffle above to start a new giveaway.</p></div> : (
+            <div className="mt-6 space-y-3">
+              {rows.map((row) => row.kind === "draft" ? (
+                <Link key={row.draft.id} href={`/dashboard/projects/${row.project.id}/drafts/${row.draft.id}`} className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-black/10 p-5 hover:border-violet-400/30 md:flex-row md:items-center">
+                  <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-black">{row.project.logoUrl ? <img src={row.project.logoUrl} alt="" className="h-full w-full object-cover" /> : row.project.name.slice(0, 1)}</div>
+                  <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-violet-500/10 px-2 py-1 text-[8px] font-black text-violet-300">DRAFT</span><span className="text-[9px] text-zinc-600">{row.project.name}</span></div><h3 className="mt-2 truncate text-sm font-semibold">{row.draft.title || "Untitled Draft"}</h3><p className="mt-1 text-xs text-zinc-500">{row.draft.prizeName || "Prize TBD"} · {row.draft.winnerCount} winner{row.draft.winnerCount === 1 ? "" : "s"} · updated {formatDate(row.draft.updatedAt)}</p></div><span className="text-xs font-bold text-violet-300">Edit draft →</span>
+                </Link>
+              ) : (
+                <Link key={row.raffle.id} href={`/dashboard/raffles/${row.raffle.id}`} className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-black/10 p-5 hover:border-violet-400/30 md:flex-row md:items-center">
+                  <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-black">{row.project.logoUrl ? <img src={row.project.logoUrl} alt="" className="h-full w-full object-cover" /> : row.project.name.slice(0, 1)}</div>
+                  <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-violet-500/10 px-2 py-1 text-[8px] font-black text-violet-300">{row.raffle.status}</span><span className="text-[9px] text-zinc-600">{row.project.name}</span></div><h3 className="mt-2 truncate text-sm font-semibold">{row.raffle.title}</h3><p className="mt-1 text-xs text-zinc-500">{row.raffle.prizeName} · {row.raffle._count.entries} entries · {row.raffle._count.tasks} tasks · {row.raffle.winnerCount} winner{row.raffle.winnerCount === 1 ? "" : "s"}</p></div><span className="text-xs font-bold text-violet-300">Manage →</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
-
-      {error && <div className="mt-6 rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-300">{error}</div>}
-
-      <section className="mt-7 rounded-3xl border border-white/10 bg-[#0d0c11] p-5 sm:p-7">
-        <div className="flex items-center justify-between gap-4">
-          <div><span className="text-[9px] font-black tracking-[.18em] text-violet-300/60">YOUR PROJECTS</span><h2 className="mt-2 text-2xl font-semibold">Create a raffle</h2></div>
-          <span className="text-[10px] font-black tracking-[.12em] text-zinc-600">{projects.length} PROJECT{projects.length === 1 ? "" : "S"}</span>
-        </div>
-        {loading ? <div className="py-10 text-center text-sm text-zinc-600">Loading projects…</div> : projects.length === 0 ? <div className="mt-5 rounded-2xl border border-dashed border-white/10 p-10 text-center"><p className="text-sm text-zinc-500">Create a project first.</p><Link href="/projects/new" className="mt-3 inline-block text-xs font-bold text-violet-300">Create project →</Link></div> : <div className="mt-5 grid gap-3 md:grid-cols-2">{projects.map((project) => <div key={project.id} className="flex items-center gap-4 rounded-2xl border border-white/10 bg-black/10 p-4"><div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-black">{project.logoUrl ? <img src={project.logoUrl} alt="" className="h-full w-full object-cover" /> : project.name.slice(0, 1)}</div><div className="min-w-0 flex-1"><div className="truncate text-sm font-semibold">{project.name}</div><div className="mt-1 text-[10px] text-zinc-600">{project.status} · {project.projectType ?? project.category}</div></div><button onClick={() => void createRaffle(project)} disabled={project.status !== "APPROVED" || creatingProjectId === project.id} className="shrink-0 rounded-lg bg-violet-500 px-3 py-2 text-[10px] font-black text-white disabled:cursor-not-allowed disabled:opacity-40">{creatingProjectId === project.id ? "Opening…" : "Create Raffle"}</button></div>)}</div>}
-      </section>
-
-      <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{buckets.map((item) => <button key={item} onClick={() => setBucket(item)} className={`rounded-2xl border p-4 text-left transition ${bucket === item ? "border-violet-400/40 bg-violet-500/5" : "border-white/10 bg-[#0d0c11] hover:border-white/20"}`}><span className="text-[9px] font-black tracking-[.15em] text-zinc-600">{item}</span><b className="mt-2 block text-3xl">{counts[item]}</b></button>)}</div>
-
-      <section className="mt-7 rounded-3xl border border-white/10 bg-[#0d0c11] p-5 sm:p-7"><div className="flex items-center justify-between gap-4"><div><span className="text-[9px] font-black tracking-[.18em] text-violet-300/60">{bucket}</span><h2 className="mt-2 text-2xl font-semibold">{bucket === "DRAFT" ? "Saved drafts" : `${bucket.toLowerCase()} raffles`}</h2></div><span className="text-[10px] font-black tracking-[.12em] text-zinc-600">{rows.length} ITEM{rows.length === 1 ? "" : "S"}</span></div>{loading ? <div className="py-20 text-center text-sm text-zinc-600">Loading Creator Studio…</div> : rows.length === 0 ? <div className="mt-6 rounded-2xl border border-dashed border-white/10 p-14 text-center"><h3 className="text-lg font-semibold">No {bucket.toLowerCase()} items</h3><p className="mt-2 text-sm text-zinc-500">Create a project or raffle to start building your creator workspace.</p></div> : <div className="mt-6 space-y-3">{rows.map((row) => row.kind === "draft" ? <Link key={row.draft.id} href={`/dashboard/projects/${row.project.id}/drafts/${row.draft.id}`} className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-black/10 p-5 hover:border-violet-400/30 md:flex-row md:items-center"><div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-black">{row.project.logoUrl ? <img src={row.project.logoUrl} alt="" className="h-full w-full object-cover" /> : row.project.name.slice(0, 1)}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-violet-500/10 px-2 py-1 text-[8px] font-black text-violet-300">DRAFT</span><span className="text-[9px] text-zinc-600">{row.project.projectType ?? row.project.category}</span></div><h3 className="mt-2 truncate text-sm font-semibold">{row.draft.title || "Untitled Draft"}</h3><p className="mt-1 text-xs text-zinc-500">{row.draft.prizeName || "Prize TBD"} · {row.draft.winnerCount} winner{row.draft.winnerCount === 1 ? "" : "s"} · updated {formatDate(row.draft.updatedAt)}</p></div><span className="text-xs font-bold text-violet-300">Edit draft →</span></Link> : <Link key={row.raffle.id} href={`/dashboard/raffles/${row.raffle.id}`} className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-black/10 p-5 hover:border-violet-400/30 md:flex-row md:items-center"><div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-black">{row.project.logoUrl ? <img src={row.project.logoUrl} alt="" className="h-full w-full object-cover" /> : row.project.name.slice(0, 1)}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-violet-500/10 px-2 py-1 text-[8px] font-black text-violet-300">{row.raffle.status}</span><span className="text-[9px] text-zinc-600">{row.project.projectType ?? row.project.category}</span></div><h3 className="mt-2 truncate text-sm font-semibold">{row.raffle.title}</h3><p className="mt-1 text-xs text-zinc-500">{row.raffle.prizeName} · {row.raffle._count.entries} entries · {row.raffle._count.tasks} tasks · {row.raffle.winnerCount} winner{row.raffle.winnerCount === 1 ? "" : "s"}</p></div><div className="flex flex-wrap gap-2 text-[10px] font-bold"><span className="rounded-lg border border-white/10 px-3 py-2">Manage</span>{row.raffle.status === "COMPLETED" && <span className="rounded-lg border border-violet-500/20 bg-violet-500/5 px-3 py-2 text-violet-300">Winners</span>}</div></Link>)}</div>}</section>
-    </div>
-  </main>;
+    </main>
+  );
 }
