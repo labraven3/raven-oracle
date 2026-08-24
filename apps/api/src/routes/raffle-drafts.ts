@@ -4,6 +4,7 @@ import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
+
 const taskSchema = z.object({
   type: z.enum(["X_FOLLOW", "X_LIKE", "X_REPOST", "DISCORD_JOIN"]),
   title: z.string().trim().max(255).default(""),
@@ -26,6 +27,31 @@ const draftSchema = z.object({
   endsAt: z.string().optional().default(""),
   tasks: z.array(taskSchema).default([]),
 });
+
+function taskTargetIssue(task: z.infer<typeof taskSchema>) {
+  const url = task.targetUrl.trim();
+  if (!url) return "A real task URL is required";
+  if (task.type === "X_FOLLOW" && !/^https?:\/\/(?:www\.)?(?:x|twitter)\.com\/[A-Za-z0-9_]{1,15}\/?(?:\?.*)?$/i.test(url)) {
+    return "X Follow must use an X profile URL, e.g. https://x.com/project";
+  }
+  if ((task.type === "X_LIKE" || task.type === "X_REPOST") && !/^https?:\/\/(?:www\.)?(?:x|twitter)\.com\/[^/]+\/status\/\d+(?:\?.*)?$/i.test(url)) {
+    return "X Like/Repost must use an X post URL";
+  }
+  if (task.type === "DISCORD_JOIN" && !/^https?:\/\/(?:www\.)?discord(?:\.gg\/|\.com\/invite\/)[A-Za-z0-9-]+(?:\?.*)?$/i.test(url)) {
+    return "Discord Join must use a Discord invite URL";
+  }
+  return null;
+}
+
+function validatePublishedTasks(tasks: Array<z.infer<typeof taskSchema>>) {
+  for (const [index, task] of tasks.entries()) {
+    if (!task.title.trim()) return `Task ${index + 1} needs a title`;
+    if (!task.target.trim()) return `Task ${index + 1} needs a target`;
+    const issue = taskTargetIssue(task);
+    if (issue) return `Task ${index + 1}: ${issue}`;
+  }
+  return null;
+}
 
 function getId(req: import("express").Request, res: import("express").Response) {
   const value = req.params.projectId;
@@ -67,7 +93,7 @@ router.post("/:projectId", async (req, res, next) => {
   try {
     if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
     const projectId = getId(req, res); if (!projectId) return;
-    const owner = await ownedProject(projectId, req.userId); if (owner.error) return res.status(owner.error[0]).json({ success: owner.error[1] });
+    const owner = await ownedProject(projectId, req.userId); if (owner.error) return res.status(owner.error[0]).json({ success: false, message: owner.error[1] });
     const parsed = draftSchema.safeParse(req.body ?? {});
     if (!parsed.success) return res.status(400).json({ success: false, message: "Invalid draft data", errors: parsed.error.issues });
     const draft = parsed.data;
@@ -118,7 +144,8 @@ router.post("/:projectId/:draftId/publish", async (req, res, next) => {
     const data = parsed.data;
     if (!data.title.trim() || !data.prizeName.trim()) return res.status(400).json({ success: false, message: "Raffle title and prize are required before publishing" });
     if (!data.startsAt || !data.endsAt) return res.status(400).json({ success: false, message: "Start and end times are required before publishing" });
-    if (data.tasks.length === 0 || data.tasks.some((task) => !task.title.trim() || !task.target.trim())) return res.status(400).json({ success: false, message: "Every raffle task needs a title and target" });
+    const taskIssue = validatePublishedTasks(data.tasks);
+    if (taskIssue) return res.status(400).json({ success: false, message: taskIssue });
     const startsAt = new Date(data.startsAt); const endsAt = new Date(data.endsAt); const now = new Date();
     if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || endsAt <= startsAt || endsAt <= now) return res.status(400).json({ success: false, message: "Invalid raffle dates" });
     if (data.winnerCount > data.prizeQuantity) return res.status(400).json({ success: false, message: "Winner count cannot exceed prize quantity" });
