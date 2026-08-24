@@ -55,10 +55,13 @@ export default function SiteHeader() {
         </div>
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           {!authChecked ? null : isLoggedIn ? (
-            <div className="relative" ref={profileRef}>
-              <button type="button" onClick={() => setProfileOpen((open) => !open)} aria-expanded={profileOpen} className="rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 px-3 py-2 text-[9px] font-black text-white shadow-lg shadow-violet-500/20 sm:px-4 sm:text-xs">Profile</button>
-              {profileOpen && <div className="absolute right-0 mt-2 w-48 rounded-xl border border-white/10 bg-[#0d0c11] p-2 shadow-2xl"><Link href="/account" onClick={() => setProfileOpen(false)} className="block rounded-lg px-3 py-2.5 text-xs font-bold text-zinc-200 hover:bg-white/5">My Profile</Link><button type="button" onClick={() => { toggleTheme(); setProfileOpen(false); }} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-xs font-bold text-zinc-200 hover:bg-white/5"><span>Theme</span><span>{theme === "dark" ? "Dark" : "Light"}</span></button></div>}
-            </div>
+            <>
+              <Link href="/dashboard/creator" className="rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-[8px] font-black text-violet-200 hover:border-violet-400/60 hover:bg-violet-500/20 sm:px-4 sm:text-[10px]">Creator Dashboard</Link>
+              <div className="relative" ref={profileRef}>
+                <button type="button" onClick={() => setProfileOpen((open) => !open)} aria-expanded={profileOpen} className="rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 px-3 py-2 text-[9px] font-black text-white shadow-lg shadow-violet-500/20 sm:px-4 sm:text-xs">Profile</button>
+                {profileOpen && <div className="absolute right-0 mt-2 w-48 rounded-xl border border-white/10 bg-[#0d0c11] p-2 shadow-2xl"><Link href="/account" onClick={() => setProfileOpen(false)} className="block rounded-lg px-3 py-2.5 text-xs font-bold text-zinc-200 hover:bg-white/5">My Profile</Link><Link href="/projects/new" onClick={() => setProfileOpen(false)} className="block rounded-lg px-3 py-2.5 text-xs font-bold text-zinc-200 hover:bg-white/5">Submit Project</Link><button type="button" onClick={() => { toggleTheme(); setProfileOpen(false); }} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-xs font-bold text-zinc-200 hover:bg-white/5"><span>Theme</span><span>{theme === "dark" ? "Dark" : "Light"}</span></button></div>}
+              </div>
+            </>
           ) : (
             <Link href="/login" className="rounded-lg border border-white/10 px-3 py-2 text-[9px] font-bold text-white hover:bg-white/5 sm:px-4 sm:text-xs">Login</Link>
           )}
