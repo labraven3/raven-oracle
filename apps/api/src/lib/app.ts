@@ -41,6 +41,7 @@ import adminLoginMethodsRouter from "../routes/admin-login-methods.js";
 import pendingUserCleanupRouter from "../routes/pending-user-cleanup.js";
 import raffleXVerifyRouter from "../routes/raffle-x-verify.js";
 import raffleHotfixRouter from "../routes/raffle-hotfix.js";
+import adminDeleteRouter from "../routes/admin-delete.js";
 
 export function createApp() {
   const app = express();
@@ -77,6 +78,7 @@ export function createApp() {
   app.use("/api/alpha", alphaRouter);
   app.use("/api/chat", chatRouter);
   app.use("/api/admin", projectApprovalGuard);
+  app.use("/api/admin", adminDeleteRouter);
   app.use("/api/admin", adminRouter);
   app.use("/api/admin", adminRafflesRouter);
   app.use("/api/admin/raffle-operations", adminRaffleOperationsRouter);
