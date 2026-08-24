@@ -114,7 +114,7 @@ router.post("/:raffleId/tasks/:taskId/verify", requireAuth, async (req, res, nex
 
     const task = await prisma.raffleTask.findUnique({
       where: { id: taskId },
-      select: { id: true, raffleId: true, type: true },
+      select: { id: true, raffleId: true, type: true, targetUrl: true },
     });
     if (!task || task.raffleId !== raffleId) {
       return res.status(404).json({ success: false, message: "Raffle task not found" });
@@ -128,14 +128,13 @@ router.post("/:raffleId/tasks/:taskId/verify", requireAuth, async (req, res, nex
       return res.status(404).json({ success: false, message: "Start the raffle entry before verifying this task" });
     }
 
-    // Grace period: once an entrant has started before the deadline, they can finish
-    // verification even if the raffle has just moved to CLOSED.
     if (now > raffle.endsAt && entry.createdAt > raffle.endsAt) {
       return res.status(400).json({ success: false, message: "This entry was started after the raffle ended" });
     }
 
-    let result;
-    if (["X_FOLLOW", "X_LIKE", "X_REPOST"].includes(task.type)) {
+    // Cost-control policy: only Follow touches the X API.
+    // Like/Repost are trust-based completion after the user returns from the target.
+    if (task.type === "X_FOLLOW") {
       const refreshed = await refreshXSession(req.userId);
       if (!refreshed.ok) {
         return res.status(400).json({
@@ -146,11 +145,37 @@ router.post("/:raffleId/tasks/:taskId/verify", requireAuth, async (req, res, nex
           reason: refreshed.reason,
         });
       }
-      result = await verifyXTask(taskId, entry.id, req.userId);
-    } else {
-      result = await verifyRaffleTask(taskId, entry.id, req.userId);
+      const result = await verifyXTask(taskId, entry.id, req.userId);
+      return res.json({ success: true, taskId, entryId: entry.id, ...result });
     }
 
+    if (task.type === "X_LIKE" || task.type === "X_REPOST") {
+      const verificationData = {
+        status: "VERIFIED" as const,
+        verifiedAt: new Date(),
+        failureReason: null,
+        evidence: {
+          verificationMode: "RETURN_CLICK",
+          targetUrl: task.targetUrl,
+          userConfirmedReturn: true,
+        },
+      };
+      await prisma.raffleTaskVerification.upsert({
+        where: { raffleTaskId_entryId: { raffleTaskId: task.id, entryId: entry.id } },
+        create: { raffleTaskId: task.id, entryId: entry.id, userId: req.userId, ...verificationData },
+        update: verificationData,
+      });
+      return res.json({
+        success: true,
+        taskId: task.id,
+        entryId: entry.id,
+        verified: true,
+        reason: null,
+        evidence: verificationData.evidence,
+      });
+    }
+
+    const result = await verifyRaffleTask(taskId, entry.id, req.userId);
     return res.json({ success: true, taskId, entryId: entry.id, ...result });
   } catch (error) {
     next(error);
