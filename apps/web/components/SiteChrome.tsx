@@ -18,6 +18,7 @@ const routesWithOwnHeader = [
 
 function hasOwnHeader(pathname: string) {
   if (routesWithOwnHeader.includes(pathname)) return true;
+  if (pathname.startsWith("/dashboard/")) return true;
   if (pathname.startsWith("/projects/")) return true;
   if (pathname.startsWith("/raffles/")) return true;
   return false;
