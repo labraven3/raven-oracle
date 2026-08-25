@@ -32,12 +32,16 @@ export default function ProjectDetail() {
     <SiteHeader/>
     <div className="mx-auto max-w-6xl px-5 py-8">
       <Link href="/projects" className="text-xs text-zinc-500 hover:text-violet-300">← All Projects</Link>
-      <section className="mt-5 overflow-hidden rounded-3xl border border-white/10 bg-[#0d0c11]">
-        <div className="relative flex h-[280px] items-center justify-center overflow-hidden bg-[#0b0b10] sm:h-[360px] lg:h-[400px]">
-          {project.bannerUrl ? <img src={project.bannerUrl} alt={`${project.name} banner`} loading="eager" decoding="async" fetchPriority="high" className="h-full w-full object-contain"/> : <div className="h-full w-full bg-[radial-gradient(circle_at_50%_35%,rgba(139,92,246,.34),transparent_40%),linear-gradient(135deg,#181323,#0b0b0f)]"/>}
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#0d0c11] to-transparent"/>
-          <div className="absolute left-4 top-4 rounded-full border border-white/10 bg-black/55 px-3 py-1.5 text-[9px] font-black text-white backdrop-blur">{project.chain || "TBA"}</div>
-          <div className="absolute right-4 top-4 rounded-full border border-white/10 bg-black/55 px-3 py-1.5 text-[9px] font-black text-emerald-300 backdrop-blur">✓ VERIFIED</div>
+      <section className="mt-5 overflow-hidden rounded-3xl border border-white/10 bg-[#0d0c11] shadow-2xl shadow-black/20">
+        <div className="relative aspect-[3/1] min-h-[220px] w-full overflow-hidden bg-[#090910] sm:min-h-[280px] lg:min-h-[320px]">
+          {project.bannerUrl ? <>
+            <img src={project.bannerUrl} alt="" aria-hidden="true" loading="eager" decoding="async" className="absolute inset-0 h-full w-full object-cover opacity-25 blur-2xl scale-110" />
+            <div className="absolute inset-0 bg-black/20" />
+            <img src={project.bannerUrl} alt={`${project.name} banner`} loading="eager" decoding="async" fetchPriority="high" className="relative z-10 h-full w-full object-contain p-2 sm:p-3" />
+          </> : <div className="h-full w-full bg-[radial-gradient(circle_at_50%_35%,rgba(139,92,246,.34),transparent_40%),linear-gradient(135deg,#181323,#0b0b0f)]"/>}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-28 bg-gradient-to-t from-[#0d0c11] via-[#0d0c11]/30 to-transparent"/>
+          <div className="absolute left-4 top-4 z-30 rounded-full border border-white/10 bg-black/60 px-3 py-1.5 text-[9px] font-black text-white backdrop-blur">{project.chain || "TBA"}</div>
+          <div className="absolute right-4 top-4 z-30 rounded-full border border-emerald-400/20 bg-black/60 px-3 py-1.5 text-[9px] font-black text-emerald-300 backdrop-blur">✓ VERIFIED</div>
         </div>
         <div className="px-6 pb-8 sm:px-9">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end">
@@ -50,10 +54,10 @@ export default function ProjectDetail() {
             </div>
           </div>
           <p className="mt-5 max-w-4xl text-sm leading-7 text-zinc-500">{project.description || "Approved project on Raven Oracle."}</p>
-          <div className="mt-5 flex flex-wrap gap-2">{project.websiteUrl&&<a href={project.websiteUrl} target="_blank" rel="noreferrer" className="rounded-xl border border-white/10 px-4 py-2.5 text-xs">Website ↗</a>}{project.xUrl&&<a href={project.xUrl} target="_blank" rel="noreferrer" className="rounded-xl border border-white/10 px-4 py-2.5 text-xs">X ↗</a>}{project.discordUrl&&<a href={project.discordUrl} target="_blank" rel="noreferrer" className="rounded-xl border border-white/10 px-4 py-2.5 text-xs">Discord ↗</a>}</div>
+          <div className="mt-5 flex flex-wrap gap-2">{project.websiteUrl&&<a href={project.websiteUrl} target="_blank" rel="noreferrer" className="rounded-xl border border-white/10 bg-white/[.02] px-4 py-2.5 text-xs hover:border-violet-400/30">Website ↗</a>}{project.xUrl&&<a href={project.xUrl} target="_blank" rel="noreferrer" className="rounded-xl border border-white/10 bg-white/[.02] px-4 py-2.5 text-xs hover:border-violet-400/30">X ↗</a>}{project.discordUrl&&<a href={project.discordUrl} target="_blank" rel="noreferrer" className="rounded-xl border border-white/10 bg-white/[.02] px-4 py-2.5 text-xs hover:border-violet-400/30">Discord ↗</a>}</div>
         </div>
       </section>
-      <section className="mt-10"><div className="flex items-end justify-between"><div><span className="text-[9px] font-black tracking-[.2em] text-violet-300/60">PROJECT RAFFLES</span><h2 className="mt-2 text-3xl font-medium">Live & upcoming</h2></div><Link href="/raffles" className="text-xs font-bold text-violet-300">Browse all →</Link></div>{live.length===0?<div className="mt-6 rounded-2xl border border-dashed border-white/10 p-14 text-center text-sm text-zinc-600">No live or upcoming raffles right now.</div>:<div className="mt-6 grid gap-4 md:grid-cols-2">{live.map(r=><Link key={r.id} href={`/raffles/${r.id}`} className="rounded-2xl border border-white/10 bg-[#0d0c11] p-6 hover:border-violet-400/30"><span className="text-[9px] font-black text-emerald-300">{r.status}</span><h3 className="mt-4 text-xl font-medium">{r.title}</h3><p className="mt-2 text-xs text-zinc-500">{r.prizeName} · {r.prizeQuantity} whitelist spot{r.prizeQuantity===1?"":"s"}</p></Link>)}</div>}</section>
+      <section className="mt-10"><div className="flex items-end justify-between"><div><span className="text-[9px] font-black tracking-[.2em] text-violet-300/60">PROJECT RAFFLES</span><h2 className="mt-2 text-3xl font-medium">Live & upcoming</h2></div><Link href="/raffles" className="text-xs font-bold text-violet-300">Browse all →</Link></div>{live.length===0?<div className="mt-6 rounded-2xl border border-dashed border-white/10 p-14 text-center text-sm text-zinc-600">No live or upcoming raffles right now.</div>:<div className="mt-6 grid gap-4 md:grid-cols-2">{live.map(r=><Link key={r.id} href={`/raffles/${r.id}`} className="rounded-2xl border border-white/10 bg-[#0d0c11] p-6 transition hover:border-violet-400/30 hover:bg-violet-500/[.02]"><span className="text-[9px] font-black text-emerald-300">{r.status}</span><h3 className="mt-4 text-xl font-medium">{r.title}</h3><p className="mt-2 text-xs text-zinc-500">{r.prizeName} · {r.prizeQuantity} whitelist spot{r.prizeQuantity===1?"":"s"}</p></Link>)}</div>}</section>
     </div>
   </main>;
 }
