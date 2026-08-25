@@ -1,5 +1,4 @@
 import type { NextFunction, Request, Response } from "express";
-import { requireAdminAuth } from "./auth.js";
 
 const LEGACY_CATEGORIES = new Set(["GAME", "TOOL", "DEFI", "COMMUNITY"]);
 
@@ -18,10 +17,7 @@ export async function projectCatalogGuard(req: Request, res: Response, next: Nex
     });
   }
 
-  // NFT project creation is admin-only. Public project discovery/reads remain open.
-  if (req.method === "POST" && req.path === "/") {
-    return requireAdminAuth(req, res, next);
-  }
-
+  // Project creation is handled by the projects route with normal user authentication.
+  // Submitted projects remain hidden until an admin approves them.
   return next();
 }
