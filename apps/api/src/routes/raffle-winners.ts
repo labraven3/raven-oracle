@@ -69,17 +69,23 @@ router.get("/:raffleId/winners", requireAuth, async (req, res, next) => {
     const raffle = await prisma.raffle.findUnique({ where: { id: raffleId }, select: { id: true, createdByUserId: true, status: true, title: true, winnerCount: true, prizeName: true } });
     if (!raffle) return res.status(404).json({ success: false, message: "Raffle not found" });
     const isCreator = raffle.createdByUserId === req.userId;
-    const winnerSelect = {
-      id: true, entryId: true, userId: true, walletAddressSnapshot: true, selectionRank: true, status: true,
-      notificationStatus: true, selectedAt: true, notifiedAt: true,
-      user: {
-        select: {
-          displayName: true, username: true, email: true, emailVerifiedAt: true,
-          ...(isCreator ? { socialAccounts: { where: { isActive: true, provider: { in: ["X", "DISCORD"] } }, select: { provider: true, providerUsername: true, displayName: true } } } : {}),
+    const winners = await prisma.raffleWinner.findMany({
+      where: isCreator ? { raffleId } : { raffleId, userId: req.userId },
+      orderBy: { selectionRank: "asc" },
+      select: {
+        id: true, entryId: true, userId: true, walletAddressSnapshot: true, selectionRank: true,
+        status: true, notificationStatus: true, selectedAt: true, notifiedAt: true,
+        user: {
+          select: {
+            displayName: true, username: true, email: true, emailVerifiedAt: true,
+            socialAccounts: {
+              where: { isActive: true, provider: { in: ["X", "DISCORD"] } },
+              select: { provider: true, providerUsername: true, displayName: true },
+            },
+          },
         },
       },
-    } as const;
-    const winners = await prisma.raffleWinner.findMany({ where: isCreator ? { raffleId } : { raffleId, userId: req.userId }, orderBy: { selectionRank: "asc" }, select: winnerSelect });
+    });
     return res.json({ success: true, raffle, winners, viewer: isCreator ? "CREATOR" : "WINNER" });
   } catch (error) { next(error); }
 });
