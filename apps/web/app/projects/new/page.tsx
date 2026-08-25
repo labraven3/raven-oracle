@@ -40,21 +40,36 @@ export default function NewProject() {
 
   useEffect(() => {
     let cancelled = false;
-    const token = localStorage.getItem("raven_token");
-    if (!token) {
-      router.replace("/login?next=/projects/new");
-      return;
-    }
-    setAuthorized(true);
-    fetch(`${API_BASE_URL}/chains`, { cache: "no-store" })
-      .then(async (r) => { const data = await r.json().catch(() => ({})); if (!r.ok) throw new Error(data.message ?? "Unable to load chains"); return data as { chains?: Chain[] }; })
-      .then((data) => {
+    const checkAccessAndLoad = async () => {
+      setChecking(true);
+      const token = localStorage.getItem("raven_token");
+      try {
+        const response = await fetch(`${API_BASE_URL}/auth/me`, {
+          method: "GET",
+          credentials: "include",
+          cache: "no-store",
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        if (!response.ok) {
+          if (!cancelled) router.replace("/login?next=/projects/new");
+          return;
+        }
+        if (cancelled) return;
+        setAuthorized(true);
+
+        const chainsResponse = await fetch(`${API_BASE_URL}/chains`, { credentials: "include", cache: "no-store" });
+        const data = await chainsResponse.json().catch(() => ({}));
+        if (!chainsResponse.ok) throw new Error(data.message ?? "Unable to load chains");
         if (cancelled) return;
         setChains(data.chains ?? []);
-        if (data.chains?.[0]) setForm((current) => ({ ...current, chain: current.chain || data.chains![0].name }));
-      })
-      .catch((error) => { if (!cancelled) setMessage(error instanceof Error ? error.message : "Unable to load chains"); })
-      .finally(() => { if (!cancelled) setChecking(false); });
+        if (data.chains?.[0]) setForm((current) => ({ ...current, chain: current.chain || data.chains[0].name }));
+      } catch (error) {
+        if (!cancelled) setMessage(error instanceof Error ? error.message : "Unable to load project submission");
+      } finally {
+        if (!cancelled) setChecking(false);
+      }
+    };
+    void checkAccessAndLoad();
     return () => { cancelled = true; };
   }, [router]);
 
