@@ -19,11 +19,7 @@ async function api<T>(path: string, options: RequestInit = {}) {
 
 const emptyTask = (): Task => ({ type: "DISCORD_JOIN", target: "", targetUrl: "", isRequired: true });
 function inputDate(value: string) { if (!value) return ""; const d = new Date(value); return Number.isNaN(d.getTime()) ? "" : new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); }
-function normalizedTask(task: Task): Task {
-  if (task.type === "X_FOLLOW") { const username = task.target.trim().replace(/^@/, ""); return { ...task, target: username, targetUrl: username ? `https://x.com/${username}` : "" }; }
-  const url = task.targetUrl || task.target;
-  return { ...task, target: url, targetUrl: url };
-}
+function normalizedTask(task: Task): Task { if (task.type === "X_FOLLOW") { const username = task.target.trim().replace(/^@/, ""); return { ...task, target: username, targetUrl: username ? `https://x.com/${username}` : "" }; } const url = task.targetUrl || task.target; return { ...task, target: url, targetUrl: url }; }
 
 export default function DraftEditor() {
   const { id, draftId } = useParams<{ id: string; draftId: string }>(); const router = useRouter();
@@ -31,7 +27,7 @@ export default function DraftEditor() {
   const [form, setForm] = useState({ title: "", description: "", prizeName: "", winnerCount: 1, startsAt: "", endsAt: "", raffleType: "RAFFLE" as RaffleType });
   const [tasks, setTasks] = useState<Task[]>([emptyTask()]);
 
-  useEffect(() => { void (async () => { try { const data = await api<{ drafts: Array<Draft & { updatedAt: string; createdAt: string }> }>(`/raffle-drafts/${id}`); const item = data.drafts.find((row) => row.id === draftId); if (!item) throw new Error("Draft not found"); setDraft(item); const raw = item as Draft & { entryRules?: unknown }; const rules = raw.entryRules && typeof raw.entryRules === "object" ? raw.entryRules as Record<string, unknown> : {}; const storedType = rules.raffleType === "FCFS" ? "FCFS" : "RAFFLE"; setForm({ title: item.title ?? "", description: item.description ?? "", prizeName: item.prizeName ?? "", winnerCount: item.winnerCount ?? 1, startsAt: inputDate(item.startsAt), endsAt: inputDate(item.endsAt), raffleType: storedType }); setTasks(item.tasks?.length ? item.tasks.map(normalizedTask) : [emptyTask()]); } catch (e) { setError(e instanceof Error ? e.message : "Unable to load draft"); } })(); }, [id, draftId]);
+  useEffect(() => { void (async () => { try { const data = await api<{ drafts: Array<Draft & { updatedAt: string; createdAt: string }> }>(`/raffle-drafts/${id}`); const item = data.drafts.find((row) => row.id === draftId); if (!item) throw new Error("Draft not found"); setDraft(item); const storedType = item.raffleType === "FCFS" ? "FCFS" : "RAFFLE"; setForm({ title: item.title ?? "", description: item.description ?? "", prizeName: item.prizeName ?? "", winnerCount: item.winnerCount ?? 1, startsAt: inputDate(item.startsAt), endsAt: inputDate(item.endsAt), raffleType: storedType }); setTasks(item.tasks?.length ? item.tasks.map(normalizedTask) : [emptyTask()]); } catch (e) { setError(e instanceof Error ? e.message : "Unable to load draft"); } })(); }, [id, draftId]);
 
   const updateTask = (index: number, patch: Partial<Task>) => setTasks((items) => items.map((item, i) => i === index ? normalizedTask({ ...item, ...patch }) : item));
   const payload = () => ({ title: form.title, description: form.description, prizeName: form.prizeName, prizeDescription: "", prizeQuantity: form.winnerCount, winnerCount: form.winnerCount, maxEntriesPerUser: 1, fairnessAlgorithmVersion: "", raffleType: form.raffleType, startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : "", endsAt: form.endsAt ? new Date(form.endsAt).toISOString() : "", tasks: tasks.map(normalizedTask) });
