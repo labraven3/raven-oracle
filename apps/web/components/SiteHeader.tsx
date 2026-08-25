@@ -23,56 +23,23 @@ export default function SiteHeader() {
       const token = localStorage.getItem("raven_token");
       const tokenPresent = Boolean(token);
       const cachedUntil = Number(sessionStorage.getItem("raven_auth_cache_until") ?? "0");
-
-      if (tokenPresent && cachedUntil > Date.now()) {
-        setIsLoggedIn(true);
-        setAuthChecked(true);
-        return;
-      }
-
-      setIsLoggedIn(tokenPresent);
-      setAuthChecked(true);
-
+      if (tokenPresent && cachedUntil > Date.now()) { setIsLoggedIn(true); setAuthChecked(true); return; }
+      setIsLoggedIn(tokenPresent); setAuthChecked(true);
       try {
-        const response = await fetch(`${API_BASE_URL}/auth/me`, {
-          credentials: "include",
-          cache: "no-store",
-          headers: tokenPresent ? { Authorization: `Bearer ${token}` } : undefined,
-        });
+        const response = await fetch(`${API_BASE_URL}/auth/me`, { credentials: "include", cache: "no-store", headers: tokenPresent ? { Authorization: `Bearer ${token}` } : undefined });
         if (cancelled) return;
-        if (response.ok) {
-          setIsLoggedIn(true);
-          sessionStorage.setItem("raven_auth_cache_until", String(Date.now() + AUTH_CACHE_MS));
-        } else if (!tokenPresent) {
-          setIsLoggedIn(false);
-          sessionStorage.removeItem("raven_auth_cache_until");
-        }
-      } catch {
-        if (!cancelled) setIsLoggedIn(tokenPresent);
-      }
+        if (response.ok) { setIsLoggedIn(true); sessionStorage.setItem("raven_auth_cache_until", String(Date.now() + AUTH_CACHE_MS)); }
+        else if (!tokenPresent) { setIsLoggedIn(false); sessionStorage.removeItem("raven_auth_cache_until"); }
+      } catch { if (!cancelled) setIsLoggedIn(tokenPresent); }
     };
-
     void syncAuth();
-    const onStorage = (event: StorageEvent) => {
-      if (event.key === "raven_token") void syncAuth();
-    };
+    const onStorage = (event: StorageEvent) => { if (event.key === "raven_token") void syncAuth(); };
     const onAuthChanged = () => void syncAuth();
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("raven-auth-changed", onAuthChanged);
-    return () => {
-      cancelled = true;
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("raven-auth-changed", onAuthChanged);
-    };
+    window.addEventListener("storage", onStorage); window.addEventListener("raven-auth-changed", onAuthChanged);
+    return () => { cancelled = true; window.removeEventListener("storage", onStorage); window.removeEventListener("raven-auth-changed", onAuthChanged); };
   }, [pathname]);
 
-  useEffect(() => {
-    const onPointerDown = (event: MouseEvent) => {
-      if (profileRef.current && !profileRef.current.contains(event.target as Node)) setProfileOpen(false);
-    };
-    document.addEventListener("mousedown", onPointerDown);
-    return () => document.removeEventListener("mousedown", onPointerDown);
-  }, []);
+  useEffect(() => { const onPointerDown = (event: MouseEvent) => { if (profileRef.current && !profileRef.current.contains(event.target as Node)) setProfileOpen(false); }; document.addEventListener("mousedown", onPointerDown); return () => document.removeEventListener("mousedown", onPointerDown); }, []);
 
   const nav = [["/projects", "NFT Projects"], ["/raffles", "Raffles"], ["/how-it-works", "How it Works"]] as const;
 
@@ -88,7 +55,7 @@ export default function SiteHeader() {
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           {!authChecked ? null : isLoggedIn ? (
             <>
-              <Link href="/dashboard/creator" className="rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-[8px] font-black text-violet-200 hover:border-violet-400/60 hover:bg-violet-500/20 sm:px-4 sm:text-[10px]">Creator Dashboard</Link>
+              <Link href="/dashboard/creator" className="rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-[8px] font-black text-violet-200 hover:border-violet-400/60 hover:bg-violet-500/20 sm:px-4 sm:text-[10px]">Dashboard</Link>
               <div className="relative" ref={profileRef}>
                 <button type="button" onClick={() => setProfileOpen((open) => !open)} aria-expanded={profileOpen} className="rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 px-3 py-2 text-[9px] font-black text-white shadow-lg shadow-violet-500/20 sm:px-4 sm:text-xs">Profile</button>
                 {profileOpen && <div className="absolute right-0 mt-2 w-48 rounded-xl border border-white/10 bg-[#0d0c11] p-2 shadow-2xl"><Link href="/account" onClick={() => setProfileOpen(false)} className="block rounded-lg px-3 py-2.5 text-xs font-bold text-zinc-200 hover:bg-white/5">My Profile</Link><Link href="/projects/new" onClick={() => setProfileOpen(false)} className="block rounded-lg px-3 py-2.5 text-xs font-bold text-zinc-200 hover:bg-white/5">Submit Project</Link><button type="button" onClick={() => { toggleTheme(); setProfileOpen(false); }} className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-xs font-bold text-zinc-200 hover:bg-white/5"><span>Theme</span><span>{theme === "dark" ? "Dark" : "Light"}</span></button></div>}
