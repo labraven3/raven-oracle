@@ -5,6 +5,8 @@ import { getProjectChains } from "../services/chain-config.service.js";
 
 const router = Router();
 const PROJECT_TYPES = ["NFT", "TOKEN", "AIRDROP", "OTHER"] as const;
+const CACHE_MS = 10_000;
+const cache = new Map<string, { expiresAt: number; payload: unknown }>();
 
 type ProjectType = (typeof PROJECT_TYPES)[number];
 
@@ -30,6 +32,12 @@ router.get("/", async (req, res, next) => {
     const chain = typeof req.query.chain === "string" && req.query.chain !== "ALL" ? req.query.chain.trim() : undefined;
     const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
     const limit = Math.min(Math.max(Number.parseInt(String(req.query.limit ?? "24"), 10) || 24, 1), 60);
+    const cacheKey = JSON.stringify({ type: type ?? "ALL", chain: chain ?? "ALL", search, limit });
+    const hit = cache.get(cacheKey);
+    if (hit && hit.expiresAt > Date.now()) {
+      res.setHeader("Cache-Control", "public, max-age=5, stale-while-revalidate=15");
+      return res.json(hit.payload);
+    }
 
     const where: Prisma.ProjectWhereInput = {
       deletedAt: null,
@@ -81,21 +89,21 @@ router.get("/", async (req, res, next) => {
       .filter((project) => !chain || project.chain === chain)
       .slice(0, limit);
 
-    const counts = Object.fromEntries(
-      PROJECT_TYPES.map((projectType) => [
-        projectType,
-        enriched.filter((project) => project.projectType === projectType).length,
-      ]),
-    );
-
-    res.setHeader("Cache-Control", "public, max-age=20, stale-while-revalidate=60");
-    return res.json({
+    const payload = {
       success: true,
       projects: filtered,
       total: filtered.length,
-      counts: { ALL: enriched.length, ...counts },
+      counts: { ALL: enriched.length, ...Object.fromEntries(PROJECT_TYPES.map((projectType) => [projectType, enriched.filter((project) => project.projectType === projectType).length])) },
       filters: { projectType: type ?? "ALL", chain: chain ?? "ALL", search },
-    });
+    };
+
+    cache.set(cacheKey, { expiresAt: Date.now() + CACHE_MS, payload });
+    if (cache.size > 50) {
+      for (const [key, value] of cache) if (value.expiresAt <= Date.now()) cache.delete(key);
+    }
+
+    res.setHeader("Cache-Control", "public, max-age=5, stale-while-revalidate=15");
+    return res.json(payload);
   } catch (error) {
     next(error);
   }
