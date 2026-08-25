@@ -7,6 +7,8 @@ import { API_BASE_URL } from "@/lib/api-config";
 import { useTheme } from "@/contexts/ThemeContext";
 import RavenLogo from "./RavenLogo";
 
+const AUTH_CACHE_MS = 30_000;
+
 export default function SiteHeader() {
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
@@ -18,26 +20,56 @@ export default function SiteHeader() {
   useEffect(() => {
     let cancelled = false;
     const syncAuth = async () => {
-      const tokenPresent = Boolean(localStorage.getItem("raven_token"));
-      if (!cancelled) { setIsLoggedIn(tokenPresent); setAuthChecked(true); }
+      const token = localStorage.getItem("raven_token");
+      const tokenPresent = Boolean(token);
+      const cachedUntil = Number(sessionStorage.getItem("raven_auth_cache_until") ?? "0");
+
+      if (tokenPresent && cachedUntil > Date.now()) {
+        setIsLoggedIn(true);
+        setAuthChecked(true);
+        return;
+      }
+
+      setIsLoggedIn(tokenPresent);
+      setAuthChecked(true);
+
       try {
-        const response = await fetch(`${API_BASE_URL}/auth/me`, { credentials: "include", cache: "no-store", headers: tokenPresent ? { Authorization: `Bearer ${localStorage.getItem("raven_token")}` } : undefined });
-        if (!cancelled && response.ok) setIsLoggedIn(true);
-        else if (!cancelled && !tokenPresent) setIsLoggedIn(false);
-      } catch { if (!cancelled) setIsLoggedIn(tokenPresent); }
+        const response = await fetch(`${API_BASE_URL}/auth/me`, {
+          credentials: "include",
+          cache: "no-store",
+          headers: tokenPresent ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        if (cancelled) return;
+        if (response.ok) {
+          setIsLoggedIn(true);
+          sessionStorage.setItem("raven_auth_cache_until", String(Date.now() + AUTH_CACHE_MS));
+        } else if (!tokenPresent) {
+          setIsLoggedIn(false);
+          sessionStorage.removeItem("raven_auth_cache_until");
+        }
+      } catch {
+        if (!cancelled) setIsLoggedIn(tokenPresent);
+      }
     };
+
     void syncAuth();
-    const onStorage = (event: StorageEvent) => { if (event.key === "raven_token") void syncAuth(); };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === "raven_token") void syncAuth();
+    };
     const onAuthChanged = () => void syncAuth();
-    const onPageShow = () => void syncAuth();
     window.addEventListener("storage", onStorage);
     window.addEventListener("raven-auth-changed", onAuthChanged);
-    window.addEventListener("pageshow", onPageShow);
-    return () => { cancelled = true; window.removeEventListener("storage", onStorage); window.removeEventListener("raven-auth-changed", onAuthChanged); window.removeEventListener("pageshow", onPageShow); };
+    return () => {
+      cancelled = true;
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("raven-auth-changed", onAuthChanged);
+    };
   }, [pathname]);
 
   useEffect(() => {
-    const onPointerDown = (event: MouseEvent) => { if (profileRef.current && !profileRef.current.contains(event.target as Node)) setProfileOpen(false); };
+    const onPointerDown = (event: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) setProfileOpen(false);
+    };
     document.addEventListener("mousedown", onPointerDown);
     return () => document.removeEventListener("mousedown", onPointerDown);
   }, []);
