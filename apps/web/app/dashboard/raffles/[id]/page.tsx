@@ -10,66 +10,24 @@ type Entry = { id: string; status: string; riskScore?: number | null; riskLevel?
 type Raffle = { id: string; title: string; description?: string | null; prizeName: string; status: string; startsAt: string; endsAt: string; winnerCount: number; prizeQuantity: number; project?: { id: string; name: string; logoUrl?: string | null } | null; };
 
 async function api<T>(path: string, options: RequestInit = {}) {
-  const headers = new Headers(options.headers);
-  const token = typeof window !== "undefined" ? localStorage.getItem("raven_token") : null;
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-  headers.set("Content-Type", "application/json");
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers, credentials: "include", cache: "no-store" });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.message ?? `Request failed (${response.status})`);
-  return data as T;
+  const headers = new Headers(options.headers); const token = typeof window !== "undefined" ? localStorage.getItem("raven_token") : null; if (token) headers.set("Authorization", `Bearer ${token}`); headers.set("Content-Type", "application/json");
+  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers, credentials: "include", cache: "no-store" }); const data = await response.json().catch(() => ({})); if (!response.ok) throw new Error(data.message ?? `Request failed (${response.status})`); return data as T;
 }
 
 export default function CreatorRaffleOperations() {
   const { id } = useParams<{ id: string }>();
-  const [raffle, setRaffle] = useState<Raffle | null>(null);
-  const [entries, setEntries] = useState<Entry[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState("");
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-
-  const load = async () => {
-    setLoading(true); setError("");
-    try {
-      const [raffleData, entryData] = await Promise.all([
-        api<{ raffle: Raffle }>(`/raffles/${id}`),
-        api<{ entries: Entry[] }>(`/raffles/${id}/entries`),
-      ]);
-      setRaffle(raffleData.raffle); setEntries(entryData.entries ?? []);
-    } catch (e) { setError(e instanceof Error ? e.message : "Unable to load raffle operations"); }
-    finally { setLoading(false); }
-  };
-
+  const [raffle, setRaffle] = useState<Raffle | null>(null); const [entries, setEntries] = useState<Entry[]>([]); const [loading, setLoading] = useState(true); const [busy, setBusy] = useState(""); const [message, setMessage] = useState(""); const [error, setError] = useState("");
+  const load = async () => { setLoading(true); setError(""); try { const [raffleData, entryData] = await Promise.all([api<{ raffle: Raffle }>(`/raffles/${id}`), api<{ entries: Entry[] }>(`/raffles/${id}/entries`)]); setRaffle(raffleData.raffle); setEntries(entryData.entries ?? []); } catch (e) { setError(e instanceof Error ? e.message : "Unable to load raffle operations"); } finally { setLoading(false); } };
   useEffect(() => { void load(); }, [id]);
-
   const counts = useMemo(() => entries.reduce((acc, entry) => { acc[entry.status] = (acc[entry.status] ?? 0) + 1; return acc; }, {} as Record<string, number>), [entries]);
-
-  const action = async (key: string, path: string, method = "POST") => {
-    setBusy(key); setError(""); setMessage("");
-    try {
-      const data = await api<{ message?: string; evaluated?: number; eligible?: number; ineligible?: number; failed?: number }>(path, { method });
-      if (data.evaluated !== undefined) setMessage(`Evaluated ${data.evaluated}: ${data.eligible ?? 0} eligible, ${data.ineligible ?? 0} ineligible, ${data.failed ?? 0} failed.`);
-      else setMessage(data.message ?? "Action completed successfully.");
-      await load();
-    } catch (e) { setError(e instanceof Error ? e.message : "Action failed"); }
-    finally { setBusy(""); }
-  };
-
+  const action = async (key: string, path: string, method = "POST") => { setBusy(key); setError(""); setMessage(""); try { const data = await api<{ message?: string; evaluated?: number; eligible?: number; ineligible?: number; failed?: number }>(path, { method }); if (data.evaluated !== undefined) setMessage(`Evaluated ${data.evaluated}: ${data.eligible ?? 0} eligible, ${data.ineligible ?? 0} ineligible, ${data.failed ?? 0} failed.`); else setMessage(data.message ?? "Action completed successfully."); await load(); } catch (e) { setError(e instanceof Error ? e.message : "Action failed"); } finally { setBusy(""); } };
+  const deleteRaffle = async () => { if (!raffle || !confirm("Delete this raffle? Completed raffles with winners are retained.")) return; setBusy("delete"); setError(""); setMessage(""); try { await api(`/raffles/${raffle.id}`, { method: "DELETE" }); window.location.href = "/dashboard/creator"; } catch (e) { setError(e instanceof Error ? e.message : "Unable to delete raffle"); } finally { setBusy(""); } };
   if (loading) return <main className="min-h-screen bg-[#06060a] text-zinc-500"><SiteHeader/><div className="mx-auto max-w-6xl p-10">Loading raffle operations…</div></main>;
   if (!raffle) return <main className="min-h-screen bg-[#06060a] text-zinc-400"><SiteHeader/><div className="mx-auto max-w-3xl p-10">{error || "Raffle not found"}</div></main>;
-
-  const canClose = ["SCHEDULED", "ACTIVE"].includes(raffle.status) && new Date() >= new Date(raffle.endsAt);
-  const canEvaluate = ["CLOSED", "DRAWING"].includes(raffle.status) && entries.some((entry) => entry.status === "PENDING");
-  const canDraw = raffle.status === "CLOSED";
-
-  return <main className="min-h-screen bg-[#06060a] text-zinc-100"><SiteHeader/><div className="mx-auto max-w-6xl px-5 py-8"><Link href="/dashboard/creator" className="text-xs text-zinc-500 hover:text-violet-300">← Creator Studio</Link><section className="mt-5 rounded-3xl border border-white/10 bg-[#0d0c11] p-7"><div className="flex flex-col gap-5 sm:flex-row sm:items-center"><div className="grid h-16 w-16 place-items-center overflow-hidden rounded-2xl bg-black">{raffle.project?.logoUrl?<img src={raffle.project.logoUrl} alt="" className="h-full w-full object-cover"/>:<span className="text-xl font-black">R</span>}</div><div className="flex-1"><div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-violet-500/10 px-3 py-1 text-[9px] font-black text-violet-300">{raffle.status}</span><span className="text-[9px] text-zinc-600">{raffle.project?.name ?? "Project"}</span></div><h1 className="mt-3 text-3xl font-semibold">{raffle.title}</h1><p className="mt-2 text-sm text-zinc-500">{raffle.prizeName} · {raffle.winnerCount} winner{raffle.winnerCount === 1 ? "" : "s"}</p></div></div></section>
-
+  const canClose = ["SCHEDULED", "ACTIVE"].includes(raffle.status) && new Date() >= new Date(raffle.endsAt); const canEvaluate = ["CLOSED", "DRAWING"].includes(raffle.status) && entries.some((entry) => entry.status === "PENDING"); const canDraw = raffle.status === "CLOSED"; const canDelete = !["COMPLETED", "DRAWING"].includes(raffle.status);
+  return <main className="min-h-screen bg-[#06060a] text-zinc-100"><SiteHeader/><div className="mx-auto max-w-6xl px-5 py-8"><Link href="/dashboard/creator" className="text-xs text-zinc-500 hover:text-violet-300">← Dashboard</Link><section className="mt-5 rounded-3xl border border-white/10 bg-[#0d0c11] p-7"><div className="flex flex-col gap-5 sm:flex-row sm:items-center"><div className="grid h-16 w-16 place-items-center overflow-hidden rounded-2xl bg-black">{raffle.project?.logoUrl?<img src={raffle.project.logoUrl} alt="" className="h-full w-full object-cover"/>:<span className="text-xl font-black">R</span>}</div><div className="flex-1"><div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-violet-500/10 px-3 py-1 text-[9px] font-black text-violet-300">{raffle.status}</span><span className="text-[9px] text-zinc-600">{raffle.project?.name ?? "Project"}</span></div><h1 className="mt-3 text-3xl font-semibold">{raffle.title}</h1><p className="mt-2 text-sm text-zinc-500">{raffle.prizeName} · {raffle.winnerCount} winner{raffle.winnerCount === 1 ? "" : "s"}</p></div><div className="flex gap-2">{canDelete&&<button disabled={busy==="delete"} onClick={()=>void deleteRaffle()} className="rounded-xl border border-red-500/20 px-4 py-3 text-xs font-black text-red-300 disabled:opacity-40">{busy==="delete"?"Deleting…":"Delete raffle"}</button>}</div></div></section>
 {error&&<div className="mt-5 rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-300">{error}</div>}{message&&<div className="mt-5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-sm text-emerald-300">{message}</div>}
-
 <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{Object.entries({TOTAL:entries.length,PENDING:counts.PENDING??0,ELIGIBLE:counts.ELIGIBLE??0,INELIGIBLE:counts.INELIGIBLE??0,WINNERS:counts.WINNER??0}).map(([label,value])=><div key={label} className="rounded-2xl border border-white/10 bg-[#0d0c11] p-4"><span className="text-[9px] font-black tracking-[.14em] text-zinc-600">{label}</span><b className="mt-2 block text-2xl">{value}</b></div>)}</div>
-
-<section className="mt-6 rounded-3xl border border-white/10 bg-[#0d0c11] p-6"><div><span className="text-[9px] font-black tracking-[.2em] text-violet-300/60">OPERATIONS</span><h2 className="mt-2 text-2xl font-semibold">Raffle lifecycle</h2></div><div className="mt-5 flex flex-wrap gap-2"><button disabled={!canClose||!!busy} onClick={()=>void action("close",`/raffles/${id}/close`)} className="rounded-xl border border-white/10 px-4 py-3 text-xs font-black disabled:opacity-30">{busy==="close"?"Closing…":"Close entries"}</button><button disabled={!canEvaluate||!!busy} onClick={()=>void action("evaluate",`/raffles/${id}/entries/evaluate`)} className="rounded-xl border border-violet-500/20 bg-violet-500/5 px-4 py-3 text-xs font-black text-violet-300 disabled:opacity-30">{busy==="evaluate"?"Evaluating…":"Evaluate entries"}</button><button disabled={!canDraw||!!busy} onClick={()=>void action("draw",`/raffles/${id}/draw`)} className="rounded-xl bg-violet-500 px-4 py-3 text-xs font-black text-white disabled:opacity-30">{busy==="draw"?"Drawing…":"Draw winners"}</button><a href={`${API_BASE_URL}/raffles/${id}/winners/export`} target="_blank" rel="noreferrer" className="rounded-xl border border-white/10 px-4 py-3 text-xs font-black">Export CSV</a><Link href={`/dashboard/raffles/${id}/winners`} className="rounded-xl border border-white/10 px-4 py-3 text-xs font-black">Winner Center →</Link></div><p className="mt-4 text-xs leading-6 text-zinc-600">Close is available after the end time. Evaluate checks pending entries. Draw is available only after the raffle is closed.</p></section>
-
+<section className="mt-6 rounded-3xl border border-white/10 bg-[#0d0c11] p-6"><div><span className="text-[9px] font-black tracking-[.2em] text-violet-300/60">OPERATIONS</span><h2 className="mt-2 text-2xl font-semibold">Raffle lifecycle</h2></div><div className="mt-5 flex flex-wrap gap-2"><button disabled={!canClose||!!busy} onClick={()=>void action("close",`/raffles/${id}/close`)} className="rounded-xl border border-white/10 px-4 py-3 text-xs font-black disabled:opacity-30">{busy==="close"?"Closing…":"Close entries"}</button><button disabled={!canEvaluate||!!busy} onClick={()=>void action("evaluate",`/raffles/${id}/entries/evaluate`)} className="rounded-xl border border-violet-500/20 bg-violet-500/5 px-4 py-3 text-xs font-black text-violet-300 disabled:opacity-30">{busy==="evaluate"?"Evaluating…":"Evaluate entries"}</button><button disabled={!canDraw||!!busy} onClick={()=>void action("draw",`/raffles/${id}/draw`)} className="rounded-xl bg-violet-500 px-4 py-3 text-xs font-black text-white disabled:opacity-30">{busy==="draw"?"Drawing…":"Draw winners"}</button><a href={`${API_BASE_URL}/raffles/${id}/winners/export`} target="_blank" rel="noreferrer" className="rounded-xl border border-white/10 px-4 py-3 text-xs font-black">Export CSV</a><Link href={`/dashboard/raffles/${id}/winners`} className="rounded-xl border border-white/10 px-4 py-3 text-xs font-black">Winner Center →</Link></div><p className="mt-4 text-xs leading-6 text-zinc-600">Close is available after the end time. Evaluate checks pending entries. Draw selects winners after eligibility has been evaluated.</p></section>
 <section className="mt-6 rounded-3xl border border-white/10 bg-[#0d0c11] p-6"><div className="flex items-end justify-between"><div><span className="text-[9px] font-black tracking-[.2em] text-zinc-600">ENTRY REVIEW</span><h2 className="mt-2 text-2xl font-semibold">Eligibility snapshot</h2></div><span className="text-[10px] text-zinc-600">{entries.length} entries</span></div><div className="mt-5 space-y-2">{entries.slice(0,50).map(entry=><div key={entry.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-white/5 bg-black/10 p-3"><span className="rounded-full bg-white/5 px-2 py-1 text-[9px] font-black">{entry.status}</span><span className="text-xs text-zinc-500">Risk: {entry.riskLevel ?? "—"} {entry.riskScore != null ? `(${entry.riskScore})` : ""}</span><span className="text-xs text-zinc-600">CAPTCHA: {entry.captchaPassed ? "passed" : "not passed"}</span><span className="ml-auto text-[10px] text-zinc-700">{new Date(entry.enteredAt).toLocaleString()}</span></div>)}</div></section></div></main>;
 }
