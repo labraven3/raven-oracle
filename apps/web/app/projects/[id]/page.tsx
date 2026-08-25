@@ -46,7 +46,7 @@ export default function ProjectDetail() {
         <div className="px-6 pb-8 sm:px-9">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end">
             <div className="-mt-10 grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-2xl border-4 border-[#0d0c11] bg-black shadow-2xl sm:h-28 sm:w-28">
-              {project.logoUrl ? <img src={project.logoUrl} alt="" loading="eager" decoding="async" className="h-full w-full object-cover"/> : <span className="text-4xl font-black">{project.name[0]}</span>}
+              {project.logoUrl ? <div className="flex h-full w-full items-center justify-center bg-[#111118] p-2 sm:p-3"><img src={project.logoUrl} alt={`${project.name} logo`} loading="eager" decoding="async" className="h-full w-full object-contain"/></div> : <span className="text-4xl font-black">{project.name[0]}</span>}
             </div>
             <div className="min-w-0 flex-1 pb-1">
               <div className="flex flex-wrap gap-2"><span className="rounded-full bg-violet-500/10 px-3 py-1 text-[9px] font-black text-violet-300">{project.projectType ?? "NFT"}</span>{project.chain && <span className="rounded-full bg-cyan-500/10 px-3 py-1 text-[9px] font-black text-cyan-300">⛓ {project.chain}</span>}</div>
