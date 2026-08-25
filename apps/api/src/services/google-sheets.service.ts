@@ -35,10 +35,7 @@ function getServiceAccount(): ServiceAccount {
       private_key: parsed.private_key.replace(/\\n/g, "\n"),
     };
 
-    if (parsed.project_id) {
-      serviceAccount.project_id = parsed.project_id;
-    }
-
+    if (parsed.project_id) serviceAccount.project_id = parsed.project_id;
     return serviceAccount;
   } catch {
     throw new Error("Google Sheets export is not configured: GOOGLE_SERVICE_ACCOUNT_JSON is invalid.");
@@ -46,9 +43,7 @@ function getServiceAccount(): ServiceAccount {
 }
 
 async function getGoogleAccessToken(): Promise<string> {
-  if (cachedAccessToken && cachedAccessToken.expiresAt > Date.now() + 60_000) {
-    return cachedAccessToken.token;
-  }
+  if (cachedAccessToken && cachedAccessToken.expiresAt > Date.now() + 60_000) return cachedAccessToken.token;
 
   const serviceAccount = getServiceAccount();
   const now = Math.floor(Date.now() / 1000);
@@ -79,10 +74,7 @@ async function getGoogleAccessToken(): Promise<string> {
   }
 
   const expiresIn = Math.max(60, Number(data.expires_in ?? 3600));
-  cachedAccessToken = {
-    token: data.access_token,
-    expiresAt: Date.now() + expiresIn * 1000,
-  };
+  cachedAccessToken = { token: data.access_token, expiresAt: Date.now() + expiresIn * 1000 };
   return data.access_token;
 }
 
@@ -94,9 +86,7 @@ async function googleRequest<T>(url: string, init: RequestInit = {}): Promise<T>
 
   const response = await fetch(url, { ...init, headers });
   const data = (await response.json().catch(() => ({}))) as T & { error?: { message?: string } };
-  if (!response.ok) {
-    throw new Error(`Google API request failed: ${data?.error?.message ?? response.statusText}`);
-  }
+  if (!response.ok) throw new Error(`Google API request failed: ${data?.error?.message ?? response.statusText}`);
   return data;
 }
 
@@ -118,9 +108,7 @@ export type WinnerSheetRow = {
   notifiedAt?: Date | null;
 };
 
-type SpreadsheetResponse = {
-  spreadsheetId?: string;
-};
+type SpreadsheetResponse = { spreadsheetId?: string };
 
 export async function createWinnerGoogleSheet(input: {
   raffleTitle: string;
@@ -138,23 +126,10 @@ export async function createWinnerGoogleSheet(input: {
   });
 
   const spreadsheetId = spreadsheet.spreadsheetId;
-  if (!spreadsheetId) {
-    throw new Error("Google Sheets did not return a spreadsheet ID.");
-  }
+  if (!spreadsheetId) throw new Error("Google Sheets did not return a spreadsheet ID.");
 
   const values = [
-    [
-      "Rank",
-      "X Username",
-      "Discord Username",
-      "Wallet Address",
-      "Email",
-      "Email Verified",
-      "Winner Status",
-      "Notification Status",
-      "Selected At",
-      "Notified At",
-    ],
+    ["Rank", "X Username", "Discord Username", "Wallet Address", "Email", "Email Verified", "Winner Status", "Notification Status", "Selected At", "Notified At"],
     ...input.rows.map((row) => [
       cellSafe(row.rank),
       cellSafe(row.xUsername),
@@ -171,28 +146,15 @@ export async function createWinnerGoogleSheet(input: {
 
   await googleRequest(
     `${SHEETS_API}/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent("Winners!A1:J")}?valueInputOption=RAW`,
-    {
-      method: "PUT",
-      body: JSON.stringify({ range: "Winners!A1:J", majorDimension: "ROWS", values }),
-    },
+    { method: "PUT", body: JSON.stringify({ range: "Winners!A1:J", majorDimension: "ROWS", values }) },
   );
 
   await googleRequest(`${SHEETS_API}/spreadsheets/${encodeURIComponent(spreadsheetId)}:batchUpdate`, {
     method: "POST",
     body: JSON.stringify({
       requests: [
-        {
-          repeatCell: {
-            range: { sheetId: 0, startRowIndex: 0, endRowIndex: 1 },
-            cell: { userEnteredFormat: { textFormat: { bold: true } } },
-            fields: "userEnteredFormat.textFormat.bold",
-          },
-        },
-        {
-          autoResizeDimensions: {
-            dimensions: { sheetId: 0, dimension: "COLUMNS", startIndex: 0, endIndex: 10 },
-          },
-        },
+        { repeatCell: { range: { sheetId: 0, startRowIndex: 0, endRowIndex: 1 }, cell: { userEnteredFormat: { textFormat: { bold: true } } }, fields: "userEnteredFormat.textFormat.bold" } },
+        { autoResizeDimensions: { dimensions: { sheetId: 0, dimension: "COLUMNS", startIndex: 0, endIndex: 10 } } },
         { updateSheetProperties: { properties: { sheetId: 0, gridProperties: { frozenRowCount: 1 } }, fields: "gridProperties.frozenRowCount" } },
       ],
     }),
@@ -203,7 +165,8 @@ export async function createWinnerGoogleSheet(input: {
   if (shareWithEmail) {
     await googleRequest(`${DRIVE_API}/files/${encodeURIComponent(spreadsheetId)}/permissions?sendNotificationEmail=false`, {
       method: "POST",
-      body: JSON.stringify({ type: "user", role: "writer", emailAddress: shareWithEmail }),
+      // Creator receives read-only access so the exported winner sheet cannot be accidentally edited.
+      body: JSON.stringify({ type: "user", role: "reader", emailAddress: shareWithEmail }),
     });
     sharedWith = shareWithEmail;
   }
