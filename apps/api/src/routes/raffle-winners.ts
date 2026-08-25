@@ -69,10 +69,17 @@ router.get("/:raffleId/winners", requireAuth, async (req, res, next) => {
     const raffle = await prisma.raffle.findUnique({ where: { id: raffleId }, select: { id: true, createdByUserId: true, status: true, title: true, winnerCount: true, prizeName: true } });
     if (!raffle) return res.status(404).json({ success: false, message: "Raffle not found" });
     const isCreator = raffle.createdByUserId === req.userId;
-    const winners = await prisma.raffleWinner.findMany({
-      where: isCreator ? { raffleId } : { raffleId, userId: req.userId }, orderBy: { selectionRank: "asc" },
-      select: { id: true, entryId: true, userId: true, walletAddressSnapshot: true, selectionRank: true, status: true, notificationStatus: true, selectedAt: true, notifiedAt: true, user: { select: { displayName: true, username: true, email: true, emailVerifiedAt: true } } },
-    });
+    const winnerSelect = {
+      id: true, entryId: true, userId: true, walletAddressSnapshot: true, selectionRank: true, status: true,
+      notificationStatus: true, selectedAt: true, notifiedAt: true,
+      user: {
+        select: {
+          displayName: true, username: true, email: true, emailVerifiedAt: true,
+          ...(isCreator ? { socialAccounts: { where: { isActive: true, provider: { in: ["X", "DISCORD"] } }, select: { provider: true, providerUsername: true, displayName: true } } } : {}),
+        },
+      },
+    } as const;
+    const winners = await prisma.raffleWinner.findMany({ where: isCreator ? { raffleId } : { raffleId, userId: req.userId }, orderBy: { selectionRank: "asc" }, select: winnerSelect });
     return res.json({ success: true, raffle, winners, viewer: isCreator ? "CREATOR" : "WINNER" });
   } catch (error) { next(error); }
 });
@@ -124,13 +131,12 @@ router.post("/:raffleId/winners/export/google-sheets", requireAuth, async (req, 
     if (!raffleId || !req.userId) return res.status(400).json({ success: false, message: "Invalid raffle or authentication" });
     const raffle = await getCreatorRaffle(raffleId, req.userId);
     if (!raffle) return res.status(403).json({ success: false, message: "Only the raffle creator can export winners" });
-
     const winners = await getWinnerRows(raffleId);
     if (winners.length === 0) return res.status(400).json({ success: false, message: "No winners have been selected yet" });
 
     const creator = await prisma.user.findUnique({ where: { id: req.userId }, select: { email: true } });
     const result = await createWinnerGoogleSheet({ raffleTitle: raffle.title, shareWithEmail: creator?.email ?? null, rows: winners });
-    return res.json({ success: true, ...result, message: "Winner Google Sheet created." });
+    return res.json({ success: true, ...result, message: "Winner Google Sheet created and shared read-only with your account." });
   } catch (error) { next(error); }
 });
 
