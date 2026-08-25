@@ -12,11 +12,43 @@ type Chain = { id: string; name: string; slug: string };
 async function api<T>(path: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers);
   headers.set("Content-Type", "application/json");
-  const token = typeof window !== "undefined" ? localStorage.getItem("raven_token") : null;
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers, credentials: "include", cache: "no-store" });
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers,
+    credentials: "include",
+    cache: "no-store",
+  });
+
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.message ?? `Request failed (${response.status})`);
+
+  if (!response.ok) {
+    const token = typeof window !== "undefined"
+      ? localStorage.getItem("raven_token")
+      : null;
+
+    if (response.status === 401 && token) {
+      headers.set("Authorization", `Bearer ${token}`);
+
+      const retry = await fetch(`${API_BASE_URL}${path}`, {
+        ...options,
+        headers,
+        credentials: "include",
+        cache: "no-store",
+      });
+
+      const retryData = await retry.json().catch(() => ({}));
+
+      if (!retry.ok) {
+        throw new Error(retryData.message ?? `Request failed (${retry.status})`);
+      }
+
+      return retryData as T;
+    }
+
+    throw new Error(data.message ?? `Request failed (${response.status})`);
+  }
+
   return data as T;
 }
 
