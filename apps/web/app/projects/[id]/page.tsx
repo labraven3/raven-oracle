@@ -46,8 +46,8 @@ export default function ProjectDetail() {
 
         <div className="px-6 pb-7 sm:px-9 sm:pb-8">
           <div className="flex items-center gap-4 sm:gap-5">
-            <div className="-mt-7 flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[#24124b] p-1.5 shadow-xl sm:-mt-8 sm:h-[88px] sm:w-[88px] sm:p-2">
-              {project.logoUrl ? <img src={project.logoUrl} alt={`${project.name} logo`} loading="eager" decoding="async" className="h-full w-full object-contain"/> : <span className="text-3xl font-black">{project.name[0]}</span>}
+            <div className="-mt-7 flex h-[92px] w-[92px] shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-[#24124b] p-3 shadow-xl sm:-mt-8 sm:h-[104px] sm:w-[104px] sm:p-4">
+              {project.logoUrl ? <img src={project.logoUrl} alt={`${project.name} logo`} loading="eager" decoding="async" className="block max-h-[68px] max-w-[68px] w-auto h-auto object-contain sm:max-h-[76px] sm:max-w-[76px]"/> : <span className="text-3xl font-black">{project.name[0]}</span>}
             </div>
             <div className="min-w-0 flex-1 pt-2 sm:pt-3">
               <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-violet-500/10 px-3 py-1 text-[9px] font-black text-violet-300">{project.projectType ?? "NFT"}</span>{project.chain && <span className="rounded-full bg-cyan-500/10 px-3 py-1 text-[9px] font-black text-cyan-300">⛓ {project.chain}</span>}</div>
