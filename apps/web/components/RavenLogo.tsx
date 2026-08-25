@@ -2,32 +2,33 @@ type RavenLogoProps = { className?: string; showWordmark?: boolean; compact?: bo
 
 /**
  * Canonical Raven Oracle brand lockup.
- * Uses the approved JPEG artwork without cropping either image.
+ * The source artwork is always rendered with its natural aspect ratio so
+ * neither the mark nor the wordmark can be squeezed or visually clipped.
  */
 export default function RavenLogo({ className = "", compact = false }: RavenLogoProps) {
-  const markSize = compact ? "h-11 w-11" : "h-14 w-14";
-  const wordmarkSize = compact ? "h-9 w-[116px]" : "h-10 w-[132px]";
-  const imageClass = "raven-brand-logo raven-brand-theme block shrink-0 object-contain";
+  const markHeight = compact ? "h-12 sm:h-13" : "h-14 sm:h-16";
+  const wordmarkHeight = compact ? "h-8 sm:h-9" : "h-10 sm:h-11";
+  const imageClass = "raven-brand-logo raven-brand-theme block shrink-0 object-contain w-auto";
 
   return (
     <div
       data-raven-canonical="true"
-      className={`flex shrink-0 items-center gap-0 overflow-visible ${className}`}
+      className={`flex min-w-max shrink-0 items-center gap-1 overflow-visible leading-none ${className}`}
       aria-label="Raven Oracle"
     >
       <img
         src="/RavenOracleLogo.jpeg"
         alt="Raven Oracle mark"
-        width={compact ? 44 : 56}
-        height={compact ? 44 : 56}
-        className={`${markSize} ${imageClass}`}
+        width={56}
+        height={56}
+        className={`${markHeight} ${imageClass}`}
       />
       <img
         src="/RavenOracleWordmark.jpeg"
         alt="Raven Oracle"
-        width={compact ? 116 : 132}
-        height={compact ? 36 : 40}
-        className={`${wordmarkSize} ${imageClass}`}
+        width={132}
+        height={40}
+        className={`${wordmarkHeight} ${imageClass}`}
       />
     </div>
   );
