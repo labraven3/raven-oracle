@@ -10,8 +10,9 @@ function getServiceAccount() {
   }
 }
 
-function csvSafe(value: unknown) {
-  return String(value ?? "");
+function cellSafe(value: unknown) {
+  const text = String(value ?? "");
+  return /^[=+\-@]/.test(text) ? `'${text}` : text;
 }
 
 export type WinnerSheetRow = {
@@ -72,14 +73,14 @@ export async function createWinnerGoogleSheet(input: {
       "Notified At",
     ],
     ...input.rows.map((row) => [
-      csvSafe(row.rank),
-      csvSafe(row.xUsername),
-      csvSafe(row.discordUsername),
-      csvSafe(row.walletAddress),
-      csvSafe(row.email),
+      cellSafe(row.rank),
+      cellSafe(row.xUsername),
+      cellSafe(row.discordUsername),
+      cellSafe(row.walletAddress),
+      cellSafe(row.email),
       row.emailVerified ? "Yes" : "No",
-      csvSafe(row.winnerStatus),
-      csvSafe(row.notificationStatus),
+      cellSafe(row.winnerStatus),
+      cellSafe(row.notificationStatus),
       row.selectedAt.toISOString(),
       row.notifiedAt?.toISOString() ?? "",
     ]),
@@ -98,13 +99,13 @@ export async function createWinnerGoogleSheet(input: {
       requests: [
         { repeatCell: { range: { sheetId: 0, startRowIndex: 0, endRowIndex: 1 }, cell: { userEnteredFormat: { textFormat: { bold: true } } }, fields: "userEnteredFormat.textFormat.bold" } },
         { autoResizeDimensions: { dimensions: { sheetId: 0, dimension: "COLUMNS", startIndex: 0, endIndex: 10 } } },
-        { freezeProperties: { sheetId: 0, frozenRowCount: 1 } },
+        { updateSheetProperties: { properties: { sheetId: 0, gridProperties: { frozenRowCount: 1 } }, fields: "gridProperties.frozenRowCount" } },
       ],
     },
   });
 
   let sharedWith: string | null = null;
-  const shareWithEmail = input.shareWithEmail?.trim().toLowerCase();
+  const shareWithEmail = input.shareWithEmail?.trim().toLowerCase() ?? null;
   if (shareWithEmail) {
     await drive.permissions.create({
       fileId: spreadsheetId,
