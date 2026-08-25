@@ -32,8 +32,8 @@ export default function ProjectDetail() {
     <SiteHeader/>
     <div className="mx-auto max-w-6xl px-5 py-8">
       <Link href="/projects" className="text-xs text-zinc-500 hover:text-violet-300">← All Projects</Link>
-      <section className="mt-5 overflow-hidden rounded-3xl border border-white/10 bg-[#0d0c11] shadow-2xl shadow-black/20">
-        <div className="relative aspect-[3/1] min-h-[200px] w-full overflow-hidden bg-[#090910] sm:min-h-[250px] lg:min-h-[290px]">
+      <section className="mt-5 overflow-visible rounded-3xl border border-white/10 bg-[#0d0c11] shadow-2xl shadow-black/20">
+        <div className="relative aspect-[3/1] min-h-[200px] w-full overflow-hidden rounded-t-3xl bg-[#090910] sm:min-h-[250px] lg:min-h-[290px]">
           {project.bannerUrl ? <>
             <img src={project.bannerUrl} alt="" aria-hidden="true" loading="eager" decoding="async" className="absolute inset-0 h-full w-full object-cover opacity-25 blur-2xl scale-110" />
             <div className="absolute inset-0 bg-black/20" />
@@ -45,11 +45,19 @@ export default function ProjectDetail() {
         </div>
 
         <div className="px-6 pb-7 sm:px-9 sm:pb-8">
-          <div className="flex items-center gap-4 sm:gap-5">
-            <div className="-mt-7 flex h-[92px] w-[92px] shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-[#24124b] p-3 shadow-xl sm:-mt-8 sm:h-[104px] sm:w-[104px] sm:p-4">
-              {project.logoUrl ? <img src={project.logoUrl} alt={`${project.name} logo`} loading="eager" decoding="async" className="block max-h-[68px] max-w-[68px] w-auto h-auto object-contain sm:max-h-[76px] sm:max-w-[76px]"/> : <span className="text-3xl font-black">{project.name[0]}</span>}
+          <div className="flex items-start gap-4 sm:gap-5">
+            <div className="relative z-30 -mt-6 flex min-h-[92px] min-w-[92px] max-w-[132px] items-center justify-center rounded-2xl border border-white/10 bg-[#24124b] px-3 py-3 shadow-xl sm:-mt-7 sm:min-h-[104px] sm:min-w-[104px]">
+              {project.logoUrl ? (
+                <img
+                  src={project.logoUrl}
+                  alt={`${project.name} logo`}
+                  loading="eager"
+                  decoding="async"
+                  className="block h-auto w-auto max-h-[84px] max-w-[108px] object-contain sm:max-h-[94px] sm:max-w-[120px]"
+                />
+              ) : <span className="text-3xl font-black">{project.name[0]}</span>}
             </div>
-            <div className="min-w-0 flex-1 pt-2 sm:pt-3">
+            <div className="min-w-0 flex-1 pt-1 sm:pt-2">
               <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-violet-500/10 px-3 py-1 text-[9px] font-black text-violet-300">{project.projectType ?? "NFT"}</span>{project.chain && <span className="rounded-full bg-cyan-500/10 px-3 py-1 text-[9px] font-black text-cyan-300">⛓ {project.chain}</span>}</div>
               <h1 className="mt-2 text-3xl font-medium tracking-tight sm:text-4xl">{project.name}</h1>
             </div>
