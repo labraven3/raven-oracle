@@ -29,11 +29,17 @@ function getServiceAccount(): ServiceAccount {
     if (!parsed.client_email || !parsed.private_key) {
       throw new Error("Missing client_email or private_key.");
     }
-    return {
+
+    const serviceAccount: ServiceAccount = {
       client_email: parsed.client_email,
       private_key: parsed.private_key.replace(/\\n/g, "\n"),
-      project_id: parsed.project_id,
     };
+
+    if (parsed.project_id) {
+      serviceAccount.project_id = parsed.project_id;
+    }
+
+    return serviceAccount;
   } catch {
     throw new Error("Google Sheets export is not configured: GOOGLE_SERVICE_ACCOUNT_JSON is invalid.");
   }
