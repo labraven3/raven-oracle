@@ -141,7 +141,9 @@ router.post("/:raffleId/winners/export/google-sheets", requireAuth, async (req, 
     if (winners.length === 0) return res.status(400).json({ success: false, message: "No winners have been selected yet" });
 
     const creator = await prisma.user.findUnique({ where: { id: req.userId }, select: { email: true } });
-    const result = await createWinnerGoogleSheet({ raffleTitle: raffle.title, shareWithEmail: creator?.email ?? null, rows: winners });
+    if (!creator?.email) return res.status(400).json({ success: false, message: "Add an email address to your Raven Oracle account before exporting winners." });
+
+    const result = await createWinnerGoogleSheet({ raffleTitle: raffle.title, shareWithEmail: creator.email, rows: winners });
     return res.json({ success: true, ...result, message: "Winner Google Sheet created and shared read-only with your account." });
   } catch (error) { next(error); }
 });
