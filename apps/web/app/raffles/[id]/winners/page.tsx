@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { API_BASE_URL } from "@/lib/api-config";
 type Winner = { id: string; userId: string; walletAddressSnapshot: string; selectionRank: number; status: string; notificationStatus: string; selectedAt: string; notifiedAt?: string | null; user?: { displayName?: string | null; username?: string | null; email?: string | null; emailVerifiedAt?: string | null } };
@@ -13,7 +13,6 @@ function short(value: string) { return value.length > 22 ? `${value.slice(0, 10)
 
 export default function WinnersPage() {
   const { id } = useParams<{ id: string }>();
-  const searchParams = useSearchParams();
   const [data, setData] = useState<Data | null>(null); const [message, setMessage] = useState(""); const [busy, setBusy] = useState(false); const [google, setGoogle] = useState<GoogleStatus>({ connected: false });
   useEffect(() => {
     const init = async () => {
@@ -21,13 +20,13 @@ export default function WinnersPage() {
       catch (e) { setMessage(e instanceof Error ? e.message : "Unable to load winners"); }
     };
     void init();
-  }, [id]);
-  useEffect(() => {
-    const result = searchParams.get("google");
-    const error = searchParams.get("error");
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get("google");
+    const error = params.get("error");
     if (result === "connected") setMessage("Google Drive connected. Winner Sheets will now be created in your Drive.");
     if (error) setMessage(error);
-  }, [searchParams]);
+    if (result || error) window.history.replaceState({}, "", window.location.pathname);
+  }, [id]);
   const action = async (path: string) => { setBusy(true); setMessage(""); try { await api(path, { method: "POST" }); const data = await api<Data>(`/raffles/${id}/winners`); setData(data); } catch (e) { setMessage(e instanceof Error ? e.message : "Action failed"); } finally { setBusy(false); } };
   const connectGoogle = () => { window.location.href = `${API_BASE_URL}/auth/google/connect?returnTo=${encodeURIComponent(`/raffles/${id}/winners`)}`; };
   const disconnectGoogle = async () => { setBusy(true); setMessage(""); try { await api(`/auth/google/disconnect`, { method: "POST" }); setGoogle({ connected: false }); setMessage("Google Drive disconnected."); } catch (e) { setMessage(e instanceof Error ? e.message : "Unable to disconnect Google Drive"); } finally { setBusy(false); } };
