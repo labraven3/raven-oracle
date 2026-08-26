@@ -2,7 +2,6 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { notifyWinner } from "../services/raffle-winner.service.js";
-import { createWinnerGoogleSheet } from "../services/google-sheets.service.js";
 import { createWinnerGoogleSheetForUser } from "../services/google-oauth-sheets.service.js";
 import { getGoogleConnectionStatus } from "../services/google-oauth.service.js";
 
