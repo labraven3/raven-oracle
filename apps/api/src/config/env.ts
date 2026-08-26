@@ -18,6 +18,10 @@ const envSchema = z.object({
   DISCORD_CLIENT_ID: z.string().min(1).optional(),
   DISCORD_CLIENT_SECRET: z.string().min(1).optional(),
   DISCORD_REDIRECT_URI: z.string().url().optional(),
+  GOOGLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
+  GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
+  GOOGLE_OAUTH_REDIRECT_URI: z.string().url().optional(),
+  GOOGLE_SERVICE_ACCOUNT_JSON: z.string().min(1).optional(),
   TELEGRAM_BOT_TOKEN: z.string().min(1).optional(),
   TELEGRAM_BOT_USERNAME: z.string().min(1).optional(),
   TELEGRAM_WEBHOOK_SECRET: z.string().min(1).optional(),
@@ -33,7 +37,7 @@ if (!parsedEnv.success) {
   const errors = parsedEnv.error.issues.map((issue) => {
     const field = issue.path.join(".");
     const message = issue.message;
-    const isSecret = field.includes("SECRET") || field.includes("PASSWORD") || field.includes("TOKEN") || field === "DATABASE_URL";
+    const isSecret = field.includes("SECRET") || field.includes("PASSWORD") || field.includes("TOKEN") || field.includes("DATABASE_URL") || field.includes("SERVICE_ACCOUNT_JSON");
     return isSecret ? `  • ${field}: ${message} (value hidden for security)` : `  • ${field}: ${message}`;
   });
   console.error(errors.join("\n"));
@@ -65,6 +69,8 @@ console.log(`  • DATABASE_URL: ${env.DATABASE_URL ? "configured" : "not config
 console.log(`  • JWT_SECRET: ${env.JWT_SECRET ? "configured" : "missing"}`);
 console.log(`  • X OAuth: ${env.X_CLIENT_ID && env.X_CLIENT_SECRET ? "configured" : "not configured"}`);
 console.log(`  • Discord OAuth: ${env.DISCORD_CLIENT_ID && env.DISCORD_CLIENT_SECRET ? "configured" : "not configured"}`);
+console.log(`  • Google Drive OAuth: ${env.GOOGLE_OAUTH_CLIENT_ID && env.GOOGLE_OAUTH_CLIENT_SECRET && env.GOOGLE_OAUTH_REDIRECT_URI ? "configured" : "not configured"}`);
+console.log(`  • Google service account: ${env.GOOGLE_SERVICE_ACCOUNT_JSON ? "configured" : "not configured"}`);
 console.log(`  • Telegram Bot: ${env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_BOT_USERNAME ? "configured" : "not configured"}`);
 console.log(`  • Email: ${env.GMAIL_USER && env.GMAIL_APP_PASSWORD ? "configured" : "not configured"}`);
 console.log("");
