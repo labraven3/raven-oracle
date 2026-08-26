@@ -129,7 +129,7 @@ export async function completeGoogleOAuth(userId: string, code: string) {
   if (conflicting) throw new Error("This Google account is already connected to another Raven Oracle account.");
 
   const current = existing.find((row) => row.user_id === userId);
-  const refreshToken = token.refresh_token ?? current?.refresh_token_encrypted ? decrypt(current.refresh_token_encrypted) : "";
+  const refreshToken = token.refresh_token || (current?.refresh_token_encrypted ? decrypt(current.refresh_token_encrypted) : "");
   if (!refreshToken) throw new Error("Google did not return a refresh token. Reconnect Google and approve offline access.");
 
   const accessExpiresAt = new Date(Date.now() + Math.max(60, Number(token.expires_in ?? 3600)) * 1000);
