@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -20,6 +19,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     { title: "Chain Management", icon: "⛓️", href: "/admin/chains", description: "Add, disable & remove chains" },
     { title: "Project Chain Audit", icon: "🧭", href: "/admin/project-chains", description: "Verify project chain mappings" },
     { title: "Project Approval", icon: "✅", href: "/admin/approvals", description: "Review readiness & approve projects" },
+    { title: "Google Integrations", icon: "📗", href: "/admin/google-integrations", description: "Creator Google Drive connections" },
     { title: "Audit Logs", icon: "📋", href: "/admin/audit-logs", description: "View system logs" },
     { title: "Alpha Moderation", icon: "⚡", href: "/admin/alpha", description: "Review alpha submissions" },
     { title: "Chat Moderation", icon: "💬", href: "/admin/chat", description: "Moderate chat messages" },
