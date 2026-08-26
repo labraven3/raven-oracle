@@ -3,6 +3,8 @@ import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { notifyWinner } from "../services/raffle-winner.service.js";
 import { createWinnerGoogleSheet } from "../services/google-sheets.service.js";
+import { createWinnerGoogleSheetForUser } from "../services/google-oauth-sheets.service.js";
+import { getGoogleConnectionStatus } from "../services/google-oauth.service.js";
 
 const router = Router();
 
@@ -131,6 +133,16 @@ router.get("/:raffleId/winners/export", requireAuth, async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+router.get("/:raffleId/winners/export/google-sheets/status", requireAuth, async (req, res, next) => {
+  try {
+    const raffleId = getId(req.params.raffleId);
+    if (!raffleId || !req.userId) return res.status(400).json({ success: false, message: "Invalid raffle or authentication" });
+    const raffle = await getCreatorRaffle(raffleId, req.userId);
+    if (!raffle) return res.status(403).json({ success: false, message: "Only the raffle creator can view export settings" });
+    return res.json({ success: true, ...(await getGoogleConnectionStatus(req.userId)) });
+  } catch (error) { next(error); }
+});
+
 router.post("/:raffleId/winners/export/google-sheets", requireAuth, async (req, res, next) => {
   try {
     const raffleId = getId(req.params.raffleId);
@@ -140,11 +152,11 @@ router.post("/:raffleId/winners/export/google-sheets", requireAuth, async (req, 
     const winners = await getWinnerRows(raffleId);
     if (winners.length === 0) return res.status(400).json({ success: false, message: "No winners have been selected yet" });
 
-    const creator = await prisma.user.findUnique({ where: { id: req.userId }, select: { email: true } });
-    if (!creator?.email) return res.status(400).json({ success: false, message: "Add an email address to your Raven Oracle account before exporting winners." });
+    const google = await getGoogleConnectionStatus(req.userId);
+    if (!google.connected) return res.status(409).json({ success: false, code: "GOOGLE_NOT_CONNECTED", message: "Connect your Google Drive account before exporting winners." });
 
-    const result = await createWinnerGoogleSheet({ raffleTitle: raffle.title, shareWithEmail: creator.email, rows: winners });
-    return res.json({ success: true, ...result, message: "Winner Google Sheet created and shared read-only with your account." });
+    const result = await createWinnerGoogleSheetForUser(req.userId, { raffleTitle: raffle.title, rows: winners });
+    return res.json({ success: true, ...result, message: "Winner Google Sheet created in your Google Drive." });
   } catch (error) { next(error); }
 });
 
