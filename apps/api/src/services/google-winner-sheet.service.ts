@@ -25,7 +25,11 @@ function cellSafe(value: unknown) {
   return /^[=+\-@]/.test(text) ? `'${text}` : text;
 }
 
-export async function createWinnerGoogleSheetForUser(input: { accessToken: string; raffleTitle: string; rows: WinnerSheetRow[] }) {
+export async function createWinnerGoogleSheetForUser(input: {
+  accessToken: string;
+  raffleTitle: string;
+  rows: WinnerSheetRow[];
+}) {
   const safeTitle = input.raffleTitle.trim().slice(0, 80) || "Raven Oracle Raffle";
   const spreadsheet = await googleRequest<SpreadsheetResponse>(input.accessToken, `${SHEETS_API}/spreadsheets`, {
     method: "POST",
@@ -37,15 +41,27 @@ export async function createWinnerGoogleSheetForUser(input: { accessToken: strin
   const spreadsheetId = spreadsheet.spreadsheetId;
   if (!spreadsheetId) throw new Error("Google Sheets did not return a spreadsheet ID.");
 
+  // Keep the winner sheet intentionally minimal:
+  // X, Discord, wallet address, email and entry time.
+  // No rank/raffle/username/email-verification/status/notification fields.
   const values = [
     ["X", "Discord", "Wallet Address", "Email", "Entered At"],
-    ...input.rows.map((row) => [cellSafe(row.x), cellSafe(row.discord), cellSafe(row.walletAddress), cellSafe(row.email), row.enteredAt.toISOString()]),
+    ...input.rows.map((row) => [
+      cellSafe(row.x),
+      cellSafe(row.discord),
+      cellSafe(row.walletAddress),
+      cellSafe(row.email),
+      row.enteredAt.toISOString(),
+    ]),
   ];
 
   await googleRequest(
     input.accessToken,
     `${SHEETS_API}/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent("Winners!A1:E")}?valueInputOption=RAW`,
-    { method: "PUT", body: JSON.stringify({ range: "Winners!A1:E", majorDimension: "ROWS", values }) },
+    {
+      method: "PUT",
+      body: JSON.stringify({ range: "Winners!A1:E", majorDimension: "ROWS", values }),
+    },
   );
 
   await googleRequest(input.accessToken, `${SHEETS_API}/spreadsheets/${encodeURIComponent(spreadsheetId)}:batchUpdate`, {
@@ -72,7 +88,10 @@ export async function createWinnerGoogleSheetForUser(input: { accessToken: strin
         },
       ],
     }),
-  });
+  );
 
-  return { spreadsheetId, spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit` };
+  return {
+    spreadsheetId,
+    spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`,
+  };
 }
