@@ -34,13 +34,17 @@ export async function drawRaffle(raffleId: string, requestingUserId: string) {
     if (raffle.status !== "CLOSED") throw new Error("Raffle must be closed before drawing winners");
     if (new Date() < raffle.endsAt) throw new Error("Raffle end time has not been reached");
 
-    // Atomic claim: concurrent draw requests can never both enter the selection phase.
     const claimed = await tx.raffle.updateMany({
       where: { id: raffleId, status: "CLOSED" },
       data: { status: "DRAWING" },
     });
     if (claimed.count !== 1) {
       throw new Error("Raffle draw is already in progress or is no longer drawable");
+    }
+
+    const pendingCount = await tx.raffleEntry.count({ where: { raffleId, status: "PENDING" } });
+    if (pendingCount > 0) {
+      throw new Error(`Raffle has ${pendingCount} unevaluated entr${pendingCount === 1 ? "y" : "ies"}; evaluate entries before drawing`);
     }
 
     const eligibleEntries = await tx.raffleEntry.findMany({
