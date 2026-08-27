@@ -3,12 +3,13 @@ import { env } from "../config/env.js";
 import { prisma } from "../lib/prisma.js";
 import { createAuthToken } from "./auth.service.js";
 
-// X's current OAuth 2.0 authorization endpoint. Keep the token/API endpoints on api.x.com.
-const X_AUTHORIZE_URL = "https://x.com/i/oauth2/authorize";
+// Keep the authorization endpoint on the legacy hostname used by the previously
+// working Raven Oracle deployment. X redirects this to the current OAuth UI.
+const X_AUTHORIZE_URL = "https://twitter.com/i/oauth2/authorize";
 const X_TOKEN_URL = "https://api.x.com/2/oauth2/token";
 const X_ME_URL = "https://api.x.com/2/users/me";
-// Raven Oracle only needs account identity + follow verification. Keep scopes minimal.
-const SCOPES = ["users.read", "follows.read", "offline.access"];
+// Preserve the scopes from the known-working Raven Oracle OAuth app configuration.
+const SCOPES = ["users.read", "tweet.read", "follows.read", "like.read", "offline.access"];
 
 function encryptionKey() { return crypto.createHash("sha256").update(env.JWT_SECRET).digest(); }
 function encrypt(value: string) { const iv = crypto.randomBytes(12); const cipher = crypto.createCipheriv("aes-256-gcm", encryptionKey(), iv); const encrypted = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]); return [iv.toString("base64url"), cipher.getAuthTag().toString("base64url"), encrypted.toString("base64url")].join("."); }
