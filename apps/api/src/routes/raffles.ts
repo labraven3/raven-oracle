@@ -6,12 +6,15 @@ import { notifyWinner } from "../services/raffle-winner.service.js";
 import { requireAuth } from "../middleware/auth.js";
 
 const require = createRequire(import.meta.url);
-const xlsx = require("node-xlsx") as { build: (worksheets: Array<{ name: string; data: unknown[][] }>) => Buffer };
+const xlsx = require("node-xlsx") as { build: (worksheets: Array<{ name: string; data: unknown[][] }>, options?: unknown) => Buffer };
 
 const router = Router();
 function getRaffleId(req: Request, res: Response): string | null { const id = req.params.id; if (typeof id !== "string") { res.status(400).json({ success: false, message: "Invalid raffle ID" }); return null; } return id; }
 function asyncRoute(handler: (req: Request, res: Response, next: NextFunction) => Promise<void>) { return (req: Request, res: Response, next: NextFunction) => { void handler(req, res, next).catch(next); }; }
 const PUBLIC_STATUSES = ["ACTIVE", "SCHEDULED", "CLOSED", "COMPLETED"] as const;
+
+type XlsxTextCell = { v: string; t: "s"; s: { numFmt: "@" } };
+const textCell = (value: unknown): XlsxTextCell => ({ v: String(value ?? ""), t: "s", s: { numFmt: "@" } });
 
 router.post("/", asyncRoute(async (_req, res) => { res.status(410).json({ success: false, message: "Raffles are created from the owning project dashboard." }); }));
 router.get("/", asyncRoute(async (req, res) => {
@@ -22,7 +25,7 @@ router.get("/", asyncRoute(async (req, res) => {
   res.setHeader("Cache-Control", "public, max-age=10, stale-while-revalidate=30");
   res.json({ success: true, raffles });
 }));
-router.get("/mine", requireAuth, asyncRoute(async (req, res) => { if (!req.userId) { res.status(401).json({ success: false, message: "Authentication required" }); return; } const entries = await prisma.raffleEntry.findMany({ where: { userId: req.userId }, orderBy: { enteredAt: "desc" }, take: 100, include: { raffle: { include: { project: { select: { id: true, name: true, logoUrl: true, category: true } } } } } }); res.json({ success: true, entries }); }));
+router.get("/mine", requireAuth, asyncRoute(async (req, res) => { if (!req.userId) { res.status(401).json({ success: false, message: "Authentication required" }); return; } const entries = await prisma.raffleEntry.findMany({ where: { userId: req.userId }, orderBy: { enteredAt: "desc" }, take: 100, include: { raffle: { include: { project: { select: { id: true, name: true, logoUrl: true, category: true } } } } }); res.json({ success: true, entries }); }));
 router.get("/:id", asyncRoute(async (req, res) => { const raffleId = getRaffleId(req, res); if (!raffleId) return; const raffle = await prisma.raffle.findUnique({ where: { id: raffleId }, include: { project: true } }); if (!raffle) { res.status(404).json({ success: false, message: "Raffle not found" }); return; } const now = new Date(); if (raffle.status === "DRAFT" || raffle.status === "CANCELLED") { res.status(404).json({ success: false, message: "Raffle not found" }); return; } if (raffle.status === "SCHEDULED" && now >= raffle.startsAt && now < raffle.endsAt) { await prisma.raffle.update({ where: { id: raffle.id }, data: { status: "ACTIVE" } }); raffle.status = "ACTIVE"; } else if ((raffle.status === "ACTIVE" || raffle.status === "SCHEDULED") && now >= raffle.endsAt) { await prisma.raffle.update({ where: { id: raffle.id }, data: { status: "CLOSED" } }); raffle.status = "CLOSED" } res.setHeader("Cache-Control", "private, max-age=5, stale-while-revalidate=15"); res.json({ success: true, raffle }); }));
 
 router.get("/:id/winners/export", requireAuth, asyncRoute(async (req, res) => {
@@ -32,29 +35,39 @@ router.get("/:id/winners/export", requireAuth, asyncRoute(async (req, res) => {
   if (!raffle) { res.status(404).json({ success: false, message: "Raffle not found" }); return; }
   if (raffle.createdByUserId !== req.userId) { res.status(403).json({ success: false, message: "Only the raffle host can export winners" }); return; }
   if (raffle.status !== "COMPLETED") { res.status(400).json({ success: false, message: "Winners can be exported after the raffle is completed" }); return; }
+
   const winners = await prisma.raffleWinner.findMany({
     where: { raffleId: raffle.id },
     orderBy: { selectionRank: "asc" },
     select: {
-      selectionRank: true,
-      status: true,
-      notificationStatus: true,
       walletAddressSnapshot: true,
-      selectedAt: true,
-      notifiedAt: true,
       user: { select: { email: true, socialAccounts: { where: { provider: { in: ["X", "DISCORD"] }, isActive: true }, select: { provider: true, providerUsername: true, displayName: true } } } },
       entry: { select: { enteredAt: true } },
     },
   });
+
+  // Keep every exported value explicitly as an XLSX text cell. This prevents
+  // Excel from converting long wallet addresses into scientific notation or
+  // rounding/truncating them as numbers.
   const rows: unknown[][] = [
-    ["Rank", "X", "Discord", "Wallet Address", "Email", "Entered At", "Winner Status", "Notification Status", "Selected At", "Notified At"],
+    [textCell("X"), textCell("Discord"), textCell("Wallet Address"), textCell("Email"), textCell("Entered At")],
     ...winners.map((winner) => {
       const x = winner.user.socialAccounts.find((account) => account.provider === "X");
       const discord = winner.user.socialAccounts.find((account) => account.provider === "DISCORD");
-      return [winner.selectionRank, x?.providerUsername ?? x?.displayName ?? "", discord?.providerUsername ?? discord?.displayName ?? "", winner.walletAddressSnapshot, winner.user.email ?? "", winner.entry.enteredAt.toISOString(), winner.status, winner.notificationStatus, winner.selectedAt.toISOString(), winner.notifiedAt?.toISOString() ?? ""];
+      return [
+        textCell(x?.providerUsername ?? x?.displayName ?? ""),
+        textCell(discord?.providerUsername ?? discord?.displayName ?? ""),
+        textCell(winner.walletAddressSnapshot),
+        textCell(winner.user.email ?? ""),
+        textCell(winner.entry.enteredAt.toISOString()),
+      ];
     }),
   ];
-  const workbook = xlsx.build([{ name: "Winners", data: rows }]);
+
+  const workbook = xlsx.build(
+    [{ name: "Winners", data: rows }],
+    { sheetOptions: { "!cols": [{ wch: 28 }, { wch: 28 }, { wch: 48 }, { wch: 36 }, { wch: 28 }] } },
+  );
   const filename = `raven-oracle-${raffle.id}-winners.xlsx`;
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
