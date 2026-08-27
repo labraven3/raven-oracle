@@ -51,6 +51,10 @@ function worksheetTitle(base: string, exportId: string) {
   return `${cleaned.slice(0, 100 - suffix.length)}${suffix}`.slice(0, 100);
 }
 
+function a1SheetRange(sheetTitle: string, range: string) {
+  return `'${sheetTitle.replace(/'/g, "''")}'!${range}`;
+}
+
 async function googleRequest<T>(accessToken: string, url: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers);
   headers.set("Authorization", `Bearer ${accessToken}`);
@@ -154,7 +158,7 @@ export async function createWinnerGoogleSheetForUser(
     ]),
   ];
 
-  const range = `${sheetTitle}!A1:R`;
+  const range = a1SheetRange(sheetTitle, "A1:R");
   await googleRequest(
     accessToken,
     `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(range)}?valueInputOption=RAW`,
