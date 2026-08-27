@@ -16,7 +16,10 @@ function csv(value: unknown) {
 }
 
 async function getCreatorRaffle(raffleId: string, userId: string) {
-  return prisma.raffle.findFirst({ where: { id: raffleId, createdByUserId: userId }, select: { id: true, createdByUserId: true, status: true, title: true, winnerCount: true, prizeName: true } });
+  return prisma.raffle.findFirst({
+    where: { id: raffleId, createdByUserId: userId },
+    select: { id: true, createdByUserId: true, status: true, title: true, winnerCount: true, prizeName: true, endsAt: true },
+  });
 }
 
 async function getWinnerRows(raffleId: string) {
@@ -30,6 +33,22 @@ async function getWinnerRows(raffleId: string) {
       notificationStatus: true,
       selectedAt: true,
       notifiedAt: true,
+      raffle: { select: { title: true, endsAt: true } },
+      entry: {
+        select: {
+          id: true,
+          status: true,
+          enteredAt: true,
+          taskVerifications: {
+            select: {
+              status: true,
+              verifiedAt: true,
+              failureReason: true,
+              raffleTask: { select: { title: true, type: true, isRequired: true, sortOrder: true } },
+            },
+          },
+        },
+      },
       user: {
         select: {
           email: true,
@@ -50,6 +69,11 @@ async function getWinnerRows(raffleId: string) {
     const discord = winner.user.socialAccounts.find((account) => account.provider === "DISCORD");
     return {
       rank: winner.selectionRank,
+      raffleTitle: winner.raffle.title,
+      raffleEndsAt: winner.raffle.endsAt,
+      entryId: winner.entry.id,
+      entryStatus: winner.entry.status,
+      enteredAt: winner.entry.enteredAt,
       xUsername: x?.providerUsername ?? x?.displayName ?? "",
       discordUsername: discord?.providerUsername ?? discord?.displayName ?? "",
       walletAddress: winner.walletAddressSnapshot,
@@ -59,6 +83,17 @@ async function getWinnerRows(raffleId: string) {
       notificationStatus: winner.notificationStatus,
       selectedAt: winner.selectedAt,
       notifiedAt: winner.notifiedAt,
+      tasks: winner.entry.taskVerifications
+        .slice()
+        .sort((a, b) => a.raffleTask.sortOrder - b.raffleTask.sortOrder)
+        .map((task) => ({
+          title: task.raffleTask.title,
+          type: task.raffleTask.type,
+          required: task.raffleTask.isRequired,
+          status: task.status,
+          verifiedAt: task.verifiedAt,
+          failureReason: task.failureReason,
+        })),
     };
   });
 }
@@ -148,14 +183,18 @@ router.post("/:raffleId/winners/export/google-sheets", requireAuth, async (req, 
     if (!raffleId || !req.userId) return res.status(400).json({ success: false, message: "Invalid raffle or authentication" });
     const raffle = await getCreatorRaffle(raffleId, req.userId);
     if (!raffle) return res.status(403).json({ success: false, message: "Only the raffle creator can export winners" });
+    if (raffle.endsAt.getTime() > Date.now()) {
+      return res.status(409).json({ success: false, code: "RAFFLE_NOT_ENDED", message: `Winner export becomes available after the raffle ends at ${raffle.endsAt.toISOString()}.` });
+    }
+
     const winners = await getWinnerRows(raffleId);
     if (winners.length === 0) return res.status(400).json({ success: false, message: "No winners have been selected yet" });
 
     const google = await getGoogleConnectionStatus(req.userId);
-    if (!google.connected) return res.status(409).json({ success: false, code: "GOOGLE_NOT_CONNECTED", message: "Connect your Google Drive account before exporting winners." });
+    if (!google.connected) return res.status(409).json({ success: false, code: "GOOGLE_NOT_CONNECTED", message: "Connect your Google account before exporting winners." });
 
-    const result = await createWinnerGoogleSheetForUser(req.userId, { raffleTitle: raffle.title, rows: winners });
-    return res.json({ success: true, ...result, message: "Winner Google Sheet created in your Google Drive." });
+    const result = await createWinnerGoogleSheetForUser(req.userId, { raffleTitle: raffle.title, raffleEndsAt: raffle.endsAt, rows: winners });
+    return res.json({ success: true, ...result, message: result.repeatedExport ? "Winner export created as a new worksheet and labeled with a unique export ID." : "Winner Google Sheet created with a unique export ID." });
   } catch (error) { next(error); }
 });
 
