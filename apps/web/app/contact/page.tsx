@@ -1,0 +1,6 @@
+import SiteHeader from "../../components/SiteHeader";
+import SiteFooter from "../../components/SiteFooter";
+
+export default function ContactPage() {
+  return <main className="min-h-screen bg-[#06060a] text-zinc-100"><SiteHeader/><div className="mx-auto max-w-3xl px-5 py-16 sm:px-8"><p className="text-xs font-bold uppercase tracking-[.2em] text-violet-300">Contact</p><h1 className="mt-3 text-4xl font-black tracking-tight">Get in touch</h1><p className="mt-4 text-sm leading-7 text-zinc-500">For launch, raffle or technical questions, use the official community channels once they are published. Until then, the project repository is the authoritative public development record.</p><a href="https://github.com/labraven3/raven-oracle" target="_blank" rel="noreferrer" className="mt-8 inline-flex rounded-xl border border-white/10 bg-white/[.04] px-5 py-3 text-sm font-bold hover:bg-white/[.08]">Open GitHub repository</a><div className="mt-8 rounded-2xl border border-white/10 bg-[#0d0c11] p-6"><h2 className="font-semibold">Security reports</h2><p className="mt-2 text-sm leading-6 text-zinc-500">Please do not post private keys, seed phrases, API secrets or other sensitive credentials in public issues. Redact sensitive information before reporting a problem.</p></div></div><SiteFooter/></main>;
+}
