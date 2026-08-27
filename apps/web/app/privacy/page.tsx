@@ -1,0 +1,6 @@
+import SiteHeader from "../../components/SiteHeader";
+import SiteFooter from "../../components/SiteFooter";
+
+export default function PrivacyPage() {
+  return <main className="min-h-screen bg-[#06060a] text-zinc-100"><SiteHeader/><article className="mx-auto max-w-4xl px-5 py-16 sm:px-8"><p className="text-xs font-bold uppercase tracking-[.2em] text-violet-300">Legal</p><h1 className="mt-3 text-4xl font-black">Privacy</h1><div className="mt-8 space-y-6 text-sm leading-7 text-zinc-500"><section><h2 className="font-semibold text-white">Account and raffle data</h2><p className="mt-2">Raven Oracle stores account, social-account, wallet and raffle-entry information needed to operate the platform, enforce raffle rules and provide creator results.</p></section><section><h2 className="font-semibold text-white">OAuth connections</h2><p className="mt-2">Third-party account connections are used only for the platform features that require them. Credentials and tokens are handled server-side where applicable and should never be pasted into public forms or chat.</p></section><section><h2 className="font-semibold text-white">Security</h2><p className="mt-2">Access controls, rate limits and security middleware are used to reduce common abuse. No online service can guarantee absolute security.</p></section></div></article><SiteFooter/></main>;
+}
