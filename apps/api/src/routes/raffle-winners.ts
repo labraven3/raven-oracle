@@ -5,6 +5,10 @@ import { requireAuth } from "../middleware/auth.js";
 import { notifyWinner } from "../services/raffle-winner.service.js";
 
 const router = Router();
+
+type XlsxTextCell = { v: string; t: "s"; s: { numFmt: "@" } };
+const textCell = (value: unknown): XlsxTextCell => ({ v: String(value ?? ""), t: "s", s: { numFmt: "@" } });
+
 function getId(value: string | string[] | undefined) { return Array.isArray(value) ? value[0] : value; }
 function getCreatorRaffle(raffleId: string, userId: string) { return prisma.raffle.findFirst({ where: { id: raffleId, createdByUserId: userId }, select: { id: true, createdByUserId: true, status: true, title: true, winnerCount: true, prizeName: true, endsAt: true } }); }
 
@@ -67,18 +71,24 @@ router.get("/:raffleId/winners/export", requireAuth, async (req, res, next) => {
     });
     if (winners.length === 0) return res.status(400).json({ success: false, message: "No winners have been selected yet." });
 
-    const rows: string[][] = [
-      ["X", "Discord", "Wallet Address"],
+    // Force spreadsheet cells to text so EVM/Solana addresses are never
+    // converted into scientific notation or rounded by Excel/Numbers.
+    const rows: XlsxTextCell[][] = [
+      [textCell("X"), textCell("Discord"), textCell("Wallet Address")],
       ...winners.map((winner) => {
         const x = winner.user.socialAccounts.find((account) => account.provider === "X");
         const discord = winner.user.socialAccounts.find((account) => account.provider === "DISCORD");
-        return [x?.providerUsername ?? x?.displayName ?? "", discord?.providerUsername ?? discord?.displayName ?? "", winner.walletAddressSnapshot ?? ""];
+        return [
+          textCell(x?.providerUsername ?? x?.displayName ?? ""),
+          textCell(discord?.providerUsername ?? discord?.displayName ?? ""),
+          textCell(winner.walletAddressSnapshot),
+        ];
       }),
     ];
 
-    const workbook = xlsx.build([
-      { name: "Winners", data: rows, options: { "!cols": [{ wch: 28 }, { wch: 28 }, { wch: 52 }] } },
-    ]);
+    const workbook = xlsx.build(
+      [{ name: "Winners", data: rows, options: { "!cols": [{ wch: 28 }, { wch: 28 }, { wch: 52 }] } }],
+    );
     const safeTitle = raffle.title.replace(/[^a-z0-9-_]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "raffle";
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", `attachment; filename="raven-oracle-${safeTitle}-winners.xlsx"`);
