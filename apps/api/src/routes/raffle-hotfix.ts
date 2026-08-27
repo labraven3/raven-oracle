@@ -41,22 +41,11 @@ async function refreshXSession(userId: string) {
   const credentials = Buffer.from(`${env.X_CLIENT_ID}:${env.X_CLIENT_SECRET}`).toString("base64");
   const response = await fetch("https://api.x.com/2/oauth2/token", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Basic ${credentials}`,
-    },
+    headers: { "Content-Type": "application/x-www-form-urlencoded", Authorization: `Basic ${credentials}` },
     body,
   });
-  const data = await response.json() as {
-    access_token?: string;
-    refresh_token?: string;
-    expires_in?: number;
-    error?: string;
-    error_description?: string;
-  };
-  if (!response.ok || !data.access_token) {
-    throw new Error(data.error_description || data.error || `X token refresh failed (${response.status})`);
-  }
+  const data = await response.json() as { access_token?: string; refresh_token?: string; expires_in?: number; error?: string; error_description?: string };
+  if (!response.ok || !data.access_token) throw new Error(data.error_description || data.error || `X token refresh failed (${response.status})`);
 
   await prisma.socialAccount.update({
     where: { id: account.id },
@@ -72,10 +61,7 @@ async function refreshXSession(userId: string) {
 }
 
 async function ensureXSessionFresh(userId: string) {
-  const account = await prisma.socialAccount.findFirst({
-    where: { userId, provider: "X", isActive: true },
-    select: { tokenExpiresAt: true, refreshTokenEncrypted: true },
-  });
+  const account = await prisma.socialAccount.findFirst({ where: { userId, provider: "X", isActive: true }, select: { tokenExpiresAt: true, refreshTokenEncrypted: true } });
   if (!account?.refreshTokenEncrypted || !account.tokenExpiresAt) return;
   if (account.tokenExpiresAt.getTime() > Date.now() + 5 * 60 * 1000) return;
   await refreshXSession(userId);
@@ -116,9 +102,7 @@ router.post("/:raffleId/tasks/:taskId/verify", requireAuth, async (req, res, nex
 
     const result = await verifyRaffleTask(taskId, entry.id, req.userId);
     return res.json({ success: true, taskId, entryId: entry.id, ...result });
-  } catch (error) {
-    next(error);
-  }
+  } catch (error) { next(error); }
 });
 
 router.delete("/:raffleId", requireAuth, async (req, res, next) => {
@@ -126,16 +110,11 @@ router.delete("/:raffleId", requireAuth, async (req, res, next) => {
     if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
     const raffleId = req.params.raffleId;
     if (typeof raffleId !== "string") return res.status(400).json({ success: false, message: "Invalid raffle ID" });
-
-    const raffle = await prisma.raffle.findUnique({
-      where: { id: raffleId },
-      select: { id: true, createdByUserId: true, status: true, cancelledAt: true, _count: { select: { winners: true } } },
-    });
+    const raffle = await prisma.raffle.findUnique({ where: { id: raffleId }, select: { id: true, createdByUserId: true, status: true, cancelledAt: true, _count: { select: { winners: true } } } });
     if (!raffle) return res.status(404).json({ success: false, message: "Raffle not found" });
     if (raffle.createdByUserId !== req.userId) return res.status(403).json({ success: false, message: "Only the raffle creator can delete this raffle" });
     if (raffle._count.winners > 0 || raffle.status === "COMPLETED") return res.status(400).json({ success: false, message: "Completed raffles with winners are retained for winner/export audit." });
     if (raffle.cancelledAt || raffle.status === "CANCELLED") return res.status(400).json({ success: false, message: "Raffle is already deleted" });
-
     const deleted = await prisma.raffle.update({ where: { id: raffleId }, data: { status: "CANCELLED", cancelledAt: new Date() } });
     return res.json({ success: true, message: "Raffle deleted", raffle: deleted });
   } catch (error) { next(error); }
@@ -160,16 +139,24 @@ router.post("/:raffleId/draw", requireAuth, async (req, res, next) => {
 
     const result = await drawRaffle(raffleId, req.userId);
     const notificationResults = await Promise.allSettled(result.winners.map((winner) => notifyWinner(raffleId, winner.id)));
-    return res.json({
-      success: true,
-      ...result,
-      notifications: notificationResults.map((item, index) => ({
-        winnerId: result.winners[index]?.id,
-        sent: item.status === "fulfilled",
-        error: item.status === "rejected" ? (item.reason instanceof Error ? item.reason.message : "Notification failed") : null,
-      })),
-    });
-  } catch (error) { next(error); }
+    return res.json({ success: true, ...result, notifications: notificationResults.map((item, index) => ({ winnerId: result.winners[index]?.id, sent: item.status === "fulfilled", error: item.status === "rejected" ? (item.reason instanceof Error ? item.reason.message : "Notification failed") : null })) });
+  } catch (error) {
+    // This route is mounted before the general raffle router, so normalize
+    // draw errors here instead of letting expected lifecycle errors become 500s.
+    const message = error instanceof Error ? error.message : "Unable to draw raffle";
+    const known = [
+      "Raffle has already been drawn",
+      "Cancelled raffle cannot be drawn",
+      "Raffle must be closed before drawing winners",
+      "Raffle end time has not been reached",
+      "Raffle draw is already in progress or is no longer drawable",
+      "No eligible entries with payout wallets available",
+    ];
+    if (known.includes(message) || /^Raffle has \\d+ unevaluated entr/.test(message)) {
+      return res.status(message === "Raffle has already been drawn" ? 409 : 400).json({ success: false, message });
+    }
+    return next(error);
+  }
 });
 
 router.get("/:raffleId/winners", requireAuth, async (req, res, next) => {
@@ -177,27 +164,11 @@ router.get("/:raffleId/winners", requireAuth, async (req, res, next) => {
     if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
     const raffleId = req.params.raffleId;
     if (typeof raffleId !== "string") return res.status(400).json({ success: false, message: "Invalid raffle ID" });
-
     await closeExpired(raffleId);
     const raffle = await prisma.raffle.findUnique({ where: { id: raffleId }, select: { id: true, createdByUserId: true, status: true, title: true, winnerCount: true, prizeName: true } });
     if (!raffle) return res.status(404).json({ success: false, message: "Raffle not found" });
     const isCreator = raffle.createdByUserId === req.userId;
-    const winners = await prisma.raffleWinner.findMany({
-      where: isCreator ? { raffleId } : { raffleId, userId: req.userId },
-      orderBy: { selectionRank: "asc" },
-      select: {
-        id: true,
-        entryId: true,
-        userId: true,
-        walletAddressSnapshot: true,
-        selectionRank: true,
-        status: true,
-        notificationStatus: true,
-        selectedAt: true,
-        notifiedAt: true,
-        user: { select: { displayName: true, username: true, email: true, emailVerifiedAt: true } },
-      },
-    });
+    const winners = await prisma.raffleWinner.findMany({ where: isCreator ? { raffleId } : { raffleId, userId: req.userId }, orderBy: { selectionRank: "asc" }, select: { id: true, entryId: true, userId: true, walletAddressSnapshot: true, selectionRank: true, status: true, notificationStatus: true, selectedAt: true, notifiedAt: true, user: { select: { displayName: true, username: true, email: true, emailVerifiedAt: true } } } });
     return res.json({ success: true, raffle, winners, viewer: isCreator ? "CREATOR" : "WINNER" });
   } catch (error) { next(error); }
 });
@@ -207,21 +178,15 @@ router.delete("/:projectId", requireAuth, async (req, res, next) => {
     if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
     const projectId = req.params.projectId;
     if (typeof projectId !== "string") return res.status(400).json({ success: false, message: "Invalid project ID" });
-
     const project = await prisma.project.findUnique({ where: { id: projectId }, select: { id: true, name: true, category: true, deletedAt: true, submittedByUserId: true } });
     if (!project || project.deletedAt) return res.status(404).json({ success: false, message: "Project not found" });
     if (project.submittedByUserId !== req.userId) return res.status(403).json({ success: false, message: "You do not own this project" });
     if (project.category !== "NFT") return res.status(400).json({ success: false, message: "Only NFT projects can be deleted from creator dashboard" });
-
     const now = new Date();
     await prisma.$transaction(async (tx) => {
-      await tx.raffle.updateMany({
-        where: { projectId, status: { in: ["DRAFT", "SCHEDULED", "ACTIVE", "CLOSED"] }, cancelledAt: null },
-        data: { status: "CANCELLED", cancelledAt: now },
-      });
+      await tx.raffle.updateMany({ where: { projectId, status: { in: ["DRAFT", "SCHEDULED", "ACTIVE", "CLOSED"] }, cancelledAt: null }, data: { status: "CANCELLED", cancelledAt: now } });
       await tx.project.update({ where: { id: projectId }, data: { deletedAt: now, status: "ARCHIVED" } });
     });
-
     return res.json({ success: true, message: "NFT project deleted", projectId });
   } catch (error) { next(error); }
 });
