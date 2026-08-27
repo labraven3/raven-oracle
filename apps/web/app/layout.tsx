@@ -3,13 +3,14 @@ import type { ReactNode } from "react";
 import "./globals.css";
 import "./theme-overrides.css";
 import "./theme-fixes.css";
+import "./pro-polish.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import BrandSync from "@/components/BrandSync";
 import SiteChrome from "@/components/SiteChrome";
 
 export const metadata: Metadata = {
-  title: "Raven Oracle",
-  description: "Open crypto and NFT community alpha, reputation, and fair rewards.",
+  title: "Raven Oracle — NFT Raffles & Community Alpha",
+  description: "Raven Oracle is a community-first platform for NFT raffles, projects, alpha, and fair rewards.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
