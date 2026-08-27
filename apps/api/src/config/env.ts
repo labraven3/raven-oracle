@@ -21,7 +21,8 @@ const envSchema = z.object({
   GOOGLE_OAUTH_CLIENT_ID: z.string().min(1).optional(),
   GOOGLE_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
   GOOGLE_OAUTH_REDIRECT_URI: z.string().url().optional(),
-  GOOGLE_SERVICE_ACCOUNT_JSON: z.string().min(1).optional(),
+  GOOGLE_SHEETS_SPREADSHEET_ID: z.string().trim().min(1).optional(),
+  GOOGLE_SHEETS_WORKSHEET_NAME: z.string().trim().min(1).max(80).default("Winners"),
   TELEGRAM_BOT_TOKEN: z.string().min(1).optional(),
   TELEGRAM_BOT_USERNAME: z.string().min(1).optional(),
   TELEGRAM_WEBHOOK_SECRET: z.string().min(1).optional(),
@@ -69,8 +70,8 @@ console.log(`  • DATABASE_URL: ${env.DATABASE_URL ? "configured" : "not config
 console.log(`  • JWT_SECRET: ${env.JWT_SECRET ? "configured" : "missing"}`);
 console.log(`  • X OAuth: ${env.X_CLIENT_ID && env.X_CLIENT_SECRET ? "configured" : "not configured"}`);
 console.log(`  • Discord OAuth: ${env.DISCORD_CLIENT_ID && env.DISCORD_CLIENT_SECRET ? "configured" : "not configured"}`);
-console.log(`  • Google Drive OAuth: ${env.GOOGLE_OAUTH_CLIENT_ID && env.GOOGLE_OAUTH_CLIENT_SECRET && env.GOOGLE_OAUTH_REDIRECT_URI ? "configured" : "not configured"}`);
-console.log(`  • Google service account: ${env.GOOGLE_SERVICE_ACCOUNT_JSON ? "configured" : "not configured"}`);
+console.log(`  • Google Sheets OAuth: ${env.GOOGLE_OAUTH_CLIENT_ID && env.GOOGLE_OAUTH_CLIENT_SECRET && env.GOOGLE_OAUTH_REDIRECT_URI ? "configured" : "not configured"}`);
+console.log(`  • Google Sheets target: ${env.GOOGLE_SHEETS_SPREADSHEET_ID ? "configured spreadsheet" : "new spreadsheet per export"}`);
 console.log(`  • Telegram Bot: ${env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_BOT_USERNAME ? "configured" : "not configured"}`);
 console.log(`  • Email: ${env.GMAIL_USER && env.GMAIL_APP_PASSWORD ? "configured" : "not configured"}`);
 console.log("");
