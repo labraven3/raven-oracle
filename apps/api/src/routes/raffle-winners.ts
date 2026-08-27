@@ -76,10 +76,9 @@ router.get("/:raffleId/winners/export", requireAuth, async (req, res, next) => {
       }),
     ];
 
-    const workbook = xlsx.build(
-      [{ name: "Winners", data: rows, options: {} }],
-      { sheetOptions: { "!cols": [{ wch: 28 }, { wch: 28 }, { wch: 52 }] } },
-    );
+    const workbook = xlsx.build([
+      { name: "Winners", data: rows, options: { "!cols": [{ wch: 28 }, { wch: 28 }, { wch: 52 }] } },
+    ]);
     const safeTitle = raffle.title.replace(/[^a-z0-9-_]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "raffle";
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", `attachment; filename="raven-oracle-${safeTitle}-winners.xlsx"`);
