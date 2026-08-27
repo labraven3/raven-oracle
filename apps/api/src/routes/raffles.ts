@@ -72,25 +72,27 @@ router.get("/:id/winners/export", requireAuth, asyncRoute(async (req, res) => {
     },
   });
 
-  // Export only the host-facing winner fields. Every value is an XLSX text cell
-  // so long wallet addresses remain intact in Excel.
-  const rows: unknown[][] = [
-    [textCell("X"), textCell("Discord"), textCell("Wallet Address")],
+  // Export only the host-facing winner fields.
+  // Keep wallet addresses as forced text so Excel/Sheets never converts 0x... to a number.
+  const rows: string[][] = [
+    ["X", "Discord", "Wallet Address"],
     ...winners.map((winner) => {
       const x = winner.user.socialAccounts.find((account) => account.provider === "X");
       const discord = winner.user.socialAccounts.find((account) => account.provider === "DISCORD");
+
       return [
-        textCell(x?.providerUsername ?? x?.displayName ?? ""),
-        textCell(discord?.providerUsername ?? discord?.displayName ?? ""),
-        textCell(winner.walletAddressSnapshot),
+        x?.providerUsername ?? x?.displayName ?? "",
+        discord?.providerUsername ?? discord?.displayName ?? "",
+        winner.walletAddressSnapshot ? "'" + winner.walletAddressSnapshot : "",
       ];
     }),
   ];
 
   const workbook = xlsx.build(
     [{ name: "Winners", data: rows }],
-    { sheetOptions: { "!cols": [{ wch: 28 }, { wch: 28 }, { wch: 48 }] } },
+    { sheetOptions: { "!cols": [{ wch: 28 }, { wch: 28 }, { wch: 52 }] } },
   );
+
   const filename = `raven-oracle-${raffle.id}-winners.xlsx`;
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
