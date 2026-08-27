@@ -2,11 +2,14 @@ import crypto from "node:crypto";
 import { createHash } from "node:crypto";
 import { prisma } from "../lib/prisma.js";
 
-const ALGORITHM_VERSION = "sha256-csprng-v1";
+const ALGORITHM_VERSION = "sha256-csprng-v2";
 const FCFS_ALGORITHM_VERSION = "fcfs-v1";
-
 function hashEntryIds(entryIds: string[]) { return createHash("sha256").update(entryIds.join("\n")).digest("hex"); }
-function randomIndex(randomBytes: Buffer, max: number) { if (max <= 0) throw new Error("Cannot select from an empty set"); const range = Math.floor(256 / max) * max; for (let i = 0; i < randomBytes.length; i++) { const value = randomBytes[i]; if (value !== undefined && value < range) return value % max; } return randomIndex(crypto.randomBytes(32), max); }
+function randomIndex(max: number) {
+  if (max <= 0) throw new Error("Cannot select from an empty set");
+  const limit = Math.floor(0x100000000 / max) * max;
+  while (true) { const value = crypto.randomBytes(4).readUInt32BE(0); if (value < limit) return value % max; }
+}
 
 export async function drawRaffle(raffleId: string, requestingUserId: string) {
   return prisma.$transaction(async (tx) => {
@@ -18,11 +21,7 @@ export async function drawRaffle(raffleId: string, requestingUserId: string) {
     if (raffle.status !== "CLOSED") throw new Error("Raffle must be closed before drawing winners");
     if (new Date() < raffle.endsAt) throw new Error("Raffle end time has not been reached");
 
-    const eligibleEntries = await tx.raffleEntry.findMany({
-      where: { raffleId, status: "ELIGIBLE", walletAddressId: { not: null }, walletAddressSnapshot: { not: null } },
-      orderBy: { enteredAt: "asc" },
-      select: { id: true, userId: true, walletAddressSnapshot: true, enteredAt: true },
-    });
+    const eligibleEntries = await tx.raffleEntry.findMany({ where: { raffleId, status: "ELIGIBLE", walletAddressId: { not: null }, walletAddressSnapshot: { not: null } }, orderBy: { enteredAt: "asc" }, select: { id: true, userId: true, walletAddressSnapshot: true, enteredAt: true } });
     if (eligibleEntries.length === 0) throw new Error("No eligible entries with payout wallets available");
 
     const entryRules = raffle.entryRules && typeof raffle.entryRules === "object" && !Array.isArray(raffle.entryRules) ? raffle.entryRules as Record<string, unknown> : {};
@@ -36,7 +35,7 @@ export async function drawRaffle(raffleId: string, requestingUserId: string) {
     const remaining = [...eligibleEntries];
 
     for (let rank = 1; rank <= winnerCount; rank++) {
-      const index = raffleType === "FCFS" ? rank - 1 : randomIndex(randomness, remaining.length);
+      const index = raffleType === "FCFS" ? rank - 1 : randomIndex(remaining.length);
       selectedIndexes.push(index);
       const selected = remaining.splice(index, 1)[0];
       if (!selected || !selected.walletAddressSnapshot) throw new Error("Winner selection failed: payout wallet missing");
