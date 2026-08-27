@@ -53,7 +53,9 @@ export function createApp() {
   // Trusting that proxy lets rate limiting use the real client IP.
   app.set("trust proxy", 1);
   app.use(securityMiddleware);
-  app.use(express.json({ limit: "4mb" }));
+  // Raffle data is submitted as small JSON payloads. Keep the parser limit
+  // deliberately low so malformed requests cannot consume unnecessary memory.
+  app.use(express.json({ limit: "1mb" }));
   app.use("/api/health", healthRouter);
 
   // Brute-force protection for password/OTP/session endpoints. The global
