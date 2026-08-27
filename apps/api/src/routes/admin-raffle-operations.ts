@@ -5,6 +5,8 @@ import { evaluateRaffleEntry } from "../services/eligibility.service.js";
 import { drawRaffle } from "../services/raffle-draw.service.js";
 import { notifyWinner } from "../services/raffle-winner.service.js";
 import { requireAdminAuth } from "../middleware/auth.js";
+import { getGoogleOAuthAccessToken } from "../services/google-oauth.service.js";
+import { createWinnerGoogleSheetForUser } from "../services/google-winner-sheet.service.js";
 
 const router = Router();
 router.use(requireAdminAuth);
@@ -61,42 +63,56 @@ router.post("/:raffleId/draw", async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-router.get("/:raffleId/winners/export.csv", async (req, res, next) => {
+router.get("/:raffleId/winners/export.google-sheet", async (req, res, next) => {
   try {
-    const raffle = await prisma.raffle.findUnique({
-      where: { id: req.params.raffleId },
-      select: { id: true, title: true, prizeName: true, status: true },
-    });
+    if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
+    const raffle = await prisma.raffle.findUnique({ where: { id: req.params.raffleId }, select: { id: true, title: true } });
     if (!raffle) return res.status(404).json({ success: false, message: "Raffle not found" });
-
     const winners = await prisma.raffleWinner.findMany({
       where: { raffleId: raffle.id },
       orderBy: { selectionRank: "asc" },
       select: {
-        id: true,
-        selectionRank: true,
-        status: true,
         walletAddressSnapshot: true,
-        selectedAt: true,
-        notifiedAt: true,
-        notificationStatus: true,
-        user: { select: { username: true, displayName: true, email: true } },
+        user: {
+          select: {
+            email: true,
+            socialAccounts: {
+              where: { provider: { in: ["X", "DISCORD"] }, isActive: true },
+              select: { provider: true, providerUsername: true, displayName: true },
+            },
+          },
+        },
+        entry: { select: { enteredAt: true } },
       },
     });
+    const rows = winners.map((winner) => {
+      const x = winner.user.socialAccounts.find((account) => account.provider === "X");
+      const discord = winner.user.socialAccounts.find((account) => account.provider === "DISCORD");
+      return {
+        x: x?.providerUsername ?? x?.displayName ?? "",
+        discord: discord?.providerUsername ?? discord?.displayName ?? "",
+        walletAddress: winner.walletAddressSnapshot,
+        email: winner.user.email ?? "",
+        enteredAt: winner.entry.enteredAt,
+      };
+    });
+    const accessToken = await getGoogleOAuthAccessToken(req.userId);
+    const result = await createWinnerGoogleSheetForUser({ accessToken, raffleTitle: raffle.title, rows });
+    return res.json({ success: true, ...result, rowCount: rows.length });
+  } catch (error) { next(error); }
+});
 
+router.get("/:raffleId/winners/export.csv", async (req, res, next) => {
+  try {
+    const raffle = await prisma.raffle.findUnique({ where: { id: req.params.raffleId }, select: { id: true, title: true, prizeName: true, status: true } });
+    if (!raffle) return res.status(404).json({ success: false, message: "Raffle not found" });
+    const winners = await prisma.raffleWinner.findMany({
+      where: { raffleId: raffle.id },
+      orderBy: { selectionRank: "asc" },
+      select: { id: true, selectionRank: true, status: true, walletAddressSnapshot: true, selectedAt: true, notifiedAt: true, notificationStatus: true, user: { select: { username: true, displayName: true, email: true } } },
+    });
     const header = ["rank", "winner_id", "username", "display_name", "email", "wallet", "status", "notification_status", "selected_at", "notified_at"];
-    const rows = winners.map((winner) => [
-      winner.selectionRank,
-      winner.id,
-      winner.user.username,
-      winner.user.displayName,
-      winner.user.email,
-      winner.walletAddressSnapshot,
-      winner.status,
-      winner.notificationStatus,
-      winner.selectedAt.toISOString(),
-      winner.notifiedAt?.toISOString() ?? "",
-    ]);
+    const rows = winners.map((winner) => [winner.selectionRank, winner.id, winner.user.username, winner.user.displayName, winner.user.email, winner.walletAddressSnapshot, winner.status, winner.notificationStatus, winner.selectedAt.toISOString(), winner.notifiedAt?.toISOString() ?? ""]);
     const csv = [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n") + "\r\n";
     const filename = `raven-oracle-${raffle.id}-winners.csv`;
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
