@@ -9,6 +9,11 @@ import { requireAdminAuth } from "../middleware/auth.js";
 const router = Router();
 router.use(requireAdminAuth);
 
+function csvCell(value: unknown) {
+  const text = value == null ? "" : String(value);
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
 router.get("/", async (req, res, next) => {
   try {
     const status = typeof req.query.status === "string" ? req.query.status : undefined;
@@ -53,6 +58,51 @@ router.post("/:raffleId/draw", async (req, res, next) => {
     const result = await drawRaffle(raffle.id, req.userId!);
     const notifications = await Promise.allSettled(result.winners.map((winner) => notifyWinner(raffle.id, winner.id)));
     return res.json({ success: true, result, notifications: notifications.map((n, i) => ({ winnerId: result.winners[i]?.id, sent: n.status === "fulfilled" })) });
+  } catch (error) { next(error); }
+});
+
+router.get("/:raffleId/winners/export.csv", async (req, res, next) => {
+  try {
+    const raffle = await prisma.raffle.findUnique({
+      where: { id: req.params.raffleId },
+      select: { id: true, title: true, prizeName: true, status: true },
+    });
+    if (!raffle) return res.status(404).json({ success: false, message: "Raffle not found" });
+
+    const winners = await prisma.raffleWinner.findMany({
+      where: { raffleId: raffle.id },
+      orderBy: { selectionRank: "asc" },
+      select: {
+        id: true,
+        selectionRank: true,
+        status: true,
+        walletAddressSnapshot: true,
+        selectedAt: true,
+        notifiedAt: true,
+        notificationStatus: true,
+        user: { select: { username: true, displayName: true, email: true } },
+      },
+    });
+
+    const header = ["rank", "winner_id", "username", "display_name", "email", "wallet", "status", "notification_status", "selected_at", "notified_at"];
+    const rows = winners.map((winner) => [
+      winner.selectionRank,
+      winner.id,
+      winner.user.username,
+      winner.user.displayName,
+      winner.user.email,
+      winner.walletAddressSnapshot,
+      winner.status,
+      winner.notificationStatus,
+      winner.selectedAt.toISOString(),
+      winner.notifiedAt?.toISOString() ?? "",
+    ]);
+    const csv = [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n") + "\r\n";
+    const filename = `raven-oracle-${raffle.id}-winners.csv`;
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Cache-Control", "no-store");
+    return res.send(csv);
   } catch (error) { next(error); }
 });
 
