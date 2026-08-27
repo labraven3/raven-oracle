@@ -41,16 +41,14 @@ router.get("/:id/winners/export", requireAuth, asyncRoute(async (req, res) => {
     orderBy: { selectionRank: "asc" },
     select: {
       walletAddressSnapshot: true,
-      user: { select: { email: true, socialAccounts: { where: { provider: { in: ["X", "DISCORD"] }, isActive: true }, select: { provider: true, providerUsername: true, displayName: true } } } },
-      entry: { select: { enteredAt: true } },
+      user: { select: { socialAccounts: { where: { provider: { in: ["X", "DISCORD"] }, isActive: true }, select: { provider: true, providerUsername: true, displayName: true } } } },
     },
   });
 
-  // Keep every exported value explicitly as an XLSX text cell. This prevents
-  // Excel from converting long wallet addresses into scientific notation or
-  // rounding/truncating them as numbers.
+  // Export only the host-facing winner fields. Every value is an XLSX text cell
+  // so long wallet addresses remain intact in Excel.
   const rows: unknown[][] = [
-    [textCell("X"), textCell("Discord"), textCell("Wallet Address"), textCell("Email"), textCell("Entered At")],
+    [textCell("X"), textCell("Discord"), textCell("Wallet Address")],
     ...winners.map((winner) => {
       const x = winner.user.socialAccounts.find((account) => account.provider === "X");
       const discord = winner.user.socialAccounts.find((account) => account.provider === "DISCORD");
@@ -58,15 +56,13 @@ router.get("/:id/winners/export", requireAuth, asyncRoute(async (req, res) => {
         textCell(x?.providerUsername ?? x?.displayName ?? ""),
         textCell(discord?.providerUsername ?? discord?.displayName ?? ""),
         textCell(winner.walletAddressSnapshot),
-        textCell(winner.user.email ?? ""),
-        textCell(winner.entry.enteredAt.toISOString()),
       ];
     }),
   ];
 
   const workbook = xlsx.build(
     [{ name: "Winners", data: rows }],
-    { sheetOptions: { "!cols": [{ wch: 28 }, { wch: 28 }, { wch: 48 }, { wch: 36 }, { wch: 28 }] } },
+    { sheetOptions: { "!cols": [{ wch: 28 }, { wch: 28 }, { wch: 48 }] } },
   );
   const filename = `raven-oracle-${raffle.id}-winners.xlsx`;
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
