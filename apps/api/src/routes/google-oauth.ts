@@ -26,16 +26,18 @@ router.get("/connect", requireAuth, async (req, res, next) => {
 });
 
 router.get("/callback", async (req, res) => {
-  const state = typeof req.query.state === "string" ? req.query.state : "";
-  const code = typeof req.query.code === "string" ? req.query.code : "";
+  let returnTo = "/dashboard";
   try {
-    const { userId, returnTo } = verifyGoogleOAuthState(state);
+    const state = typeof req.query.state === "string" ? req.query.state : "";
+    const code = typeof req.query.code === "string" ? req.query.code : "";
+    const verified = verifyGoogleOAuthState(state);
+    returnTo = verified.returnTo;
     if (!code) return res.redirect(redirectToWeb(returnTo, "error", "Google authorization was cancelled."));
-    await completeGoogleOAuth(userId, code);
+    await completeGoogleOAuth(verified.userId, code);
     return res.redirect(redirectToWeb(returnTo, "google", "connected"));
   } catch (error) {
     const message = error instanceof Error ? error.message : "Google connection failed";
-    return res.redirect(redirectToWeb("/dashboard", "error", message));
+    return res.redirect(redirectToWeb(returnTo, "error", message));
   }
 });
 
