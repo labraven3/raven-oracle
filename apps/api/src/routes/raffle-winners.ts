@@ -1,4 +1,5 @@
 import { Router } from "express";
+import xlsx from "node-xlsx";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 import { notifyWinner } from "../services/raffle-winner.service.js";
@@ -11,8 +12,8 @@ function getId(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-function csv(value: unknown) {
-  return `"${String(value ?? "").replace(/"/g, '""')}"`;
+function formatDate(value: Date | null | undefined) {
+  return value ? value.toISOString() : "";
 }
 
 async function getCreatorRaffle(raffleId: string, userId: string) {
@@ -102,7 +103,7 @@ router.get("/:raffleId/winners", requireAuth, async (req, res, next) => {
   try {
     const raffleId = getId(req.params.raffleId);
     if (!raffleId || !req.userId) return res.status(400).json({ success: false, message: "Invalid raffle or authentication" });
-    const raffle = await prisma.raffle.findUnique({ where: { id: raffleId }, select: { id: true, createdByUserId: true, status: true, title: true, winnerCount: true, prizeName: true } });
+    const raffle = await prisma.raffle.findUnique({ where: { id: raffleId }, select: { id: true, createdByUserId: true, status: true, title: true, winnerCount: true, prizeName: true, endsAt: true } });
     if (!raffle) return res.status(404).json({ success: false, message: "Raffle not found" });
     const isCreator = raffle.createdByUserId === req.userId;
     const winners = await prisma.raffleWinner.findMany({
@@ -155,18 +156,67 @@ router.get("/:raffleId/winners/export", requireAuth, async (req, res, next) => {
     const raffleId = getId(req.params.raffleId);
     if (!raffleId || !req.userId) return res.status(400).json({ success: false, message: "Invalid raffle or authentication" });
     const raffle = await getCreatorRaffle(raffleId, req.userId);
-    if (!raffle) return res.status(403).json({ success: false, message: "Only the raffle creator can export the whitelist" });
+    if (!raffle) return res.status(403).json({ success: false, message: "Only the raffle creator can export winners" });
+    if (raffle.status !== "COMPLETED") return res.status(409).json({ success: false, code: "RAFFLE_NOT_COMPLETED", message: "Finish the winner draw before exporting winners." });
+
     const winners = await getWinnerRows(raffleId);
-    const lines = [
-      ["rank", "x_username", "discord_username", "wallet_address", "email", "email_verified", "winner_status", "notification_status", "selected_at", "notified_at"].map(csv).join(","),
-      ...winners.map((winner) => [winner.rank, winner.xUsername, winner.discordUsername, winner.walletAddress, winner.email, winner.emailVerified ? "yes" : "no", winner.winnerStatus, winner.notificationStatus, winner.selectedAt.toISOString(), winner.notifiedAt?.toISOString() ?? ""].map(csv).join(",")),
+    if (winners.length === 0) return res.status(400).json({ success: false, message: "No winners have been selected yet." });
+
+    const winnerSheet = [
+      ["Rank", "Raffle", "X Username", "Discord Username", "Wallet Address", "Email", "Email Verified", "Winner Status", "Notification Status", "Entry Status", "Entered At", "Selected At", "Notified At"],
+      ...winners.map((winner) => [
+        winner.rank,
+        winner.raffleTitle,
+        winner.xUsername,
+        winner.discordUsername,
+        winner.walletAddress,
+        winner.email,
+        winner.emailVerified ? "Yes" : "No",
+        winner.winnerStatus,
+        winner.notificationStatus,
+        winner.entryStatus,
+        formatDate(winner.enteredAt),
+        formatDate(winner.selectedAt),
+        formatDate(winner.notifiedAt),
+      ]),
     ];
-    res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", `attachment; filename="raven-oracle-${raffle.id}-winners.csv"`);
-    return res.send(`\uFEFF${lines.join("\n")}`);
+
+    const taskSheet = [
+      ["Rank", "X Username", "Discord Username", "Wallet Address", "Task", "Task Type", "Required", "Verification Status", "Verified At", "Failure Reason"],
+      ...winners.flatMap((winner) => winner.tasks.map((task) => [
+        winner.rank,
+        winner.xUsername,
+        winner.discordUsername,
+        winner.walletAddress,
+        task.title,
+        task.type,
+        task.required ? "Yes" : "No",
+        task.status,
+        formatDate(task.verifiedAt),
+        task.failureReason ?? "",
+      ])),
+    ];
+
+    const buffer = xlsx.build([
+      { name: "Winners", data: winnerSheet },
+      { name: "Task Verification", data: taskSheet },
+    ], {
+      sheetOptions: {
+        "!cols": [
+          { wch: 8 }, { wch: 28 }, { wch: 22 }, { wch: 24 }, { wch: 46 }, { wch: 34 }, { wch: 15 }, { wch: 18 }, { wch: 22 }, { wch: 16 }, { wch: 26 }, { wch: 26 }, { wch: 26 },
+        ],
+      },
+    });
+
+    const safeTitle = raffle.title.replace(/[^a-z0-9-_]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "raffle";
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="raven-oracle-${safeTitle}-winners.xlsx"\`);
+    res.setHeader("Cache-Control", "private, no-store");
+    return res.send(buffer);
   } catch (error) { next(error); }
 });
 
+// Legacy Google Sheets endpoints remain available for existing integrations, but the creator UI now uses the direct XLSX export above.
 router.get("/:raffleId/winners/export/google-sheets/status", requireAuth, async (req, res, next) => {
   try {
     const raffleId = getId(req.params.raffleId);
@@ -183,18 +233,13 @@ router.post("/:raffleId/winners/export/google-sheets", requireAuth, async (req, 
     if (!raffleId || !req.userId) return res.status(400).json({ success: false, message: "Invalid raffle or authentication" });
     const raffle = await getCreatorRaffle(raffleId, req.userId);
     if (!raffle) return res.status(403).json({ success: false, message: "Only the raffle creator can export winners" });
-    if (raffle.endsAt.getTime() > Date.now()) {
-      return res.status(409).json({ success: false, code: "RAFFLE_NOT_ENDED", message: `Winner export becomes available after the raffle ends at ${raffle.endsAt.toISOString()}.` });
-    }
-
+    if (raffle.endsAt.getTime() > Date.now()) return res.status(409).json({ success: false, code: "RAFFLE_NOT_ENDED", message: "Winner export becomes available after the raffle ends." });
     const winners = await getWinnerRows(raffleId);
     if (winners.length === 0) return res.status(400).json({ success: false, message: "No winners have been selected yet" });
-
     const google = await getGoogleConnectionStatus(req.userId);
-    if (!google.connected) return res.status(409).json({ success: false, code: "GOOGLE_NOT_CONNECTED", message: "Connect your Google account before exporting winners." });
-
+    if (!google.connected) return res.status(409).json({ success: false, code: "GOOGLE_NOT_CONNECTED", message: "Google export is not connected for this account." });
     const result = await createWinnerGoogleSheetForUser(req.userId, { raffleTitle: raffle.title, raffleEndsAt: raffle.endsAt, rows: winners });
-    return res.json({ success: true, ...result, message: result.repeatedExport ? "Winner export created as a new worksheet and labeled with a unique export ID." : "Winner Google Sheet created with a unique export ID." });
+    return res.json({ success: true, ...result, message: result.repeatedExport ? "Winner export created as a new worksheet." : "Winner Google Sheet created." });
   } catch (error) { next(error); }
 });
 
