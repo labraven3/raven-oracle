@@ -1,0 +1,92 @@
+/* Raven Oracle visual polish layer — intentionally additive. */
+
+:root {
+  --ro-accent: #9b6cff;
+  --ro-accent-2: #6f4cff;
+  --ro-surface: rgba(255, 255, 255, 0.035);
+  --ro-border: rgba(255, 255, 255, 0.09);
+}
+
+html {
+  background: #050507;
+}
+
+body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(155, 108, 255, 0.35);
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 2px solid rgba(155, 108, 255, 0.8);
+  outline-offset: 3px;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #07070a;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(155, 108, 255, 0.35);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(155, 108, 255, 0.55);
+}
+
+/* Make the main shell feel like one product instead of disconnected pages. */
+main {
+  isolation: isolate;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:not(:disabled),
+a[class*="transition"] {
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* Consistent premium glass treatment for the common card surfaces already used throughout the app. */
+[class*="border-white/[.08]"][class*="bg-white/[.025]"],
+[class*="border-white/\[.08\]"][class*="bg-white/\[.025\]"] {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.14);
+}
+
+/* Keep tables/data panels readable on smaller screens. */
+.overflow-x-auto {
+  scrollbar-width: thin;
+}
+
+@media (max-width: 640px) {
+  body {
+    overflow-x: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
