@@ -1,6 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { prisma } from "../lib/prisma.js";
-import { drawRaffle } from "../services/raffle-draw.service.js";
+import { drawRaffle, maybeAutoDrawFcfs } from "../services/raffle-draw.service.js";
 import { notifyWinner } from "../services/raffle-winner.service.js";
 import { requireAuth } from "../middleware/auth.js";
 
@@ -23,27 +23,12 @@ router.get("/mine", requireAuth, asyncRoute(async (req, res) => {
     res.status(401).json({ success: false, message: "Authentication required" });
     return;
   }
-
   const entries = await prisma.raffleEntry.findMany({
     where: { userId: req.userId },
     orderBy: { enteredAt: "desc" },
     take: 100,
-    include: {
-      raffle: {
-        include: {
-          project: {
-            select: {
-              id: true,
-              name: true,
-              logoUrl: true,
-              category: true,
-            },
-          },
-        },
-      },
-    },
+    include: { raffle: { include: { project: { select: { id: true, name: true, logoUrl: true, category: true } } } } },
   });
-
   res.json({ success: true, entries });
 }));
 router.get("/:id", asyncRoute(async (req, res) => { const raffleId = getRaffleId(req, res); if (!raffleId) return; const raffle = await prisma.raffle.findUnique({ where: { id: raffleId }, include: { project: true } }); if (!raffle) { res.status(404).json({ success: false, message: "Raffle not found" }); return; } const now = new Date(); if (raffle.status === "DRAFT" || raffle.status === "CANCELLED") { res.status(404).json({ success: false, message: "Raffle not found" }); return; } if (raffle.status === "SCHEDULED" && now >= raffle.startsAt && now < raffle.endsAt) { await prisma.raffle.update({ where: { id: raffle.id }, data: { status: "ACTIVE" } }); raffle.status = "ACTIVE"; } else if ((raffle.status === "ACTIVE" || raffle.status === "SCHEDULED") && now >= raffle.endsAt) { await prisma.raffle.update({ where: { id: raffle.id }, data: { status: "CLOSED" } }); raffle.status = "CLOSED" } res.setHeader("Cache-Control", "private, max-age=5, stale-while-revalidate=15"); res.json({ success: true, raffle }); }));
@@ -51,16 +36,31 @@ router.get("/:id", asyncRoute(async (req, res) => { const raffleId = getRaffleId
 router.post("/:id/cancel", requireAuth, asyncRoute(async (req, res) => { if (!req.userId) { res.status(401).json({ success: false, message: "Authentication required" }); return; } const raffleId = getRaffleId(req, res); if (!raffleId) return; const raffle = await prisma.raffle.findUnique({ where: { id: raffleId } }); if (!raffle) { res.status(404).json({ success: false, message: "Raffle not found" }); return; } if (raffle.createdByUserId !== req.userId) { res.status(403).json({ success: false, message: "Only the raffle creator can cancel this raffle" }); return; } if (raffle.cancelledAt) { res.status(400).json({ success: false, message: "Raffle is already cancelled" }); return; } if (["COMPLETED", "DRAWING"].includes(raffle.status)) { res.status(400).json({ success: false, message: "This raffle can no longer be cancelled" }); return; } const cancelled = await prisma.raffle.update({ where: { id: raffle.id }, data: { cancelledAt: new Date(), status: "CANCELLED" } }); res.json({ success: true, raffle: cancelled }); }));
 router.delete("/:id", requireAuth, asyncRoute(async (req, res) => { if (!req.userId) { res.status(401).json({ success: false, message: "Authentication required" }); return; } const raffleId = getRaffleId(req, res); if (!raffleId) return; const raffle = await prisma.raffle.findUnique({ where: { id: raffleId } }); if (!raffle) { res.status(404).json({ success: false, message: "Raffle not found" }); return; } if (raffle.createdByUserId !== req.userId) { res.status(403).json({ success: false, message: "Only the raffle creator can delete this raffle" }); return; } if (["COMPLETED", "DRAWING"].includes(raffle.status)) { res.status(400).json({ success: false, message: "Completed raffles with winners cannot be deleted" }); return; } const deleted = await prisma.raffle.update({ where: { id: raffle.id }, data: { status: "CANCELLED", cancelledAt: new Date() } }); res.json({ success: true, raffle: deleted, message: "Raffle deleted." }); }));
 router.patch("/:id", requireAuth, async (req, res, next) => { try { const raffleId = req.params.id; if (!raffleId || Array.isArray(raffleId)) return res.status(400).json({ success: false, message: "Invalid raffle ID" }); if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" }); const parsed = req.body?.status; const allowed = ["DRAFT", "SCHEDULED", "ACTIVE", "CLOSED", "CANCELLED"]; if (typeof parsed !== "string" || !allowed.includes(parsed)) return res.status(400).json({ success: false, message: "Invalid creator raffle status transition" }); const raffle = await prisma.raffle.findUnique({ where: { id: raffleId } }); if (!raffle) return res.status(404).json({ success: false, message: "Raffle not found" }); if (raffle.createdByUserId !== req.userId) return res.status(403).json({ success: false, message: "Only the raffle creator can update this raffle" }); const requested = parsed as "DRAFT" | "SCHEDULED" | "ACTIVE" | "CLOSED" | "CANCELLED"; const now = new Date(); const transitions: Record<string, string[]> = { DRAFT: ["CANCELLED"], SCHEDULED: ["CANCELLED", "CLOSED"], ACTIVE: ["CANCELLED", "CLOSED"], CLOSED: [], CANCELLED: [] }; if (!transitions[raffle.status]?.includes(requested)) return res.status(400).json({ success: false, message: `Cannot move raffle from ${raffle.status} to ${requested}` }); if (requested === "SCHEDULED" && raffle.startsAt <= now) return res.status(400).json({ success: false, message: "A raffle whose start time has arrived cannot be scheduled" }); if (requested === "ACTIVE" && now >= raffle.endsAt) return res.status(400).json({ success: false, message: "A raffle cannot be activated after its end time" }); if (requested === "CLOSED" && now < raffle.endsAt) return res.status(400).json({ success: false, message: "A raffle can only be closed after its end time" }); const updated = await prisma.raffle.update({ where: { id: raffleId }, data: { status: requested, cancelledAt: requested === "CANCELLED" ? new Date() : raffle.cancelledAt } }); return res.json({ success: true, raffle: updated }); } catch (error) { next(error); } });
+
 router.post("/:id/draw", requireAuth, async (req, res, next) => {
   try {
     if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
     const raffleId = getRaffleId(req, res); if (!raffleId) return;
-    const raffle = await prisma.raffle.findUnique({ where: { id: raffleId }, select: { createdByUserId: true, status: true, endsAt: true } });
+    const raffle = await prisma.raffle.findUnique({ where: { id: raffleId }, select: { createdByUserId: true, status: true, endsAt: true, entryRules: true } });
     if (!raffle) return res.status(404).json({ success: false, message: "Raffle not found" });
     if (raffle.createdByUserId !== req.userId) return res.status(403).json({ success: false, message: "Only the raffle creator can draw this raffle" });
+
+    const entryRules = raffle.entryRules && typeof raffle.entryRules === "object" && !Array.isArray(raffle.entryRules) ? raffle.entryRules as Record<string, unknown> : {};
+    const isFcfs = entryRules.raffleType === "FCFS";
+
+    // FCFS raffles may finalize as soon as enough eligible spots exist. The
+    // same server-side path is used by automatic task verification, so a
+    // manual click cannot bypass eligibility or create duplicate winners.
+    if (isFcfs && raffle.status === "ACTIVE" && new Date() <= raffle.endsAt) {
+      const result = await maybeAutoDrawFcfs(raffleId, req.userId);
+      if (!result) return res.status(400).json({ success: false, message: "The FCFS raffle does not have enough eligible entries to finalize winners yet." });
+      const notificationResults = await Promise.allSettled(result.winners.map((winner) => notifyWinner(raffleId, winner.id)));
+      const notifications = notificationResults.map((item, index) => ({ winnerId: result.winners[index]?.id, sent: item.status === "fulfilled", error: item.status === "rejected" ? (item.reason instanceof Error ? item.reason.message : "Notification failed") : null }));
+      return res.json({ success: true, ...result, notifications });
+    }
+
     if (raffle.status !== "CLOSED") return res.status(400).json({ success: false, message: "Raffle entries must be closed before drawing winners" });
-    if (new Date() < raffle.endsAt) return res.status(400).json({ success: false, message: "Raffle cannot be drawn before its end time" });
-    const result = await drawRaffle(raffleId, req.userId);
+    const result = await drawRaffle(raffleId, req.userId, { allowEarlyFcfs: isFcfs });
     const notificationResults = await Promise.allSettled(result.winners.map((winner) => notifyWinner(raffleId, winner.id)));
     const notifications = notificationResults.map((item, index) => ({ winnerId: result.winners[index]?.id, sent: item.status === "fulfilled", error: item.status === "rejected" ? (item.reason instanceof Error ? item.reason.message : "Notification failed") : null }));
     return res.json({ success: true, ...result, notifications });
