@@ -25,7 +25,34 @@ router.get("/", asyncRoute(async (req, res) => {
   res.setHeader("Cache-Control", "public, max-age=10, stale-while-revalidate=30");
   res.json({ success: true, raffles });
 }));
-router.get("/mine", requireAuth, asyncRoute(async (req, res) => { if (!req.userId) { res.status(401).json({ success: false, message: "Authentication required" }); return; } const entries = await prisma.raffleEntry.findMany({ where: { userId: req.userId }, orderBy: { enteredAt: "desc" }, take: 100, include: { raffle: { include: { project: { select: { id: true, name: true, logoUrl: true, category: true } } } } }); res.json({ success: true, entries }); }));
+router.get("/mine", requireAuth, asyncRoute(async (req, res) => {
+  if (!req.userId) {
+    res.status(401).json({ success: false, message: "Authentication required" });
+    return;
+  }
+
+  const entries = await prisma.raffleEntry.findMany({
+    where: { userId: req.userId },
+    orderBy: { enteredAt: "desc" },
+    take: 100,
+    include: {
+      raffle: {
+        include: {
+          project: {
+            select: {
+              id: true,
+              name: true,
+              logoUrl: true,
+              category: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  res.json({ success: true, entries });
+}));
 router.get("/:id", asyncRoute(async (req, res) => { const raffleId = getRaffleId(req, res); if (!raffleId) return; const raffle = await prisma.raffle.findUnique({ where: { id: raffleId }, include: { project: true } }); if (!raffle) { res.status(404).json({ success: false, message: "Raffle not found" }); return; } const now = new Date(); if (raffle.status === "DRAFT" || raffle.status === "CANCELLED") { res.status(404).json({ success: false, message: "Raffle not found" }); return; } if (raffle.status === "SCHEDULED" && now >= raffle.startsAt && now < raffle.endsAt) { await prisma.raffle.update({ where: { id: raffle.id }, data: { status: "ACTIVE" } }); raffle.status = "ACTIVE"; } else if ((raffle.status === "ACTIVE" || raffle.status === "SCHEDULED") && now >= raffle.endsAt) { await prisma.raffle.update({ where: { id: raffle.id }, data: { status: "CLOSED" } }); raffle.status = "CLOSED" } res.setHeader("Cache-Control", "private, max-age=5, stale-while-revalidate=15"); res.json({ success: true, raffle }); }));
 
 router.get("/:id/winners/export", requireAuth, asyncRoute(async (req, res) => {
