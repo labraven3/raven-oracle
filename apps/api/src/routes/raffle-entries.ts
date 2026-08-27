@@ -28,6 +28,7 @@ router.post("/:raffleId/entries", requireAuth, async (req, res, next) => {
     if (now > raffle.endsAt) return res.status(400).json({ success: false, message: "Raffle entry window is closed" });
     const entryRules = rules(raffle.entryRules);
     const captchaRequired = entryRules.captchaRequired === true;
+    const raffleIsFcfs = entryRules.raffleType === "FCFS";
     const captcha = await verifyCaptchaToken(parsed.data.captchaToken, req.ip);
     const finalWalletSubmission = Boolean(parsed.data.walletAddressId);
     if (captchaRequired && finalWalletSubmission && !captcha.verified) return res.status(400).json({ success: false, message: captcha.reason || "CAPTCHA verification is required before wallet submission", captchaConfigured: captcha.configured });
@@ -40,9 +41,23 @@ router.post("/:raffleId/entries", requireAuth, async (req, res, next) => {
       const existingWalletEntry = await prisma.raffleEntry.findUnique({ where: { raffleId_walletAddressId: { raffleId, walletAddressId: wallet.id } } });
       if (existingWalletEntry) return res.status(409).json({ success: false, message: "This wallet has already entered this raffle", entry: existingWalletEntry });
     }
-    const entry = await prisma.raffleEntry.create({ data: { raffleId, userId: req.userId, walletAddressId: wallet?.id ?? null, walletAddressSnapshot: wallet?.address ?? null, status: "PENDING", captchaPassed: finalWalletSubmission ? captcha.verified : null, eligibilityReasons: { pending: wallet ? "Eligibility evaluation has not yet completed" : "Complete the required tasks, then submit your payout wallet" }, accountAgeDaysAtEntry: null, walletAgeDaysAtEntry: null, socialVerifiedAtEntry: false }, include: { walletAddress: { select: { id: true, address: true, normalizedAddress: true, chain: true, network: true } } } });
-    return res.status(201).json({ success: true, entry, captcha: { required: captchaRequired, verified: captcha.verified, configured: captcha.configured } });
-  } catch (error) { next(error); }
+
+    const entry = await prisma.$transaction(async (tx) => {
+      // Lock the raffle row while reserving an FCFS slot. This makes the final spot atomic.
+      if (raffleIsFcfs) {
+        await tx.raffle.update({ where: { id: raffleId }, data: { updatedAt: new Date() }, select: { id: true } });
+        const reservedCount = await tx.raffleEntry.count({ where: { raffleId } });
+        if (reservedCount >= raffle.winnerCount) {
+          throw new Error("FCFS raffle is full");
+        }
+      }
+      return tx.raffleEntry.create({ data: { raffleId, userId: req.userId!, walletAddressId: wallet?.id ?? null, walletAddressSnapshot: wallet?.address ?? null, status: "PENDING", captchaPassed: finalWalletSubmission ? captcha.verified : null, eligibilityReasons: { pending: wallet ? "Eligibility evaluation has not yet completed" : "Complete the required tasks, then submit your payout wallet" }, accountAgeDaysAtEntry: null, walletAgeDaysAtEntry: null, socialVerifiedAtEntry: false }, include: { walletAddress: { select: { id: true, address: true, normalizedAddress: true, chain: true, network: true } } } });
+    });
+    return res.status(201).json({ success: true, entry, captcha: { required: captchaRequired, verified: captcha.verified, configured: captcha.configured }, fcfsFull: raffleIsFcfs });
+  } catch (error) {
+    if (error instanceof Error && error.message === "FCFS raffle is full") return res.status(409).json({ success: false, code: "FCFS_FULL", message: "This FCFS raffle is full. All available spots have been reserved." });
+    next(error);
+  }
 });
 
 router.get("/mine", requireAuth, async (req, res, next) => {
@@ -51,33 +66,23 @@ router.get("/mine", requireAuth, async (req, res, next) => {
 });
 
 router.get("/:raffleId/entries/me", requireAuth, async (req, res, next) => {
-  try { const raffleId = getIdParam(req.params.raffleId); if (!raffleId || !req.userId) return res.status(400).json({ success: false, message: "Invalid raffle or authentication" }); const entry = await prisma.raffleEntry.findUnique({ where: { raffleId_userId: { raffleId, userId: req.userId } }, include: { walletAddress: { select: { id: true, address: true, normalizedAddress: true, chain: true, network: true } } } }); if (!entry) return res.status(404).json({ success: false, message: "You have not started this raffle entry" }); return res.json({ success: true, entry }); }
+  try { const raffleId = getIdParam(req.params.raffleId); if (!raffleId || !req.userId) return res.status(400).json({ success: false, message: "Invalid raffle or authentication" }); const entry = await prisma.raffleEntry.findUnique({ where: { raffleId_userId: { raffleId, userId: req.userId } }); if (!entry) return res.status(404).json({ success: false, message: "You have not started this raffle entry" }); return res.json({ success: true, entry }); }
   catch (error) { next(error); }
 });
 
 router.patch("/:raffleId/entries/me/wallet", requireAuth, async (req, res, next) => {
   try {
-    const raffleId = getIdParam(req.params.raffleId);
-    if (!raffleId || !req.userId) return res.status(400).json({ success: false, message: "Invalid raffle or authentication" });
-    const parsed = walletAttachSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ success: false, message: "A wallet address is required", errors: z.treeifyError(parsed.error) });
-    const raffle = await prisma.raffle.findUnique({ where: { id: raffleId }, select: { id: true, status: true, startsAt: true, endsAt: true, entryRules: true } });
-    if (!raffle) return res.status(404).json({ success: false, message: "Raffle not found" });
-    const now = new Date();
-    if (raffle.status !== "ACTIVE" || now < raffle.startsAt || now > raffle.endsAt) return res.status(400).json({ success: false, message: "This raffle is not accepting wallet submissions" });
-    const entry = await prisma.raffleEntry.findUnique({ where: { raffleId_userId: { raffleId, userId: req.userId } } });
-    if (!entry) return res.status(404).json({ success: false, message: "Complete the raffle tasks first" });
+    const raffleId = getIdParam(req.params.raffleId); if (!raffleId || !req.userId) return res.status(400).json({ success: false, message: "Invalid raffle or authentication" });
+    const parsed = walletAttachSchema.safeParse(req.body); if (!parsed.success) return res.status(400).json({ success: false, message: "A wallet address is required", errors: z.treeifyError(parsed.error) });
+    const raffle = await prisma.raffle.findUnique({ where: { id: raffleId }, select: { id: true, status: true, startsAt: true, endsAt: true, entryRules: true } }); if (!raffle) return res.status(404).json({ success: false, message: "Raffle not found" });
+    const now = new Date(); if (raffle.status !== "ACTIVE" || now < raffle.startsAt || now > raffle.endsAt) return res.status(400).json({ success: false, message: "This raffle is not accepting wallet submissions" });
+    const entry = await prisma.raffleEntry.findUnique({ where: { raffleId_userId: { raffleId, userId: req.userId } } }); if (!entry) return res.status(404).json({ success: false, message: "Complete the raffle tasks first" });
     if (entry.walletAddressId || entry.walletAddressSnapshot) return res.status(409).json({ success: false, code: "WALLET_ALREADY_SUBMITTED", message: "Your payout wallet has already been submitted for this raffle and cannot be changed." });
     if (["WINNER", "NOT_SELECTED", "DISQUALIFIED"].includes(entry.status)) return res.status(400).json({ success: false, message: "This raffle entry can no longer be changed" });
-    const entryRules = rules(raffle.entryRules);
-    const captchaRequired = entryRules.captchaRequired === true;
-    if (captchaRequired && entry.captchaPassed !== true) return res.status(400).json({ success: false, message: "Complete the CAPTCHA before submitting your payout wallet" });
-    const wallet = await prisma.walletAddress.findFirst({ where: { id: parsed.data.walletAddressId, userId: req.userId, status: "ACTIVE", deletedAt: null }, select: { id: true, address: true, chain: true, network: true } });
-    if (!wallet) return res.status(400).json({ success: false, message: "Wallet does not belong to this user or is inactive" });
-    const used = await prisma.raffleEntry.findFirst({ where: { raffleId, walletAddressId: wallet.id, userId: { not: req.userId } }, select: { id: true } });
-    if (used) return res.status(409).json({ success: false, message: "This wallet has already been used in this raffle" });
-    const updated = await prisma.raffleEntry.update({ where: { id: entry.id }, data: { walletAddressId: wallet.id, walletAddressSnapshot: wallet.address, status: "PENDING" }, include: { walletAddress: { select: { id: true, address: true, normalizedAddress: true, chain: true, network: true } } } });
-    return res.json({ success: true, entry: updated });
+    const entryRules = rules(raffle.entryRules); const captchaRequired = entryRules.captchaRequired === true; if (captchaRequired && entry.captchaPassed !== true) return res.status(400).json({ success: false, message: "Complete the CAPTCHA before submitting your payout wallet" });
+    const wallet = await prisma.walletAddress.findFirst({ where: { id: parsed.data.walletAddressId, userId: req.userId, status: "ACTIVE", deletedAt: null }, select: { id: true, address: true, chain: true, network: true } }); if (!wallet) return res.status(400).json({ success: false, message: "Wallet does not belong to this user or is inactive" });
+    const used = await prisma.raffleEntry.findFirst({ where: { raffleId, walletAddressId: wallet.id, userId: { not: req.userId } }, select: { id: true } }); if (used) return res.status(409).json({ success: false, message: "This wallet has already been used in this raffle" });
+    const updated = await prisma.raffleEntry.update({ where: { id: entry.id }, data: { walletAddressId: wallet.id, walletAddressSnapshot: wallet.address, status: "PENDING" }, include: { walletAddress: { select: { id: true, address: true, normalizedAddress: true, chain: true, network: true } } } }); return res.json({ success: true, entry: updated });
   } catch (error) { next(error); }
 });
 
