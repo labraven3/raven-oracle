@@ -24,6 +24,7 @@ type Winner = {
   };
 };
 type Raffle = { id: string; title: string; prizeName: string; status: string; winnerCount: number; endsAt?: string };
+type GoogleStatus = { connected: boolean; email?: string | null; name?: string | null };
 
 async function api<T>(path: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers);
@@ -32,7 +33,11 @@ async function api<T>(path: string, options: RequestInit = {}) {
   headers.set("Content-Type", "application/json");
   const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers, credentials: "include", cache: "no-store" });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.message ?? `Request failed (${response.status})`);
+  if (!response.ok) {
+    const error = new Error(data.message ?? `Request failed (${response.status})`);
+    (error as Error & { code?: string }).code = data.code;
+    throw error;
+  }
   return data as T;
 }
 
@@ -50,6 +55,7 @@ export default function WinnerCenterPage() {
   const { id } = useParams<{ id: string }>();
   const [raffle, setRaffle] = useState<Raffle | null>(null);
   const [winners, setWinners] = useState<Winner[]>([]);
+  const [google, setGoogle] = useState<GoogleStatus>({ connected: false });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -62,6 +68,12 @@ export default function WinnerCenterPage() {
       const data = await api<{ raffle: Raffle; winners: Winner[]; viewer: string }>(`/raffles/${id}/winners`);
       setRaffle(data.raffle);
       setWinners(data.winners ?? []);
+      try {
+        const googleStatus = await api<GoogleStatus>(`/raffles/${id}/winners/export/google-sheets/status`);
+        setGoogle(googleStatus);
+      } catch {
+        setGoogle({ connected: false });
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unable to load Winner Center");
     } finally {
@@ -105,6 +117,10 @@ export default function WinnerCenterPage() {
   };
 
   const openGoogleSheets = () => { window.open("https://sheets.google.com/", "_blank", "noopener,noreferrer"); };
+  const connectGoogle = () => {
+    const returnTo = `/dashboard/raffles/${encodeURIComponent(String(id))}/winners`;
+    window.location.assign(`${API_BASE_URL}/auth/google/connect?returnTo=${encodeURIComponent(returnTo)}`);
+  };
 
   const exportGoogleSheet = async () => {
     setBusy("google-sheet"); setError(""); setMessage("");
@@ -113,7 +129,8 @@ export default function WinnerCenterPage() {
       setMessage(`${data.message ?? "Winner Google Sheet created."}${data.worksheetName ? ` Worksheet: ${data.worksheetName}.` : ""}${data.rowCount ? ` ${data.rowCount} winner(s) exported.` : ""}`);
       window.open(data.spreadsheetUrl, "_blank", "noopener,noreferrer");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Unable to create Google Sheet");
+      const typed = e as Error & { code?: string };
+      setError(typed.code === "GOOGLE_NOT_CONNECTED" ? "Connect Google first, then export the winners." : (typed.message || "Unable to create Google Sheet"));
     } finally { setBusy(""); }
   };
 
@@ -127,19 +144,30 @@ export default function WinnerCenterPage() {
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={openGoogleSheets} className="rounded-xl border border-white/10 px-4 py-2.5 text-xs font-black">Open Google Sheets ↗</button>
           <button type="button" onClick={() => void copyWinnerData()} disabled={winners.length === 0} className="rounded-xl border border-white/10 px-4 py-2.5 text-xs font-black disabled:cursor-not-allowed disabled:opacity-40">Copy Winner Data</button>
-          <button type="button" onClick={() => void exportGoogleSheet()} disabled={busy === "google-sheet" || winners.length === 0} className="rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-black text-black disabled:cursor-not-allowed disabled:opacity-40">
-            {busy === "google-sheet" ? "Exporting…" : "Export Winners to Google Sheets"}
-          </button>
+          {google.connected ? (
+            <button type="button" onClick={() => void exportGoogleSheet()} disabled={busy === "google-sheet" || winners.length === 0} className="rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-black text-black disabled:cursor-not-allowed disabled:opacity-40">{busy === "google-sheet" ? "Exporting…" : "Export Winners to Google Sheets"}</button>
+          ) : (
+            <button type="button" onClick={connectGoogle} className="rounded-xl bg-violet-500 px-4 py-2.5 text-xs font-black text-white">Connect Google to Export</button>
+          )}
           <a href={`${API_BASE_URL}/raffles/${id}/winners/export`} target="_blank" rel="noreferrer" className="rounded-xl border border-white/10 px-4 py-2.5 text-xs font-black">Export CSV</a>
         </div>
       </div>
 
       <section className="mt-5 rounded-3xl border border-white/10 bg-[#0d0c11] p-7">
-        <span className="text-[9px] font-black tracking-[.2em] text-violet-300/60">WINNER CENTER</span>
-        <h1 className="mt-2 text-4xl font-semibold">{raffle?.title}</h1>
-        <p className="mt-2 text-sm text-zinc-500">{raffle?.prizeName} · {winners.length} / {raffle?.winnerCount ?? 0} winners</p>
-        <p className="mt-2 text-xs text-zinc-600">Raffle ended: {formatDate(raffle?.endsAt)}</p>
-        <p className="mt-3 text-xs leading-6 text-zinc-600">Google Sheets export includes raffle metadata, wallet, X/Discord, email, winner status, entry information, task verification details, selection time, and raffle end time. Each export receives a unique export ID.</p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <span className="text-[9px] font-black tracking-[.2em] text-violet-300/60">WINNER CENTER</span>
+            <h1 className="mt-2 text-4xl font-semibold">{raffle?.title}</h1>
+            <p className="mt-2 text-sm text-zinc-500">{raffle?.prizeName} · {winners.length} / {raffle?.winnerCount ?? 0} winners</p>
+            <p className="mt-2 text-xs text-zinc-600">Raffle ended: {formatDate(raffle?.endsAt)}</p>
+          </div>
+          <div className={`rounded-xl border px-4 py-3 text-xs ${google.connected ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-300" : "border-amber-500/20 bg-amber-500/5 text-amber-300"}`}>
+            <div className="font-black">Google Sheets</div>
+            <div className="mt-1 text-[10px] opacity-80">{google.connected ? `Connected${google.email ? ` · ${google.email}` : ""}` : "Not connected — connect before exporting"}</div>
+            {!google.connected && <button type="button" onClick={connectGoogle} className="mt-2 text-[10px] font-black underline underline-offset-2">Connect Google →</button>}
+          </div>
+        </div>
+        <p className="mt-5 text-xs leading-6 text-zinc-600">Google Sheets export includes raffle metadata, wallet, X/Discord, email, winner status, entry information, task verification details, selection time, and raffle end time. Every export receives a unique export ID.</p>
       </section>
 
       {error && <div className="mt-5 rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-300">{error}</div>}
