@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { createHash } from "node:crypto";
 import { prisma } from "../lib/prisma.js";
 
-const ALGORITHM_VERSION = "sha256-csprng-v3";
+const ALGORITHM_VERSION = "sha256-csprNG-v3";
 const FCFS_ALGORITHM_VERSION = "fcfs-v1";
 
 function hashEntryIds(entryIds: string[]) {
@@ -24,7 +24,13 @@ function seededRandomIndex(seed: Buffer, max: number, counter: number) {
   }
 }
 
-export async function drawRaffle(raffleId: string, requestingUserId: string) {
+type DrawOptions = { allowEarlyFcfs?: boolean };
+
+export async function drawRaffle(
+  raffleId: string,
+  requestingUserId: string,
+  options: DrawOptions = {},
+) {
   return prisma.$transaction(async (tx) => {
     const raffle = await tx.raffle.findUnique({ where: { id: raffleId } });
     if (!raffle) throw new Error("Raffle not found");
@@ -32,7 +38,15 @@ export async function drawRaffle(raffleId: string, requestingUserId: string) {
     if (raffle.status === "COMPLETED") throw new Error("Raffle has already been drawn");
     if (raffle.status === "CANCELLED") throw new Error("Cancelled raffle cannot be drawn");
     if (raffle.status !== "CLOSED") throw new Error("Raffle must be closed before drawing winners");
-    if (new Date() < raffle.endsAt) throw new Error("Raffle end time has not been reached");
+    if (new Date() < raffle.endsAt) {
+      const entryRules = raffle.entryRules && typeof raffle.entryRules === "object" && !Array.isArray(raffle.entryRules)
+        ? raffle.entryRules as Record<string, unknown>
+        : {};
+      const isFcfs = entryRules.raffleType === "FCFS";
+      if (!(options.allowEarlyFcfs && isFcfs)) {
+        throw new Error("Raffle end time has not been reached");
+      }
+    }
 
     const claimed = await tx.raffle.updateMany({
       where: { id: raffleId, status: "CLOSED" },
@@ -135,4 +149,35 @@ export async function drawRaffle(raffleId: string, requestingUserId: string) {
     const winners = await tx.raffleWinner.findMany({ where: { raffleId }, orderBy: { selectionRank: "asc" } });
     return { raffle: updatedRaffle, snapshot, winners };
   });
+}
+
+export async function maybeAutoDrawFcfs(raffleId: string, requestingUserId: string) {
+  const raffle = await prisma.raffle.findUnique({
+    where: { id: raffleId },
+    select: { id: true, createdByUserId: true, status: true, winnerCount: true, entryRules: true },
+  });
+  if (!raffle || raffle.createdByUserId !== requestingUserId || raffle.status !== "ACTIVE") return null;
+
+  const rules = raffle.entryRules && typeof raffle.entryRules === "object" && !Array.isArray(raffle.entryRules)
+    ? raffle.entryRules as Record<string, unknown>
+    : {};
+  if (rules.raffleType !== "FCFS") return null;
+
+  const eligibleCount = await prisma.raffleEntry.count({
+    where: {
+      raffleId,
+      status: "ELIGIBLE",
+      walletAddressId: { not: null },
+      walletAddressSnapshot: { not: null },
+    },
+  });
+  if (eligibleCount < raffle.winnerCount) return null;
+
+  const closed = await prisma.raffle.updateMany({
+    where: { id: raffleId, status: "ACTIVE" },
+    data: { status: "CLOSED" },
+  });
+  if (closed.count !== 1) return null;
+
+  return drawRaffle(raffleId, requestingUserId, { allowEarlyFcfs: true });
 }
