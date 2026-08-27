@@ -3,10 +3,13 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { env } from "../config/env.js";
 
-// Production site origins plus localhost for local Next.js development.
+// Production site origins plus local Next.js development.
 const allowedOrigins = [
   env.WEB_ORIGIN,
+  "https://ravenoracle.xyz",
   "https://www.ravenoracle.xyz",
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
   "http://localhost:3001",
   "http://127.0.0.1:3001",
 ].filter((origin, index, list) => Boolean(origin) && list.indexOf(origin) === index);
@@ -17,8 +20,6 @@ const commonRateLimitOptions = {
   skip: (req: { method: string }) => ["GET", "HEAD", "OPTIONS"].includes(req.method),
 };
 
-// A generous API write limiter prevents accidental/client-side loops and basic
-// abuse without making normal browsing or raffle participation painful.
 export const apiWriteRateLimit = rateLimit({
   ...commonRateLimitOptions,
   windowMs: 15 * 60 * 1000,
@@ -26,8 +27,6 @@ export const apiWriteRateLimit = rateLimit({
   message: { success: false, message: "Too many requests. Please try again shortly." },
 });
 
-// Authentication endpoints get a much tighter limit because login, OTP and
-// OAuth-start endpoints are attractive brute-force/abuse targets.
 export const authRateLimit = rateLimit({
   standardHeaders: "draft-8",
   legacyHeaders: false,
@@ -43,14 +42,9 @@ export const securityMiddleware = [
   }),
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no Origin for curl/server-to-server health checks.
       if (!origin) return callback(null, true);
-
-      if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("CORS origin not allowed"));
-      }
+      if (allowedOrigins.includes(origin)) callback(null, true);
+      else callback(new Error("CORS origin not allowed"));
     },
     credentials: true,
     methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
