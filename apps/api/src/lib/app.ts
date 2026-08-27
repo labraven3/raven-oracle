@@ -1,5 +1,5 @@
 import express from "express";
-import { securityMiddleware } from "../middleware/security.js";
+import { securityMiddleware, authRateLimit } from "../middleware/security.js";
 import { projectCatalogGuard } from "../middleware/project-catalog-guard.js";
 import { projectApprovalGuard } from "../middleware/project-approval-guard.js";
 import { errorHandler, notFoundHandler } from "../middleware/error-handler.js";
@@ -48,11 +48,20 @@ import adminDeleteRouter from "../routes/admin-delete.js";
 export function createApp() {
   const app = express();
   // Raven Oracle runs behind a single reverse proxy (Nginx/Cloudflare).
-  // Trusting that proxy lets express-rate-limit safely use the real client IP.
+  // Trusting that proxy lets rate limiting use the real client IP.
   app.set("trust proxy", 1);
   app.use(securityMiddleware);
   app.use(express.json({ limit: "4mb" }));
   app.use("/api/health", healthRouter);
+
+  // Brute-force protection for password/OTP/session endpoints. The global
+  // write limiter still applies, while this route gets an additional tighter cap.
+  app.use("/api/auth", authRateLimit);
+  app.use("/api/auth/admin", authRateLimit);
+  app.use("/api/auth/google", authRateLimit);
+  app.use("/api/auth/x", authRateLimit);
+  app.use("/api/auth/discord", authRateLimit);
+
   app.use("/api/users", usersRouter);
   app.use("/api/auth", authRouter);
   app.use("/api/auth/admin", adminAuthRouter);
