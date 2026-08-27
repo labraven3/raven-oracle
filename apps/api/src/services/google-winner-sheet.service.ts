@@ -16,7 +16,9 @@ async function googleRequest<T>(accessToken: string, url: string, init: RequestI
   headers.set("Content-Type", "application/json");
   const response = await fetch(url, { ...init, headers });
   const data = (await response.json().catch(() => ({}))) as T & { error?: { message?: string } };
-  if (!response.ok) throw new Error(`Google API request failed: ${data?.error?.message ?? response.statusText}`);
+  if (!response.ok) {
+    throw new Error(`Google API request failed: ${data?.error?.message ?? response.statusText}`);
+  }
   return data;
 }
 
@@ -38,12 +40,10 @@ export async function createWinnerGoogleSheetForUser(input: {
       sheets: [{ properties: { title: "Winners" } }],
     }),
   });
+
   const spreadsheetId = spreadsheet.spreadsheetId;
   if (!spreadsheetId) throw new Error("Google Sheets did not return a spreadsheet ID.");
 
-  // Keep the winner sheet intentionally minimal:
-  // X, Discord, wallet address, email and entry time.
-  // No rank/raffle/username/email-verification/status/notification fields.
   const values = [
     ["X", "Discord", "Wallet Address", "Email", "Entered At"],
     ...input.rows.map((row) => [
@@ -64,30 +64,34 @@ export async function createWinnerGoogleSheetForUser(input: {
     },
   );
 
-  await googleRequest(input.accessToken, `${SHEETS_API}/spreadsheets/${encodeURIComponent(spreadsheetId)}:batchUpdate`, {
-    method: "POST",
-    body: JSON.stringify({
-      requests: [
-        {
-          repeatCell: {
-            range: { sheetId: 0, startRowIndex: 0, endRowIndex: 1 },
-            cell: { userEnteredFormat: { textFormat: { bold: true } } },
-            fields: "userEnteredFormat.textFormat.bold",
+  await googleRequest(
+    input.accessToken,
+    `${SHEETS_API}/spreadsheets/${encodeURIComponent(spreadsheetId)}:batchUpdate`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        requests: [
+          {
+            repeatCell: {
+              range: { sheetId: 0, startRowIndex: 0, endRowIndex: 1 },
+              cell: { userEnteredFormat: { textFormat: { bold: true } } },
+              fields: "userEnteredFormat.textFormat.bold",
+            },
           },
-        },
-        {
-          autoResizeDimensions: {
-            dimensions: { sheetId: 0, dimension: "COLUMNS", startIndex: 0, endIndex: 5 },
+          {
+            autoResizeDimensions: {
+              dimensions: { sheetId: 0, dimension: "COLUMNS", startIndex: 0, endIndex: 5 },
+            },
           },
-        },
-        {
-          updateSheetProperties: {
-            properties: { sheetId: 0, gridProperties: { frozenRowCount: 1 } },
-            fields: "gridProperties.frozenRowCount",
+          {
+            updateSheetProperties: {
+              properties: { sheetId: 0, gridProperties: { frozenRowCount: 1 } },
+              fields: "gridProperties.frozenRowCount",
+            },
           },
-        },
-      ],
-    }),
+        ],
+      }),
+    },
   );
 
   return {
