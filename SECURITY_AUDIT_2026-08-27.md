@@ -23,6 +23,14 @@ Rejected CORS origins now receive a generic error message instead of reflecting 
 ### 5. Existing authorization checks retained
 Raffle creator ownership checks, winner-export ownership checks, wallet ownership checks, and raffle/task ownership checks remain in place. The new security layer does not replace these checks.
 
+### 6. FCFS draw lifecycle consistency
+The creator draw endpoint now uses the same server-side FCFS finalization path as automatic eligibility handling. FCFS raffles can finalize once the required eligible spots are filled, while normal random raffles still require the raffle to be closed and past its end time.
+
+FCFS automatic finalization also refuses to close a raffle while any entry remains pending eligibility evaluation. This prevents a partial evaluation state from being moved into `DRAWING` and failing mid-flow.
+
+### 7. Winner export UX
+Winner export remains creator-only and completion-only. The Winner Center now clearly describes a direct XLSX download containing X username, Discord username, and the full payout wallet address. No Google account connection is required.
+
 ## Important product/security observations
 
 ### Raffle randomness
@@ -52,6 +60,7 @@ Winner export is restricted to the raffle creator and only available after compl
 - Attempt task verification after the raffle ends.
 - Close the raffle and evaluate entries.
 - Draw winners twice and confirm the second draw is rejected.
+- Test FCFS with fewer eligible spots, exactly the winner count, and extra pending entries.
 - Export winners and verify spreadsheet columns and full wallet addresses.
 - Try winner export from a non-host account.
 - Try creator-only endpoints from another authenticated account.
