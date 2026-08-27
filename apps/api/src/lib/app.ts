@@ -48,6 +48,7 @@ import adminDeleteRouter from "../routes/admin-delete.js";
 
 export function createApp() {
   const app = express();
+  app.disable("x-powered-by");
   // Raven Oracle runs behind a single reverse proxy (Nginx/Cloudflare).
   // Trusting that proxy lets rate limiting use the real client IP.
   app.set("trust proxy", 1);
