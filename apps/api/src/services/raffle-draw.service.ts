@@ -4,7 +4,6 @@ import { prisma } from "../lib/prisma.js";
 
 const ALGORITHM_VERSION = "sha256-csprng-v3";
 const FCFS_ALGORITHM_VERSION = "fcfs-v1";
-
 function hashEntryIds(entryIds: string[]) { return createHash("sha256").update(entryIds.join("\n")).digest("hex"); }
 function seededRandomIndex(seed: Buffer, max: number, counter: number) { if (max <= 0) throw new Error("Cannot select from an empty set"); const limit = Math.floor(0x100000000 / max) * max; let attempt = 0; while (true) { const digest = createHash("sha256").update(seed).update(Buffer.from(`|draw:${counter}:attempt:${attempt}`, "utf8")).digest(); const value = digest.readUInt32BE(0); if (value < limit) return value % max; attempt += 1; } }
 type DrawOptions = { allowEarlyFcfs?: boolean };
@@ -35,8 +34,7 @@ export async function drawRaffle(raffleId: string, requestingUserId: string, opt
     const selectedIndexes: number[] = []; const remaining = eligibleEntries.map((entry, index) => ({ entry, originalIndex: index }));
     for (let rank = 1; rank <= winnerCount; rank++) {
       const index = raffleType === "FCFS" ? 0 : seededRandomIndex(randomness, remaining.length, rank); const selected = remaining.splice(index, 1)[0];
-      if (!selected?.entry.walletAddressSnapshot) throw new Error("Winner selection failed: payout wallet missing");
-      selectedIndexes.push(selected.originalIndex);
+      if (!selected?.entry.walletAddressSnapshot) throw new Error("Winner selection failed: payout wallet missing"); selectedIndexes.push(selected.originalIndex);
       await tx.raffleWinner.create({ data: { raffleId, entryId: selected.entry.id, userId: selected.entry.userId, walletAddressSnapshot: selected.entry.walletAddressSnapshot, selectionRank: rank, status: "SELECTED", notificationStatus: "PENDING" } });
       await tx.raffleEntry.update({ where: { id: selected.entry.id }, data: { status: "WINNER" } });
     }
@@ -49,7 +47,7 @@ export async function drawRaffle(raffleId: string, requestingUserId: string, opt
   });
 }
 
-export async function maybeAutoDrawFcfs(raffleId: string) {
+export async function maybeAutoDrawFcfs(raffleId: string, _triggeringUserId?: string) {
   const raffle = await prisma.raffle.findUnique({ where: { id: raffleId }, select: { id: true, createdByUserId: true, status: true, winnerCount: true, entryRules: true } });
   if (!raffle || raffle.status !== "ACTIVE") return null;
   const rules = raffle.entryRules && typeof raffle.entryRules === "object" && !Array.isArray(raffle.entryRules) ? raffle.entryRules as Record<string, unknown> : {};
