@@ -6,6 +6,7 @@ import { requireAuth } from "../middleware/auth.js";
 import { evaluateRaffleEntry } from "../services/eligibility.service.js";
 import { verifyCaptchaToken } from "../services/captcha.service.js";
 import { verifyRaffleEligibility } from "../services/raffle-eligibility.service.js";
+import { maybeAutoDrawFcfs } from "../services/raffle-draw.service.js";
 
 const router = Router();
 const enterSchema = z.object({ walletAddressId: z.string().uuid().optional(), captchaToken: z.string().trim().optional() });
@@ -66,7 +67,6 @@ router.patch("/:raffleId/entries/me/wallet", requireAuth, async (req, res, next)
     if (raffle.status !== "ACTIVE" || now < raffle.startsAt || now > raffle.endsAt) return res.status(400).json({ success: false, message: "This raffle is not accepting wallet submissions" });
     const entry = await prisma.raffleEntry.findUnique({ where: { raffleId_userId: { raffleId, userId: req.userId } } });
     if (!entry) return res.status(404).json({ success: false, message: "Complete the raffle tasks first" });
-    // A payout wallet is immutable once submitted. This closes the race/glitch where an already-confirmed entrant could replace it.
     if (entry.walletAddressId || entry.walletAddressSnapshot) return res.status(409).json({ success: false, code: "WALLET_ALREADY_SUBMITTED", message: "Your payout wallet has already been submitted for this raffle and cannot be changed." });
     if (["WINNER", "NOT_SELECTED", "DISQUALIFIED"].includes(entry.status)) return res.status(400).json({ success: false, message: "This raffle entry can no longer be changed" });
     const entryRules = rules(raffle.entryRules);
@@ -97,12 +97,12 @@ router.post("/:raffleId/entries/:entryId/evaluate", requireAuth, async (req, res
 });
 
 router.post("/:raffleId/entries/me/verify-tasks", requireAuth, async (req, res, next) => {
-  try { const raffleId = getIdParam(req.params.raffleId); if (!raffleId || !req.userId) return res.status(400).json({ success: false, message: "Invalid raffle or authentication" }); const entry = await prisma.raffleEntry.findUnique({ where: { raffleId_userId: { raffleId, userId: req.userId } } }); if (!entry) return res.status(404).json({ success: false, message: "Start the raffle entry before verifying tasks" }); const result = await verifyRaffleEligibility(raffleId, entry.id, req.userId); return res.json({ success: true, allRequiredTasksVerified: result.eligible, verifiedCount: result.verifiedCount, totalTasks: result.totalTasks, requiredTasks: result.requiredTasks, tasks: result.tasks, failedRequiredTasks: result.failedRequiredTasks, eligibility: result.eligibility, entry: result.entry }); }
+  try { const raffleId = getIdParam(req.params.raffleId); if (!raffleId || !req.userId) return res.status(400).json({ success: false, message: "Invalid raffle or authentication" }); const entry = await prisma.raffleEntry.findUnique({ where: { raffleId_userId: { raffleId, userId: req.userId } } }); if (!entry) return res.status(404).json({ success: false, message: "Start the raffle entry before verifying tasks" }); const result = await verifyRaffleEligibility(raffleId, entry.id, req.userId); const autoDraw = result.eligible ? await maybeAutoDrawFcfs(raffleId, req.userId) : null; return res.json({ success: true, allRequiredTasksVerified: result.eligible, verifiedCount: result.verifiedCount, totalTasks: result.totalTasks, requiredTasks: result.requiredTasks, tasks: result.tasks, failedRequiredTasks: result.failedRequiredTasks, eligibility: result.eligibility, entry: result.entry, fcfsAutoDraw: Boolean(autoDraw), winners: autoDraw?.winners ?? null }); }
   catch (error) { const message = error instanceof Error ? error.message : "Unable to verify raffle tasks"; const status = message.includes("not started") || message.includes("ended") || message.includes("not accepting") ? 400 : 500; return res.status(status).json({ success: false, message }); }
 });
 
 router.post("/:raffleId/entries/me/verify", requireAuth, async (req, res, next) => {
-  try { const raffleId = getIdParam(req.params.raffleId); if (!raffleId || !req.userId) return res.status(400).json({ success: false, message: "Invalid raffle or authentication" }); const entry = await prisma.raffleEntry.findUnique({ where: { raffleId_userId: { raffleId, userId: req.userId } } }); if (!entry) return res.status(404).json({ success: false, message: "Start the raffle entry before verifying eligibility" }); const result = await verifyRaffleEligibility(raffleId, entry.id, req.userId); return res.json({ success: true, ...result }); }
+  try { const raffleId = getIdParam(req.params.raffleId); if (!raffleId || !req.userId) return res.status(400).json({ success: false, message: "Invalid raffle or authentication" }); const entry = await prisma.raffleEntry.findUnique({ where: { raffleId_userId: { raffleId, userId: req.userId } } }); if (!entry) return res.status(404).json({ success: false, message: "Start the raffle entry before verifying eligibility" }); const result = await verifyRaffleEligibility(raffleId, entry.id, req.userId); const autoDraw = result.eligible ? await maybeAutoDrawFcfs(raffleId, req.userId) : null; return res.json({ success: true, ...result, fcfsAutoDraw: Boolean(autoDraw), winners: autoDraw?.winners ?? null }); }
   catch (error) { const message = error instanceof Error ? error.message : "Unable to verify eligibility"; const status = message.includes("not started") || message.includes("ended") || message.includes("not accepting") ? 400 : 500; return res.status(status).json({ success: false, message }); }
 });
 
