@@ -3,7 +3,8 @@ import { env } from "../config/env.js";
 import { prisma } from "../lib/prisma.js";
 import { createAuthToken } from "./auth.service.js";
 
-const X_AUTHORIZE_URL = "https://twitter.com/i/oauth2/authorize";
+// X's current OAuth 2.0 authorization endpoint. Keep the token/API endpoints on api.x.com.
+const X_AUTHORIZE_URL = "https://x.com/i/oauth2/authorize";
 const X_TOKEN_URL = "https://api.x.com/2/oauth2/token";
 const X_ME_URL = "https://api.x.com/2/users/me";
 // Raven Oracle only needs account identity + follow verification. Keep scopes minimal.
@@ -14,7 +15,7 @@ function encrypt(value: string) { const iv = crypto.randomBytes(12); const ciphe
 export function decrypt(value: string) { const [ivRaw, tagRaw, encryptedRaw] = value.split("."); if (!ivRaw || !tagRaw || !encryptedRaw) throw new Error("Invalid encrypted token"); const decipher = crypto.createDecipheriv("aes-256-gcm", encryptionKey(), Buffer.from(ivRaw, "base64url")); decipher.setAuthTag(Buffer.from(tagRaw, "base64url")); return Buffer.concat([decipher.update(Buffer.from(encryptedRaw, "base64url")), decipher.final()]).toString("utf8"); }
 function base64Url(value: Buffer) { return value.toString("base64url"); }
 function createPkce() { const codeVerifier = base64Url(crypto.randomBytes(48)); const codeChallenge = base64Url(crypto.createHash("sha256").update(codeVerifier).digest()); return { codeVerifier, codeChallenge }; }
-function safeReturnTo(value: string | null | undefined) { if (!value || !value.startsWith("/" ) || value.startsWith("//") || value.includes("\\")) return null; return value; }
+function safeReturnTo(value: string | null | undefined) { if (!value || !value.startsWith("/") || value.startsWith("//") || value.includes("\\")) return null; return value; }
 function encryptState(payload: { userId: string | null; codeVerifier: string; createdAt: number; returnTo: string | null }) { return encrypt(JSON.stringify(payload)); }
 function decryptState(state: string) { const parsed = JSON.parse(decrypt(state)) as { userId: string | null; codeVerifier: string; createdAt: number; returnTo?: string | null }; if (parsed.userId === undefined || !parsed.codeVerifier || !parsed.createdAt) throw new Error("Invalid OAuth state"); if (Date.now() - parsed.createdAt > 10 * 60 * 1000) throw new Error("OAuth state expired"); return { ...parsed, returnTo: safeReturnTo(parsed.returnTo) }; }
 function validateXOAuthConfig() { if (!env.X_CLIENT_ID || !env.X_CLIENT_SECRET || !env.X_REDIRECT_URI) throw new Error("X authentication is not available."); }
