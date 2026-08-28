@@ -18,22 +18,38 @@ export default function RavenLogo({
       className={`flex shrink-0 items-center gap-0.5 overflow-visible leading-none ${className}`}
       aria-label="Raven Oracle"
     >
+      {/* Light theme */}
       <img
         src="/RavenOracleLogo.png"
         alt="Raven Oracle mark"
-        width={52}
-        height={52}
-        data-raven-logo="true"
-        className={`${markHeight} ${imageClass}`}
+        width={56}
+        height={56}
+        className={`${markHeight} ${imageClass} dark:hidden`}
       />
 
       <img
         src="/RavenOracleWordmark.png"
         alt="Raven Oracle"
-        width={116}
-        height={36}
-        data-raven-logo="true"
-        className={`${wordmarkHeight} ${imageClass}`}
+        width={132}
+        height={40}
+        className={`${wordmarkHeight} ${imageClass} dark:hidden`}
+      />
+
+      {/* Dark theme */}
+      <img
+        src="/RavenOracleLogoDark.png"
+        alt="Raven Oracle mark"
+        width={56}
+        height={56}
+        className={`${markHeight} ${imageClass} hidden dark:block`}
+      />
+
+      <img
+        src="/RavenOracleWordmarkDark.png"
+        alt="Raven Oracle"
+        width={132}
+        height={40}
+        className={`${wordmarkHeight} ${imageClass} hidden dark:block`}
       />
     </div>
   );
