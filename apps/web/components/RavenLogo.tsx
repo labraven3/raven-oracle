@@ -30,8 +30,8 @@ export default function RavenLogo({ className = "", compact = false }: RavenLogo
         alt="Raven Oracle"
         width={132}
         height={40}
-        data-raven-logo
-        className={`${wordmarkHeight} ${imageClass}'}
+        data-raven-logo="true"
+        className={`${wordmarkHeight} ${imageClass}`}
       />
     </div>
   );
