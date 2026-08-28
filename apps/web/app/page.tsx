@@ -23,14 +23,14 @@ type Project = {
   metadata?: { supply?: number; mintDate?: string; mintPrice?: string; standard?: string } | null;
 };
 
-type Collection = { name: string; chain: string; image?: string; tone: string; subtitle: string };
+type Collection = { name: string; chain: string; image: string; tone: string; subtitle: string };
 type Ecosystem = { name: string; logo: string; color: string };
 
 const COLLECTIONS: Collection[] = [
   { name: "CryptoPunks", chain: "Ethereum", image: "https://raw.githubusercontent.com/larvalabs/cryptopunks/master/punk-variety.png", tone: "from-cyan-300 via-sky-500 to-indigo-700", subtitle: "10,000 pixel legends" },
-  { name: "Bored Ape Yacht Club", chain: "Ethereum", tone: "from-amber-300 via-orange-500 to-red-700", subtitle: "10,000 iconic apes" },
-  { name: "Pudgy Penguins", chain: "Ethereum", tone: "from-sky-200 via-cyan-400 to-blue-700", subtitle: "8,888 penguins" },
-  { name: "Azuki", chain: "Ethereum", tone: "from-rose-300 via-fuchsia-500 to-violet-700", subtitle: "10,000 anime-inspired NFTs" },
+  { name: "Bored Ape Yacht Club", chain: "Ethereum", image: "https://boredapeyachtclub.com/favicon.ico", tone: "from-amber-300 via-orange-500 to-red-700", subtitle: "10,000 iconic apes" },
+  { name: "Pudgy Penguins", chain: "Ethereum", image: "https://www.pudgypenguins.com/favicon.ico", tone: "from-sky-200 via-cyan-400 to-blue-700", subtitle: "8,888 penguins" },
+  { name: "Azuki", chain: "Ethereum", image: "https://www.azuki.com/favicon.ico", tone: "from-rose-300 via-fuchsia-500 to-violet-700", subtitle: "10,000 anime-inspired NFTs" },
 ];
 
 const ECOSYSTEMS: Ecosystem[] = [
@@ -66,10 +66,7 @@ function CollectionVisual({ collection }: { collection: Collection }) {
     <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/30 blur-3xl" />
     <div className="absolute -bottom-12 -left-8 h-44 w-44 rounded-full bg-black/30 blur-3xl" />
     <div className="absolute inset-3 rounded-[19px] border border-white/30 bg-black/15" />
-    <div className="absolute inset-0 grid place-items-center">
-      {collection.image ? <img src={collection.image} alt={collection.name} className="h-[72%] w-[72%] rounded-[28px] object-cover shadow-2xl" /> : <div className="grid h-[58%] w-[58%] place-items-center rounded-[32px] border border-white/40 bg-black/20 text-center shadow-2xl backdrop-blur-md"><div><div className="text-5xl font-black text-white/90">{collection.name.split(" ").map((part) => part[0]).join("").slice(0,3)}</div><div className="mt-2 text-[9px] font-black uppercase tracking-[.18em] text-white/70">Official collection</div></div></div>}
-      <div className="absolute -right-2 top-1/3 h-5 w-5 animate-pulse rounded-full bg-white shadow-[0_0_25px_rgba(255,255,255,.9)]" />
-    </div>
+    <div className="absolute inset-0 grid place-items-center"><img src={collection.image} alt={collection.name} className="h-[62%] w-[62%] rounded-[28px] object-contain shadow-2xl drop-shadow-[0_20px_45px_rgba(0,0,0,.35)]" /><div className="absolute -right-2 top-1/3 h-5 w-5 animate-pulse rounded-full bg-white shadow-[0_0_25px_rgba(255,255,255,.9)]" /></div>
     <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-3"><div><div className="text-[8px] font-black uppercase tracking-[.22em] text-white/70">{collection.chain}</div><div className="mt-1 text-sm font-black text-white sm:text-base">{collection.name}</div></div><div className="rounded-full border border-white/20 bg-black/30 px-2.5 py-1 text-[8px] font-black text-white/80 backdrop-blur">OG</div></div>
   </div>;
 }
