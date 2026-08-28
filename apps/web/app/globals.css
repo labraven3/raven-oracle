@@ -1320,6 +1320,6 @@ footer {
   }
 }
 /* Raven Oracle logo - dark theme */
-html.dark img[data-raven-logo] {
-  filter: invert(1) brightness(1.8) contrast(1.2) saturate(1.15);
+html[data-theme="dark"] img[data-raven-logo="true"] {
+  filter: grayscale(1) brightness(0) invert(1) !important;
 }
