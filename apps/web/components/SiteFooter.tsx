@@ -40,10 +40,10 @@ export default function SiteFooter() {
           <div>
             <h4 className={headingClass}>Community</h4>
             <div className="flex gap-3">
-              <a href="https://github.com/labraven3/raven-oracle" target="_blank" rel="noreferrer" aria-label="Raven Oracle GitHub" className={socialClass}>
-                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .7a11.3 11.3 0 0 0-3.58 22.02c.57.1.78-.25.78-.55v-2.14c-3.18.7-3.85-1.34-3.85-1.34-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.03 1.76 2.69 1.25 3.35.96.1-.75.4-1.25.73-1.54-2.54-.29-5.2-1.27-5.2-5.66 0-1.25.45-2.27 1.18-3.07-.12-.29-.51-1.45.11-3.02 0 0 .96-.31 3.14 1.17a10.9 10.9 0 0 1 5.72 0c2.18-1.48 3.13-1.17 3.13-1.17.62 1.57.23 2.73.12 3.02.73.8 1.17 1.82 1.17 3.07 0 4.4-2.67 5.36-5.22 5.64.41.36.78 1.08.78 2.18v3.24c0 .3.2.66.79.55A11.3 11.3 0 0 0 12 .7Z" /></svg>
+              <a href="https://x.com/RavenOracle_" target="_blank" rel="noreferrer" aria-label="Raven Oracle on X" className={socialClass}>
+                <span className="text-base font-black">𝕏</span>
               </a>
-              <span className="flex items-center text-[10px] text-zinc-500 dark:text-zinc-400">Official social links will be added here.</span>
+              <span className="flex items-center text-[10px] text-zinc-500 dark:text-zinc-400">Follow Raven Oracle on X.</span>
             </div>
           </div>
         </div>
