@@ -48,8 +48,7 @@ export default function SiteHeader() {
       <div className="mx-auto flex min-h-[60px] max-w-[1380px] items-center gap-3 px-4 sm:px-6 lg:px-10">
         <Link href="/" className="shrink-0" aria-label="Raven Oracle home"><RavenLogo compact /></Link>
         <div className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <div className="flex min-w-max items-center justify-center gap-4 px-1 py-1 text-[10px] font-bold sm:gap-6 sm:text-xs lg:gap-8">
-            {nav.map(([href, label]) => <Link key={href} href={href} className={`whitespace-nowrap transition-colors ${pathname === href || pathname.startsWith(`${href}/`) ? "text-white" : "text-zinc-500 hover:text-white"}`}>{label}</Link>)}
+        <div className="flex min-w-max items-center justify-center gap-4 px-1 py-1 text-[12px] font-semibold sm:gap-6 sm:text-[14px] lg:gap-8">            {nav.map(([href, label]) => <Link key={href} href={href} className={`whitespace-nowrap transition-colors ${pathname === href || pathname.startsWith(`${href}/`) ? "text-white" : "text-zinc-500 hover:text-white"}`}>{label}</Link>)}
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
