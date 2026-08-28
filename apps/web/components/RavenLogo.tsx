@@ -2,18 +2,17 @@ type RavenLogoProps = { className?: string; showWordmark?: boolean; compact?: bo
 
 /**
  * Canonical Raven Oracle brand lockup.
- * The source artwork is always rendered with its natural aspect ratio so
- * neither the mark nor the wordmark can be squeezed or visually clipped.
+ * Keep the mark and wordmark visually balanced without stretching either asset.
  */
 export default function RavenLogo({ className = "", compact = false }: RavenLogoProps) {
-  const markHeight = compact ? "h-12 sm:h-13" : "h-14 sm:h-16";
-  const wordmarkHeight = compact ? "h-8 sm:h-9" : "h-10 sm:h-11";
+  const markHeight = compact ? "h-9 sm:h-10" : "h-12 sm:h-14";
+  const wordmarkHeight = compact ? "h-7 sm:h-8" : "h-9 sm:h-10";
   const imageClass = "raven-brand-logo raven-brand-theme block shrink-0 object-contain w-auto";
 
   return (
     <div
       data-raven-canonical="true"
-      className={`flex min-w-max shrink-0 items-center gap-1 overflow-visible leading-none ${className}`}
+      className={`flex shrink-0 items-center gap-0.5 overflow-visible leading-none ${className}`}
       aria-label="Raven Oracle"
     >
       <img
