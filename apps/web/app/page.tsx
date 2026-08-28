@@ -79,15 +79,14 @@ const COLLECTIONS: Collection[] = [
 ];
 
 const ECOSYSTEMS: Ecosystem[] = [
-  { name: "Ethereum", logo: "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/ethereum.svg", fallbackLogo: "https://cdn.simpleicons.org/ethereum/627EEA", color: "#627EEA", fallback: "ETH" },
-  { name: "Solana", logo: "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/solana.svg", fallbackLogo: "https://cdn.simpleicons.org/solana/14F195", color: "#14F195", fallback: "SOL" },
   { name: "Bitcoin", logo: "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/bitcoin.svg", fallbackLogo: "https://cdn.simpleicons.org/bitcoin/F7931A", color: "#F7931A", fallback: "BTC" },
-  { name: "Polygon", logo: "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/polygon.svg", fallbackLogo: "https://cdn.simpleicons.org/polygon/8247E5", color: "#8247E5", fallback: "POL" },
-  { name: "Base", logo: "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/base.svg", fallbackLogo: "https://cdn.simpleicons.org/base/0052FF", color: "#0052FF", fallback: "BASE" },
-  { name: "Robinhood Chain", logo: "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/robinhood.svg", fallbackLogo: "https://cdn.simpleicons.org/robinhood/CCFF00", color: "#CCFF00", fallback: "RH" },
-  { name: "Arc", logo: "https://cms-images.arc.xyz/arc-logomark-white.svg", fallbackLogo: "https://cdn.simpleicons.org/arc/FFFFFF", color: "#FFFFFF", fallback: "ARC" },
   { name: "Sui", logo: "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/sui.svg", fallbackLogo: "https://cdn.simpleicons.org/sui/6FBCF0", color: "#6FBCF0", fallback: "SUI" },
+  { name: "Solana", logo: "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/solana.svg", fallbackLogo: "https://cdn.simpleicons.org/solana/14F195", color: "#14F195", fallback: "SOL" },
+  { name: "Ethereum", logo: "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/ethereum.svg", fallbackLogo: "https://cdn.simpleicons.org/ethereum/627EEA", color: "#627EEA", fallback: "ETH" },
+  { name: "Robinhood Chain", logo: "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/robinhood.svg", fallbackLogo: "https://cdn.simpleicons.org/robinhood/CCFF00", color: "#CCFF00", fallback: "RH" },
   { name: "Ink", logo: "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/ink.svg", fallbackLogo: "https://cdn.simpleicons.org/ink/7B61FF", color: "#7B61FF", fallback: "INK" },
+  { name: "Arc", logo: "https://cms-images.arc.xyz/arc-logomark-white.svg", fallbackLogo: "https://cdn.simpleicons.org/arc/FFFFFF", color: "#FFFFFF", fallback: "ARC" },
+  { name: "Monad", logo: "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/monad.svg", fallbackLogo: "https://cdn.simpleicons.org/monad/6E54FF", color: "#6E54FF", fallback: "MON" },
 ];
 
 async function readHome() {
