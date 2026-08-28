@@ -1319,7 +1319,3 @@ footer {
     flex-direction: column;
   }
 }
-/* Raven Oracle logo - dark theme */
-html[data-theme="dark"] img[data-raven-logo="true"] {
-  filter: grayscale(1) brightness(0) invert(1) !important;
-}

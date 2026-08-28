@@ -18,7 +18,7 @@ export default function RavenLogo({
       className={`flex shrink-0 items-center gap-0.5 overflow-visible leading-none ${className}`}
       aria-label="Raven Oracle"
     >
-      {/* Light theme */}
+      {/* LIGHT THEME */}
       <img
         src="/RavenOracleLogo.png"
         alt="Raven Oracle mark"
@@ -35,7 +35,7 @@ export default function RavenLogo({
         className={`${wordmarkHeight} ${imageClass} dark:hidden`}
       />
 
-      {/* Dark theme */}
+      {/* DARK THEME */}
       <img
         src="/RavenOracleLogoDark.png"
         alt="Raven Oracle mark"
