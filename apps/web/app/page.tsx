@@ -32,27 +32,30 @@ type Collection = {
   subtitle: string;
 };
 
-type Ecosystem = { name: string; logo: string; color: string; fallback: string };
+type Ecosystem = { name: string; logo: string; fallbackLogo?: string; color: string; fallback: string };
 
 const COLLECTIONS: Collection[] = [
   {
     name: "CryptoPunks",
     chain: "Ethereum",
-    image: "https://raw.githubusercontent.com/larvalabs/cryptopunks/master/punks.png",
+    image: "https://www.larvalabs.com/cryptopunks/cryptopunk001.png",
+    fallback: "https://i.seadn.io/gae/BdxvLseXcfl57BiuQcQYdJ64v-aI8din7WPk0Pgo3qQFhAUH-B6i-dCqqc_mCkRIzULmwzwecnohLhrcH8A9mpWIZqA7ygc52Sr81hE?w=500&auto=format",
     tone: "from-cyan-300 via-sky-500 to-indigo-700",
     subtitle: "10,000 pixel legends",
   },
   {
     name: "Bored Ape Yacht Club",
     chain: "Ethereum",
-    image: "https://i.seadn.io/gae/Ju9CkWtV-1Okvf45wo8UctR-M9He2PjILP0oOvxE89AyiPPGtrR3gysu1Zgy0hjd2xKIgJJtWIc0ybj4Vd7wv8t3pxDGHoJBzDB?w=700&auto=format",
+    image: "https://ipfs.io/ipfs/QmRRPWG96cmgTn2qSzjwr2qvfNEuhunv6FNeMFGa9bx6mQ",
+    fallback: "https://i.seadn.io/gae/Ju9CkWtV-1Okvf45wo8UctR-M9He2PjILP0oOvxE89AyiPPGtrR3gysu1Zgy0hjd2xKIgjJJtWIc0ybj4Vd7wv8t3pxDGHoJBzDB?w=500&auto=format",
     tone: "from-amber-300 via-orange-500 to-red-700",
     subtitle: "10,000 iconic apes",
   },
   {
     name: "Pudgy Penguins",
     chain: "Ethereum",
-    image: "https://i.seadn.io/gae/yNi-XdGxsgQCPpqSio4o31ygAV6wURdIdInWRcFIl46UjUQ1eV7BEndGe8L661OoG-clRi7EgInLX4LPu9Jfw4fq0bnVYHqg7RFi?w=700&auto=format",
+    image: "https://ipfs.io/ipfs/QmNf1UsmdGaMbpatQ6toXSkzDpizaGmC9zfunCyoz1enD5/penguin/1919.png",
+    fallback: "https://i.seadn.io/gcs/files/8a26e3de0f309089cbb1e5ab969fc0bc.png?w=700&auto=format",
     tone: "from-sky-200 via-cyan-400 to-blue-700",
     subtitle: "8,888 penguins",
   },
@@ -60,22 +63,22 @@ const COLLECTIONS: Collection[] = [
     name: "Azuki",
     chain: "Ethereum",
     image: "https://ikzttp.mypinata.cloud/ipfs/QmYDvPAXtiJg7s8JdRBSLWdgSphQdac8j1YuQNNxcGE1hg/1.png",
-    fallback: "https://www.azuki.com/favicon.ico",
+    fallback: "https://www.azuki.com/azuki-logo-red.svg",
     tone: "from-rose-300 via-fuchsia-500 to-violet-700",
     subtitle: "10,000 anime-inspired NFTs",
   },
 ];
 
 const ECOSYSTEMS: Ecosystem[] = [
-  { name: "Ethereum", logo: "https://cdn.simpleicons.org/ethereum/627EEA", color: "#627EEA", fallback: "ETH" },
-  { name: "Solana", logo: "https://cdn.simpleicons.org/solana/14F195", color: "#14F195", fallback: "SOL" },
-  { name: "Bitcoin", logo: "https://cdn.simpleicons.org/bitcoin/F7931A", color: "#F7931A", fallback: "BTC" },
-  { name: "Polygon", logo: "https://cdn.simpleicons.org/polygon/8247E5", color: "#8247E5", fallback: "POL" },
-  { name: "Base", logo: "https://cdn.simpleicons.org/base/0052FF", color: "#0052FF", fallback: "BASE" },
-  { name: "Robinhood Chain", logo: "https://cdn.simpleicons.org/robinhood/CCFF00", color: "#CCFF00", fallback: "RH" },
-  { name: "Arc", logo: "https://cms-images.arc.xyz/arc-logomark-white.svg", color: "#FFFFFF", fallback: "ARC" },
-  { name: "Sui", logo: "https://cdn.simpleicons.org/sui/6FBCF0", color: "#6FBCF0", fallback: "SUI" },
-  { name: "Ink", logo: "https://cdn.simpleicons.org/ink/7B61FF", color: "#7B61FF", fallback: "INK" },
+  { name: "Ethereum", logo: "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/ethereum.svg", fallbackLogo: "https://cdn.simpleicons.org/ethereum/627EEA", color: "#627EEA", fallback: "ETH" },
+  { name: "Solana", logo: "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/solana.svg", fallbackLogo: "https://cdn.simpleicons.org/solana/14F195", color: "#14F195", fallback: "SOL" },
+  { name: "Bitcoin", logo: "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/bitcoin.svg", fallbackLogo: "https://cdn.simpleicons.org/bitcoin/F7931A", color: "#F7931A", fallback: "BTC" },
+  { name: "Polygon", logo: "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/polygon.svg", fallbackLogo: "https://cdn.simpleicons.org/polygon/8247E5", color: "#8247E5", fallback: "POL" },
+  { name: "Base", logo: "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/base.svg", fallbackLogo: "https://cdn.simpleicons.org/base/0052FF", color: "#0052FF", fallback: "BASE" },
+  { name: "Robinhood Chain", logo: "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/robinhood.svg", fallbackLogo: "https://cdn.simpleicons.org/robinhood/CCFF00", color: "#CCFF00", fallback: "RH" },
+  { name: "Arc", logo: "https://cms-images.arc.xyz/arc-logomark-white.svg", fallbackLogo: "https://cdn.simpleicons.org/arc/FFFFFF", color: "#FFFFFF", fallback: "ARC" },
+  { name: "Sui", logo: "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/sui.svg", fallbackLogo: "https://cdn.simpleicons.org/sui/6FBCF0", color: "#6FBCF0", fallback: "SUI" },
+  { name: "Ink", logo: "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/ink.svg", fallbackLogo: "https://cdn.simpleicons.org/ink/7B61FF", color: "#7B61FF", fallback: "INK" },
 ];
 
 async function readHome() {
@@ -149,9 +152,16 @@ function CollectionVisual({ collection }: { collection: Collection }) {
 }
 
 function EcosystemLogo({ ecosystem }: { ecosystem: Ecosystem }) {
-  const [failed, setFailed] = useState(false);
-  if (failed) return <span className="text-[8px] font-black" style={{ color: ecosystem.color }}>{ecosystem.fallback}</span>;
-  return <img src={ecosystem.logo} alt={ecosystem.name} referrerPolicy="no-referrer" onError={() => setFailed(true)} className="h-full w-full object-contain" />;
+  const [stage, setStage] = useState(0);
+
+  useEffect(() => setStage(0), [ecosystem.logo, ecosystem.fallbackLogo]);
+
+  if (stage >= 2 || (stage === 1 && !ecosystem.fallbackLogo)) {
+    return <span className="text-[8px] font-black" style={{ color: ecosystem.color }}>{ecosystem.fallback}</span>;
+  }
+
+  const src = stage === 0 ? ecosystem.logo : ecosystem.fallbackLogo;
+  return <img src={src} alt={ecosystem.name} referrerPolicy="no-referrer" onError={() => setStage((value) => value === 0 && ecosystem.fallbackLogo ? 1 : 2)} className="h-full w-full object-contain" />;
 }
 
 function OgShowcase() {
