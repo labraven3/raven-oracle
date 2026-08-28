@@ -20,9 +20,9 @@ export default function RavenLogo({ className = "", compact = false }: RavenLogo
       <img
         src="/RavenOracleLogo.png"
         alt="Raven Oracle mark"
-        width={56
+        width={56}
         height={56}
-        className={`${markHeight} ${imageClass}`}
+        className={`${markHeight} ${imageClass}`} dark:invert`}
         style={{ mixBlendMode: "multiply" }}
       />
       <img
@@ -30,7 +30,7 @@ export default function RavenLogo({ className = "", compact = false }: RavenLogo
         alt="Raven Oracle"
         width={132}
         height={40}
-        className={`${wordmarkHeight} ${imageClass}`}
+        className={`${wordmarkHeight} ${imageClass}`} dark:invert`}
         style={{ mixBlendMode: "multiply" }}
       />
     </div>
