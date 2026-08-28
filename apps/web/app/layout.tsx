@@ -24,13 +24,13 @@ export const metadata: Metadata = {
     url: "https://ravenoracle.xyz",
     siteName: "Raven Oracle",
     type: "website",
-    images: [{ url: "/RavenOracleWordmark.jpeg", width: 1200, height: 630, alt: "Raven Oracle" }],
+    images: [{ url: "/RavenOracleWordmark.png", width: 1200, height: 630, alt: "Raven Oracle" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Raven Oracle — NFT Raffles",
     description: "Create and join NFT raffles with clear entry rules and recorded results.",
-    images: ["/RavenOracleWordmark.jpeg"],
+    images: ["/RavenOracleWordmark.png"],
   },
   robots: { index: true, follow: true },
 };

@@ -18,15 +18,15 @@ export default function RavenLogo({ className = "", compact = false }: RavenLogo
       aria-label="Raven Oracle"
     >
       <img
-        src="/RavenOracleLogo.jpeg"
+        src="/RavenOracleLogo.png"
         alt="Raven Oracle mark"
-        width={56}
+        width={56
         height={56}
         className={`${markHeight} ${imageClass}`}
         style={{ mixBlendMode: "multiply" }}
       />
       <img
-        src="/RavenOracleWordmark.jpeg"
+        src="/RavenOracleWordmark.png"
         alt="Raven Oracle"
         width={132}
         height={40}
