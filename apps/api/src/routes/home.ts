@@ -38,6 +38,15 @@ router.get("/", async (_req, res, next) => {
       }),
     ]);
 
+    const projectMetadata = await Promise.all(projects.map(async (project) => {
+      const rows = await prisma.$queryRaw<Array<{ metadata: unknown }>>`
+        SELECT "metadata" FROM "ProjectClassification" WHERE "projectId" = ${project.id}::uuid LIMIT 1
+      `;
+      return [project.id, rows[0]?.metadata ?? {}] as const;
+    }));
+    const metadataByProject = new Map(projectMetadata);
+    const projectsWithMetadata = projects.map((project) => ({ ...project, metadata: metadataByProject.get(project.id) ?? {} }));
+
     const normalizedRaffles = raffles.map((raffle) => {
       let status = raffle.status;
       if (status === "SCHEDULED" && now >= raffle.startsAt && now < raffle.endsAt) status = "ACTIVE";
@@ -47,9 +56,9 @@ router.get("/", async (_req, res, next) => {
 
     const payload = {
       success: true,
-      projects,
+      projects: projectsWithMetadata,
       raffles: normalizedRaffles,
-      stats: { projects: projects.length, liveRaffles: normalizedRaffles.filter((raffle) => raffle.status === "ACTIVE").length },
+      stats: { projects: projectsWithMetadata.length, liveRaffles: normalizedRaffles.filter((raffle) => raffle.status === "ACTIVE").length },
     };
 
     cache = { expiresAt: Date.now() + CACHE_MS, payload };
