@@ -30,16 +30,40 @@ type Collection = {
   fallback?: string;
   tone: string;
   subtitle: string;
-  crop?: boolean;
 };
 
 type Ecosystem = { name: string; logo: string; color: string; fallback: string };
 
 const COLLECTIONS: Collection[] = [
-  { name: "CryptoPunks", chain: "Ethereum", image: "https://raw.githubusercontent.com/larvalabs/cryptopunks/master/punks.png", tone: "from-cyan-300 via-sky-500 to-indigo-700", subtitle: "10,000 pixel legends", crop: true },
-  { name: "Bored Ape Yacht Club", chain: "Ethereum", image: "https://ipfs.io/ipfs/QmYsWYyQL2rTykTb8a9erJ6cSRRLqpC1sk3NE7n6SbgAaJ", fallback: "https://boredapeyachtclub.com/favicon.ico", tone: "from-amber-300 via-orange-500 to-red-700", subtitle: "10,000 iconic apes" },
-  { name: "Pudgy Penguins", chain: "Ethereum", image: "https://ipfs.io/ipfs/QmNf1UsmdGaMbpatQ6toXSkzDpizaGmC9zfunCyoz1enD5/penguin/420.png", fallback: "https://www.pudgypenguins.com/favicon.ico", tone: "from-sky-200 via-cyan-400 to-blue-700", subtitle: "8,888 penguins" },
-  { name: "Azuki", chain: "Ethereum", image: "https://ikzttp.mypinata.cloud/ipfs/QmYDvPAXtiJg7s8JdRBSLWdgSphQdac8j1YuQNNxcGE1hg/1.png", fallback: "https://www.azuki.com/favicon.ico", tone: "from-rose-300 via-fuchsia-500 to-violet-700", subtitle: "10,000 anime-inspired NFTs" },
+  {
+    name: "CryptoPunks",
+    chain: "Ethereum",
+    image: "https://raw.githubusercontent.com/larvalabs/cryptopunks/master/punks.png",
+    tone: "from-cyan-300 via-sky-500 to-indigo-700",
+    subtitle: "10,000 pixel legends",
+  },
+  {
+    name: "Bored Ape Yacht Club",
+    chain: "Ethereum",
+    image: "https://i.seadn.io/gae/Ju9CkWtV-1Okvf45wo8UctR-M9He2PjILP0oOvxE89AyiPPGtrR3gysu1Zgy0hjd2xKIgJJtWIc0ybj4Vd7wv8t3pxDGHoJBzDB?w=700&auto=format",
+    tone: "from-amber-300 via-orange-500 to-red-700",
+    subtitle: "10,000 iconic apes",
+  },
+  {
+    name: "Pudgy Penguins",
+    chain: "Ethereum",
+    image: "https://i.seadn.io/gae/yNi-XdGxsgQCPpqSio4o31ygAV6wURdIdInWRcFIl46UjUQ1eV7BEndGe8L661OoG-clRi7EgInLX4LPu9Jfw4fq0bnVYHqg7RFi?w=700&auto=format",
+    tone: "from-sky-200 via-cyan-400 to-blue-700",
+    subtitle: "8,888 penguins",
+  },
+  {
+    name: "Azuki",
+    chain: "Ethereum",
+    image: "https://ikzttp.mypinata.cloud/ipfs/QmYDvPAXtiJg7s8JdRBSLWdgSphQdac8j1YuQNNxcGE1hg/1.png",
+    fallback: "https://www.azuki.com/favicon.ico",
+    tone: "from-rose-300 via-fuchsia-500 to-violet-700",
+    subtitle: "10,000 anime-inspired NFTs",
+  },
 ];
 
 const ECOSYSTEMS: Ecosystem[] = [
@@ -72,7 +96,11 @@ function remaining(value: string) {
 
 function Logo({ src, name }: { src?: string | null; name: string }) {
   const [failed, setFailed] = useState(false);
-  return <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/[.04]">{src && !failed ? <img src={src} alt="" referrerPolicy="no-referrer" onError={() => setFailed(true)} className="h-full w-full object-cover" /> : <span className="font-black text-violet-300">{name.slice(0, 1).toUpperCase()}</span>}</div>;
+  return (
+    <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/[.04]">
+      {src && !failed ? <img src={src} alt="" referrerPolicy="no-referrer" onError={() => setFailed(true)} className="h-full w-full object-cover" /> : <span className="font-black text-violet-300">{name.slice(0, 1).toUpperCase()}</span>}
+    </div>
+  );
 }
 
 function CollectionVisual({ collection }: { collection: Collection }) {
@@ -84,13 +112,40 @@ function CollectionVisual({ collection }: { collection: Collection }) {
     setFailed(false);
   }, [collection.image]);
 
-  return <div className={`relative h-full w-full overflow-hidden rounded-[24px] bg-gradient-to-br ${collection.tone}`}>
-    <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/30 blur-3xl" />
-    <div className="absolute -bottom-12 -left-8 h-44 w-44 rounded-full bg-black/30 blur-3xl" />
-    <div className="absolute inset-3 rounded-[19px] border border-white/30 bg-black/15" />
-    {collection.crop && !failed ? <div className="absolute inset-0 grid place-items-center overflow-hidden"><div className="h-[62%] w-[62%] rounded-[28px] border border-white/15 bg-[#111] shadow-2xl" style={{ backgroundImage: `url(${src})`, backgroundRepeat: "no-repeat", backgroundSize: "1000% 1000%", backgroundPosition: "0% 0%", imageRendering: "pixelated" }} /></div> : !failed ? <div className="absolute inset-7 grid place-items-center overflow-hidden rounded-[24px]"><img key={src} src={src} alt={collection.name} referrerPolicy="no-referrer" onError={() => collection.fallback ? setSrc(collection.fallback) : setFailed(true)} className="h-[78%] w-[78%] object-contain shadow-2xl drop-shadow-[0_20px_45px_rgba(0,0,0,.35)]" /></div> : <div className="absolute inset-0 grid place-items-center text-sm font-black text-white/60">{collection.name}</div>}
-    <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-3"><div><div className="text-[8px] font-black uppercase tracking-[.22em] text-white/70">{collection.chain}</div><div className="mt-1 text-sm font-black text-white sm:text-base">{collection.name}</div></div><div className="rounded-full border border-white/20 bg-black/30 px-2.5 py-1 text-[8px] font-black text-white/80 backdrop-blur">OG</div></div>
-  </div>;
+  return (
+    <div className={`relative h-full w-full overflow-hidden rounded-[25px] bg-gradient-to-br ${collection.tone}`}>
+      <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/25 blur-3xl" />
+      <div className="absolute -bottom-16 -left-16 h-52 w-52 rounded-full bg-violet-950/35 blur-3xl" />
+      <div className="absolute inset-2.5 rounded-[22px] border border-white/20 bg-black/10" />
+
+      <div className="absolute inset-0 flex items-center justify-center pb-5 pt-3 sm:pb-7 sm:pt-5">
+        <div className="relative h-[62%] w-[62%] overflow-hidden rounded-[25px] border border-white/25 bg-black/20 shadow-[0_22px_55px_rgba(0,0,0,.42)] backdrop-blur-[2px] sm:h-[66%] sm:w-[66%]">
+          {!failed ? (
+            <img
+              key={src}
+              src={src}
+              alt={collection.name}
+              referrerPolicy="no-referrer"
+              onError={() => collection.fallback ? setSrc(collection.fallback) : setFailed(true)}
+              className="h-full w-full object-cover transition-transform duration-1000 ease-out"
+            />
+          ) : (
+            <div className="grid h-full w-full place-items-center bg-black/20 text-center text-xs font-black text-white/70">{collection.name}</div>
+          )}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-white/10" />
+          <div className="pointer-events-none absolute left-3 top-3 h-2 w-2 rounded-full bg-white/60 shadow-[0_0_12px_rgba(255,255,255,.7)]" />
+        </div>
+      </div>
+
+      <div className="absolute bottom-3 left-3 right-3 z-10 flex items-end justify-between gap-3 sm:bottom-5 sm:left-5 sm:right-5">
+        <div>
+          <div className="text-[7px] font-black uppercase tracking-[.22em] text-white/65 sm:text-[8px]">{collection.chain}</div>
+          <div className="mt-0.5 text-sm font-black text-white sm:text-base">{collection.name}</div>
+        </div>
+        <div className="rounded-full border border-white/20 bg-black/30 px-2.5 py-1 text-[7px] font-black uppercase tracking-[.15em] text-white/80 backdrop-blur sm:text-[8px]">OG</div>
+      </div>
+    </div>
+  );
 }
 
 function EcosystemLogo({ ecosystem }: { ecosystem: Ecosystem }) {
@@ -106,29 +161,54 @@ function OgShowcase() {
   const ecosystem = ECOSYSTEMS[ecoIndex];
 
   useEffect(() => {
-    const collectionTimer = window.setInterval(() => setIndex((value) => (value + 1) % COLLECTIONS.length), 4200);
-    const ecosystemTimer = window.setInterval(() => setEcoIndex((value) => (value + 1) % ECOSYSTEMS.length), 2800);
+    const collectionTimer = window.setInterval(() => setIndex((value) => (value + 1) % COLLECTIONS.length), 5000);
+    const ecosystemTimer = window.setInterval(() => setEcoIndex((value) => (value + 1) % ECOSYSTEMS.length), 3000);
     return () => { window.clearInterval(collectionTimer); window.clearInterval(ecosystemTimer); };
   }, []);
 
-  return <div className="relative min-h-[390px] overflow-hidden rounded-[30px] border border-violet-400/15 bg-[#08070e] shadow-2xl shadow-violet-950/20 sm:min-h-[500px]">
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(124,58,237,.34),transparent_38%),radial-gradient(circle_at_88%_18%,rgba(34,211,238,.14),transparent_25%),radial-gradient(circle_at_8%_85%,rgba(236,72,153,.12),transparent_25%)]" />
-    <div className="absolute left-1/2 top-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-600/15 blur-[100px]" />
-    <div className="absolute left-5 top-5 z-20 rounded-full border border-white/10 bg-black/35 px-3 py-2 text-[8px] font-black tracking-[.2em] text-violet-200 backdrop-blur-xl">OG COLLECTIONS</div>
-    <div className="absolute right-5 top-5 z-20 flex gap-1.5">{COLLECTIONS.map((item, i) => <button aria-label={`Show ${item.name}`} key={item.name} onClick={() => setIndex(i)} className={`h-1.5 rounded-full transition-all ${i === index ? "w-7 bg-white" : "w-1.5 bg-white/30"}`} />)}</div>
-    <div className="absolute inset-x-0 top-[52px] flex justify-center sm:top-[62px]"><div key={collection.name} className="group relative h-[275px] w-[275px] rotate-[-2deg] rounded-[34px] border border-white/20 bg-gradient-to-br from-white/10 to-white/[.02] p-3 shadow-[0_0_90px_rgba(139,92,246,.32)] transition-all duration-700 animate-[pulse_4s_ease-in-out_infinite] sm:h-[350px] sm:w-[350px] sm:p-4"><CollectionVisual collection={collection} /></div></div>
-    <div className="absolute bottom-5 left-5 right-5 z-20 flex items-center justify-between gap-4 sm:bottom-7 sm:left-7 sm:right-7"><div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/55 px-3 py-2.5 backdrop-blur-xl sm:px-4 sm:py-3"><div className="grid h-9 w-9 place-items-center rounded-xl bg-black/40 p-2 shadow-lg" style={{ boxShadow: `0 0 24px ${ecosystem.color}55` }}><EcosystemLogo ecosystem={ecosystem} /></div><div><div className="text-[7px] font-black tracking-[.2em] text-zinc-500">ECOSYSTEM</div><div className="text-xs font-black text-white">{ecosystem.name}</div></div></div><div className="hidden rounded-full border border-white/10 bg-black/40 px-3 py-2 text-[8px] font-black uppercase tracking-[.18em] text-zinc-400 backdrop-blur sm:block">{collection.subtitle}</div></div>
-  </div>;
+  return (
+    <div className="relative min-h-[360px] overflow-hidden rounded-[30px] border border-violet-400/15 bg-[#08070e] shadow-2xl shadow-violet-950/20 sm:min-h-[470px]">
+      <style jsx>{`@keyframes ravenOgIn { from { opacity: 0; transform: translateY(18px) scale(.94) rotate(-2deg); } to { opacity: 1; transform: translateY(0) scale(1) rotate(-2deg); } } @keyframes ravenOgFloat { 0%,100% { transform: rotate(-2deg) translateY(0); } 50% { transform: rotate(-2deg) translateY(-7px); } }`}</style>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(124,58,237,.34),transparent_38%),radial-gradient(circle_at_88%_18%,rgba(34,211,238,.14),transparent_25%),radial-gradient(circle_at_8%_85%,rgba(236,72,153,.12),transparent_25%)]" />
+      <div className="absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-600/15 blur-[100px]" />
+
+      <div className="absolute left-5 top-5 z-20 rounded-full border border-white/10 bg-black/35 px-3 py-2 text-[8px] font-black tracking-[.2em] text-violet-200 backdrop-blur-xl">OG COLLECTIONS</div>
+      <div className="absolute right-5 top-5 z-20 flex gap-1.5">{COLLECTIONS.map((item, i) => <button aria-label={`Show ${item.name}`} key={item.name} onClick={() => setIndex(i)} className={`h-1.5 rounded-full transition-all ${i === index ? "w-7 bg-white" : "w-1.5 bg-white/30"}`} />)}</div>
+
+      <div className="absolute inset-x-0 top-[50px] flex justify-center sm:top-[58px]">
+        <div key={collection.name} className="relative h-[250px] w-[250px] rounded-[32px] border border-white/20 bg-gradient-to-br from-white/10 to-white/[.02] p-2.5 shadow-[0_0_90px_rgba(139,92,246,.32)] sm:h-[330px] sm:w-[330px] sm:p-3.5" style={{ animation: "ravenOgIn .75s cubic-bezier(.22,.8,.22,1) both, ravenOgFloat 5s ease-in-out 1s infinite" }}>
+          <CollectionVisual collection={collection} />
+        </div>
+      </div>
+
+      <div className="absolute bottom-4 left-4 right-4 z-20 flex items-center justify-between gap-3 sm:bottom-6 sm:left-6 sm:right-6">
+        <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/55 px-3 py-2.5 backdrop-blur-xl sm:px-4 sm:py-3">
+          <div className="grid h-9 w-9 place-items-center rounded-xl bg-black/40 p-2 shadow-lg" style={{ boxShadow: `0 0 24px ${ecosystem.color}55` }}><EcosystemLogo ecosystem={ecosystem} /></div>
+          <div><div className="text-[7px] font-black tracking-[.2em] text-zinc-500">ECOSYSTEM</div><div className="text-xs font-black text-white">{ecosystem.name}</div></div>
+        </div>
+        <div className="hidden rounded-full border border-white/10 bg-black/40 px-3 py-2 text-[8px] font-black uppercase tracking-[.18em] text-zinc-400 backdrop-blur sm:block">{collection.subtitle}</div>
+      </div>
+    </div>
+  );
 }
 
-function ProjectCard({ project }: { project: Project }) { const metadata = project.metadata ?? {}; const mintDate = metadata.mintDate ? new Date(metadata.mintDate).toLocaleDateString() : "Not set"; return <Link href={`/projects/${project.id}`} className="group overflow-hidden rounded-2xl border border-white/[.08] bg-white/[.025] transition duration-300 hover:-translate-y-1 hover:border-violet-500/40"><div className="relative h-36 overflow-hidden border-b border-white/[.06] bg-gradient-to-br from-violet-600/20 via-fuchsia-500/10 to-cyan-400/10">{project.bannerUrl ? <img src={project.bannerUrl} alt="" referrerPolicy="no-referrer" className="h-full w-full object-cover opacity-90 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_40%,rgba(139,92,246,.35),transparent_35%),radial-gradient(circle_at_80%_60%,rgba(34,211,238,.18),transparent_30%)]" />}<div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/85 to-transparent" /><div className="absolute bottom-3 left-4"><Logo src={project.logoUrl} name={project.name} /></div></div><div className="p-4 sm:p-5"><div className="flex items-start justify-between gap-3"><h3 className="truncate font-black text-white">{project.name}</h3><span className="shrink-0 text-[9px] font-semibold text-zinc-600">View →</span></div><div className="mt-4 grid grid-cols-3 gap-2 border-t border-white/[.06] pt-4 text-[10px]"><div><div className="text-zinc-600">Supply</div><div className="mt-1 font-black text-zinc-200">{metadata.supply?.toLocaleString() ?? "Not set"}</div></div><div><div className="text-zinc-600">Mint date</div><div className="mt-1 font-black text-zinc-200">{mintDate}</div></div><div><div className="text-zinc-600">Mint price</div><div className="mt-1 font-black text-zinc-200">{metadata.mintPrice || "Not set"}</div></div></div></div></Link>; }
+function ProjectCard({ project }: { project: Project }) {
+  const metadata = project.metadata ?? {};
+  const mintDate = metadata.mintDate ? new Date(metadata.mintDate).toLocaleDateString() : "Not set";
+  return <Link href={`/projects/${project.id}`} className="group overflow-hidden rounded-2xl border border-white/[.08] bg-white/[.025] transition duration-300 hover:-translate-y-1 hover:border-violet-500/40"><div className="relative h-36 overflow-hidden border-b border-white/[.06] bg-gradient-to-br from-violet-600/20 via-fuchsia-500/10 to-cyan-400/10">{project.bannerUrl ? <img src={project.bannerUrl} alt="" referrerPolicy="no-referrer" className="h-full w-full object-cover opacity-90 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_40%,rgba(139,92,246,.35),transparent_35%),radial-gradient(circle_at_80%_60%,rgba(34,211,238,.18),transparent_30%)]" />}<div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/85 to-transparent" /><div className="absolute bottom-3 left-4"><Logo src={project.logoUrl} name={project.name} /></div></div><div className="p-4 sm:p-5"><div className="flex items-start justify-between gap-3"><h3 className="truncate font-black text-white">{project.name}</h3><span className="shrink-0 text-[9px] font-semibold text-zinc-600">View →</span></div><div className="mt-4 grid grid-cols-3 gap-2 border-t border-white/[.06] pt-4 text-[10px]"><div><div className="text-zinc-600">Supply</div><div className="mt-1 font-black text-zinc-200">{metadata.supply?.toLocaleString() ?? "Not set"}</div></div><div><div className="text-zinc-600">Mint date</div><div className="mt-1 font-black text-zinc-200">{mintDate}</div></div><div><div className="text-zinc-600">Mint price</div><div className="mt-1 font-black text-zinc-200">{metadata.mintPrice || "Not set"}</div></div></div></div></Link>;
+}
 
 function RaffleCard({ raffle }: { raffle: Raffle }) { const name = raffle.project?.name || raffle.title; return <Link href={`/raffles/${raffle.id}`} className="group min-w-0 rounded-2xl border border-white/[.08] bg-white/[.025] p-4 transition duration-300 hover:-translate-y-1 hover:border-violet-500/40 sm:p-5"><div className="flex items-start gap-3"><Logo src={raffle.project?.logoUrl} name={name} /><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><h3 className="truncate font-black text-white">{name}</h3><span className="shrink-0 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-1 text-[7px] font-black tracking-wider text-emerald-400">LIVE</span></div><p className="mt-1 truncate text-[9px] font-bold uppercase tracking-wider text-zinc-500">{raffle.prizeQuantity} × {raffle.prizeName}</p></div></div><div className="mt-5 grid grid-cols-2 gap-3 border-t border-white/[.06] pt-4 text-[10px]"><div><div className="uppercase tracking-wider text-zinc-600">Entries</div><div className="mt-1 font-black text-white">{(raffle._count?.entries || 0).toLocaleString()}</div></div><div><div className="uppercase tracking-wider text-zinc-600">Ends in</div><div className="mt-1 font-black text-white">{remaining(raffle.endsAt)}</div></div></div><div className="mt-5 rounded-xl bg-gradient-to-r from-violet-600/20 to-fuchsia-600/10 px-4 py-2.5 text-center text-xs font-black text-violet-300 transition group-hover:from-violet-600 group-hover:to-fuchsia-600 group-hover:text-white">Enter Raffle</div></Link>; }
 
 export default function Home() {
-  const [projects, setProjects] = useState<Project[]>([]); const [raffles, setRaffles] = useState<Raffle[]>([]); const [loading, setLoading] = useState(true); const [apiError, setApiError] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [raffles, setRaffles] = useState<Raffle[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState(false);
+
   useEffect(() => { let mounted = true; const load = () => readHome().then((data) => { if (!mounted) return; setProjects(Array.isArray(data.projects) ? data.projects : []); setRaffles(Array.isArray(data.raffles) ? data.raffles : []); setApiError(false); }).catch(() => mounted && setApiError(true)).finally(() => mounted && setLoading(false)); void load(); const timer = window.setInterval(load, 15000); return () => { mounted = false; window.clearInterval(timer); }; }, []);
   const active = useMemo(() => raffles.filter((raffle) => raffle.status === "ACTIVE"), [raffles]);
+
   return <main className="min-h-screen overflow-x-hidden bg-[#050507] text-white">
     <section className="mx-auto w-full max-w-[1380px] px-5 pb-14 pt-24 sm:px-8 lg:px-10 lg:pb-20 lg:pt-28"><div className="grid items-center gap-10 lg:grid-cols-[.82fr_1.18fr] lg:gap-12"><div className="min-w-0"><div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[.035] px-4 py-2 text-[9px] font-black tracking-[.24em] text-violet-300"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-violet-400" /> NFT RAFFLE ECOSYSTEM</div><h1 className="max-w-3xl text-5xl font-black leading-[.94] tracking-tight sm:text-6xl lg:text-7xl">Discover. Enter. <span className="text-violet-300">Win.</span></h1><p className="mt-6 max-w-xl text-base leading-7 text-zinc-400 sm:text-lg">Raven Oracle is built for transparent NFT raffles — clear requirements, real entries and recorded winners.</p><div className="mt-8 flex flex-wrap gap-3"><Link href="/raffles" className="rounded-xl bg-white px-5 py-3 text-sm font-black text-black transition hover:bg-zinc-200">Explore Raffles</Link><Link href="/projects" className="rounded-xl border border-white/10 bg-white/[.04] px-5 py-3 text-sm font-black text-white transition hover:bg-white/[.08]">NFT Projects</Link></div></div><OgShowcase /></div></section>
     <section className="mx-auto w-full max-w-[1380px] px-5 pb-20 sm:px-8 lg:px-10"><div className="flex items-end justify-between gap-5"><div><p className="text-xs font-semibold uppercase tracking-[.2em] text-violet-300">NFT Projects</p><h2 className="mt-2 text-3xl font-black">Projects on Raven Oracle</h2></div><Link href="/projects" className="text-sm font-semibold text-zinc-300 transition hover:text-white">View all →</Link></div>{loading ? <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">{[1,2,3].map((item) => <div key={item} className="h-72 animate-pulse rounded-2xl border border-white/[.06] bg-white/[.02]" />)}</div> : projects.length ? <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">{projects.slice(0, 6).map((project) => <ProjectCard key={project.id} project={project} />)}</div> : <div className="mt-8 rounded-2xl border border-dashed border-white/10 p-10 text-center"><div className="font-semibold text-white">No NFT projects yet</div><p className="mt-2 text-sm text-zinc-500">Featured projects will appear here when they are published.</p><Link href="/projects" className="mt-5 inline-block text-sm font-semibold text-violet-300">Explore projects →</Link></div>}</section>
