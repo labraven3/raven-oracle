@@ -33,6 +33,7 @@ const nftMetadata = z.object({
   collectionContractAddress: z.string().trim().max(120).optional().or(z.literal("")),
   supply: z.number().int().positive().optional(),
   standard: z.string().trim().max(40).optional().or(z.literal("")),
+  mintPrice: z.string().trim().max(80).optional().or(z.literal("")),
 });
 const metadataSchema = z.object({ projectType, metadata: z.record(z.string(), z.unknown()).default({}) });
 
