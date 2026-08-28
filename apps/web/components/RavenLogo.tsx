@@ -21,8 +21,8 @@ export default function RavenLogo({
       <img
         src="/RavenOracleLogo.png"
         alt="Raven Oracle mark"
-        width={56}
-        height={56}
+        width={52}
+        height={52}
         data-raven-logo="true"
         className={`${markHeight} ${imageClass}`}
       />
@@ -30,8 +30,8 @@ export default function RavenLogo({
       <img
         src="/RavenOracleWordmark.png"
         alt="Raven Oracle"
-        width={132}
-        height={40}
+        width={116}
+        height={36}
         data-raven-logo="true"
         className={`${wordmarkHeight} ${imageClass}`}
       />
