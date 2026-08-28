@@ -7,7 +7,7 @@ type RavenLogoProps = { className?: string; showWordmark?: boolean; compact?: bo
 export default function RavenLogo({ className = "", compact = false }: RavenLogoProps) {
   const markHeight = compact ? "h-9 sm:h-10" : "h-12 sm:h-14";
   const wordmarkHeight = compact ? "h-7 sm:h-8" : "h-9 sm:h-10";
-  const imageClass = "raven-brand-logo raven-brand-theme block shrink-0 object-contain w-auto";
+  const imageClass = "raven-brand-logo raven-brand-theme block shrink-0 object-contain w-auto mix-blend-screen";
 
   return (
     <div
