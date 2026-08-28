@@ -26,8 +26,7 @@ type Project = {
 type Collection = {
   name: string;
   chain: string;
-  image: string;
-  fallback?: string;
+  sources: string[];
   tone: string;
   subtitle: string;
 };
@@ -38,32 +37,42 @@ const COLLECTIONS: Collection[] = [
   {
     name: "CryptoPunks",
     chain: "Ethereum",
-    image: "https://www.larvalabs.com/cryptopunks/cryptopunk001.png",
-    fallback: "https://i.seadn.io/gae/BdxvLseXcfl57BiuQcQYdJ64v-aI8din7WPk0Pgo3qQFhAUH-B6i-dCqqc_mCkRIzULmwzwecnohLhrcH8A9mpWIZqA7ygc52Sr81hE?w=500&auto=format",
+    sources: [
+      "https://i.seadn.io/gae/BdxvLseXcfl57BiuQcQYdJ64v-aI8din7WPk0Pgo3qQFhAUH-B6i-dCqqc_mCkRIzULmwzwecnohLhrcH8A9mpWIZqA7ygc52Sr81hE?w=700&auto=format",
+      "https://www.larvalabs.com/cryptopunks/cryptopunk001.png",
+    ],
     tone: "from-cyan-300 via-sky-500 to-indigo-700",
     subtitle: "10,000 pixel legends",
   },
   {
     name: "Bored Ape Yacht Club",
     chain: "Ethereum",
-    image: "https://ipfs.io/ipfs/QmRRPWG96cmgTn2qSzjwr2qvfNEuhunv6FNeMFGa9bx6mQ",
-    fallback: "https://i.seadn.io/gae/Ju9CkWtV-1Okvf45wo8UctR-M9He2PjILP0oOvxE89AyiPPGtrR3gysu1Zgy0hjd2xKIgjJJtWIc0ybj4Vd7wv8t3pxDGHoJBzDB?w=500&auto=format",
+    sources: [
+      "https://i.seadn.io/gae/Ju9CkWtV-1Okvf45wo8UctR-M9He2PjILP0oOvxE89AyiPPGtrR3gysu1Zgy0hjd2xKIgjJJtWIc0ybj4Vd7wv8t3pxDGHoJBzDB?w=700&auto=format",
+      "https://ipfs.io/ipfs/QmRRPWG96cmgTn2qSzjwr2qvfNEuhunv6FNeMFGa9bx6mQ",
+    ],
     tone: "from-amber-300 via-orange-500 to-red-700",
     subtitle: "10,000 iconic apes",
   },
   {
     name: "Pudgy Penguins",
     chain: "Ethereum",
-    image: "https://ipfs.io/ipfs/QmNf1UsmdGaMbpatQ6toXSkzDpizaGmC9zfunCyoz1enD5/penguin/1919.png",
-    fallback: "https://i.seadn.io/gcs/files/8a26e3de0f309089cbb1e5ab969fc0bc.png?w=700&auto=format",
+    sources: [
+      "https://i.seadn.io/gae/yNi-XdGxsgQCPpqSio4o31ygAV6wURdIdInWRcFIl46UjUQ1eV7BEndGe8L661OoG-clRi7EgInLX4LPu9Jfw4fq0bnVYHqg7RFi?w=700&auto=format",
+      "https://i.seadn.io/gcs/files/89f0cd4457af5632e66fb44bf43309cd.png?w=700&auto=format",
+      "https://ipfs.io/ipfs/QmNf1UsmdGaMbpatQ6toXSkzDpizaGmC9zfunCyoz1enD5/penguin/1919.png",
+    ],
     tone: "from-sky-200 via-cyan-400 to-blue-700",
     subtitle: "8,888 penguins",
   },
   {
     name: "Azuki",
     chain: "Ethereum",
-    image: "https://ikzttp.mypinata.cloud/ipfs/QmYDvPAXtiJg7s8JdRBSLWdgSphQdac8j1YuQNNxcGE1hg/1.png",
-    fallback: "https://www.azuki.com/azuki-logo-red.svg",
+    sources: [
+      "https://ipfs.io/ipfs/QmYDvPAXtiJg7s8JdRBSLWdgSphQdac8j1YuQNNxcGE1hg/1357.png",
+      "https://ikzttp.mypinata.cloud/ipfs/QmYDvPAXtiJg7s8JdRBSLWdgSphQdac8j1YuQNNxcGE1hg/1357.png",
+      "https://www.azuki.com/azuki-logo-red.svg",
+    ],
     tone: "from-rose-300 via-fuchsia-500 to-violet-700",
     subtitle: "10,000 anime-inspired NFTs",
   },
@@ -107,13 +116,12 @@ function Logo({ src, name }: { src?: string | null; name: string }) {
 }
 
 function CollectionVisual({ collection }: { collection: Collection }) {
-  const [src, setSrc] = useState(collection.image);
-  const [failed, setFailed] = useState(false);
+  const [sourceIndex, setSourceIndex] = useState(0);
 
-  useEffect(() => {
-    setSrc(collection.image);
-    setFailed(false);
-  }, [collection.image]);
+  useEffect(() => setSourceIndex(0), [collection.name]);
+
+  const rawSource = collection.sources[sourceIndex];
+  const source = `/api/collection-image?src=${encodeURIComponent(rawSource)}`;
 
   return (
     <div className={`relative h-full w-full overflow-hidden rounded-[25px] bg-gradient-to-br ${collection.tone}`}>
@@ -123,18 +131,13 @@ function CollectionVisual({ collection }: { collection: Collection }) {
 
       <div className="absolute inset-0 flex items-center justify-center pb-5 pt-3 sm:pb-7 sm:pt-5">
         <div className="relative h-[62%] w-[62%] overflow-hidden rounded-[25px] border border-white/25 bg-black/20 shadow-[0_22px_55px_rgba(0,0,0,.42)] backdrop-blur-[2px] sm:h-[66%] sm:w-[66%]">
-          {!failed ? (
-            <img
-              key={src}
-              src={src}
-              alt={collection.name}
-              referrerPolicy="no-referrer"
-              onError={() => collection.fallback ? setSrc(collection.fallback) : setFailed(true)}
-              className="h-full w-full object-cover transition-transform duration-1000 ease-out"
-            />
-          ) : (
-            <div className="grid h-full w-full place-items-center bg-black/20 text-center text-xs font-black text-white/70">{collection.name}</div>
-          )}
+          <img
+            key={source}
+            src={source}
+            alt={collection.name}
+            onError={() => setSourceIndex((value) => value + 1 < collection.sources.length ? value + 1 : value)}
+            className="h-full w-full object-cover transition-transform duration-1000 ease-out"
+          />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-white/10" />
           <div className="pointer-events-none absolute left-3 top-3 h-2 w-2 rounded-full bg-white/60 shadow-[0_0_12px_rgba(255,255,255,.7)]" />
         </div>
