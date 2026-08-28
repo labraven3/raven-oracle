@@ -1319,3 +1319,15 @@ footer {
     flex-direction: column;
   }
 }
+/* Raven Oracle theme-specific logos */
+.raven-logo-dark {
+  display: none;
+}
+
+html[data-theme="dark"] .raven-logo-light {
+  display: none;
+}
+
+html[data-theme="dark"] .raven-logo-dark {
+  display: block;
+}

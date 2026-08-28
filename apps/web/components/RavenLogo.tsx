@@ -10,7 +10,7 @@ export default function RavenLogo({
 }: RavenLogoProps) {
   const markHeight = compact ? "h-9 sm:h-10" : "h-12 sm:h-14";
   const wordmarkHeight = compact ? "h-7 sm:h-8" : "h-9 sm:h-10";
-  const imageClass = "block shrink-0 object-contain w-auto";
+  const imageClass = "shrink-0 object-contain w-auto";
 
   return (
     <div
@@ -24,7 +24,7 @@ export default function RavenLogo({
         alt="Raven Oracle mark"
         width={56}
         height={56}
-        className={`${markHeight} ${imageClass} dark:hidden`}
+        className={`${markHeight} ${imageClass} raven-logo-light`}
       />
 
       <img
@@ -32,7 +32,7 @@ export default function RavenLogo({
         alt="Raven Oracle"
         width={132}
         height={40}
-        className={`${wordmarkHeight} ${imageClass} dark:hidden`}
+        className={`${wordmarkHeight} ${imageClass} raven-logo-light`}
       />
 
       {/* DARK THEME */}
@@ -41,7 +41,7 @@ export default function RavenLogo({
         alt="Raven Oracle mark"
         width={56}
         height={56}
-        className={`${markHeight} ${imageClass} hidden dark:block`}
+        className={`${markHeight} ${imageClass} raven-logo-dark`}
       />
 
       <img
@@ -49,7 +49,7 @@ export default function RavenLogo({
         alt="Raven Oracle"
         width={132}
         height={40}
-        className={`${wordmarkHeight} ${imageClass} hidden dark:block`}
+        className={`${wordmarkHeight} ${imageClass} raven-logo-dark`}
       />
     </div>
   );
