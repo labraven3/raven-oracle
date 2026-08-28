@@ -2,14 +2,14 @@ type RavenLogoProps = { className?: string; showWordmark?: boolean; compact?: bo
 
 /**
  * Canonical Raven Oracle brand lockup.
- * JPEG assets contain a dark matte, so the logo uses a LIGHTEN blend
- * directly on each image. This makes the matte inherit the header background
- * while preserving the colored Raven mark and wordmark.
+ * The source JPEGs have a dark matte. SCREEN blending is applied inline so
+ * the matte disappears against the dark site chrome while the colored logo
+ * and wordmark remain visible.
  */
 export default function RavenLogo({ className = "", compact = false }: RavenLogoProps) {
   const markHeight = compact ? "h-9 sm:h-10" : "h-12 sm:h-14";
   const wordmarkHeight = compact ? "h-7 sm:h-8" : "h-9 sm:h-10";
-  const imageClass = "raven-brand-logo raven-brand-theme block shrink-0 object-contain w-auto";
+  const imageClass = "block shrink-0 object-contain w-auto";
 
   return (
     <div
@@ -23,7 +23,7 @@ export default function RavenLogo({ className = "", compact = false }: RavenLogo
         width={56}
         height={56}
         className={`${markHeight} ${imageClass}`}
-        style={{ mixBlendMode: "lighten" }}
+        style={{ mixBlendMode: "screen" }}
       />
       <img
         src="/RavenOracleWordmark.jpeg"
@@ -31,7 +31,7 @@ export default function RavenLogo({ className = "", compact = false }: RavenLogo
         width={132}
         height={40}
         className={`${wordmarkHeight} ${imageClass}`}
-        style={{ mixBlendMode: "lighten" }}
+        style={{ mixBlendMode: "screen" }}
       />
     </div>
   );
