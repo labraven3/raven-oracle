@@ -2,9 +2,9 @@ type RavenLogoProps = { className?: string; showWordmark?: boolean; compact?: bo
 
 /**
  * Canonical Raven Oracle brand lockup.
- * The source JPEGs have a dark matte. SCREEN blending is applied inline so
- * the matte disappears against the dark site chrome while the colored logo
- * and wordmark remain visible.
+ * Keep the original logo artwork/colors. MULTIPLY blending removes the
+ * light JPEG matte against the dark site chrome without adding a glow,
+ * shadow, filter, recolor, or other visual treatment.
  */
 export default function RavenLogo({ className = "", compact = false }: RavenLogoProps) {
   const markHeight = compact ? "h-9 sm:h-10" : "h-12 sm:h-14";
@@ -23,7 +23,7 @@ export default function RavenLogo({ className = "", compact = false }: RavenLogo
         width={56}
         height={56}
         className={`${markHeight} ${imageClass}`}
-        style={{ mixBlendMode: "screen" }}
+        style={{ mixBlendMode: "multiply" }}
       />
       <img
         src="/RavenOracleWordmark.jpeg"
@@ -31,7 +31,7 @@ export default function RavenLogo({ className = "", compact = false }: RavenLogo
         width={132}
         height={40}
         className={`${wordmarkHeight} ${imageClass}`}
-        style={{ mixBlendMode: "screen" }}
+        style={{ mixBlendMode: "multiply" }}
       />
     </div>
   );
