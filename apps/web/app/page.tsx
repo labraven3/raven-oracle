@@ -33,13 +33,15 @@ type Collection = {
 
 type Ecosystem = { name: string; logo: string; fallbackLogo?: string; color: string; fallback: string };
 
+// Use stable, real artwork URLs instead of the older SeaDN/IPFS links that were
+// intermittently returning broken images in production.
 const COLLECTIONS: Collection[] = [
   {
     name: "CryptoPunks",
     chain: "Ethereum",
     sources: [
-      "https://i.seadn.io/gae/BdxvLseXcfl57BiuQcQYdJ64v-aI8din7WPk0Pgo3qQFhAUH-B6i-dCqqc_mCkRIzULmwzwecnohLhrcH8A9mpWIZqA7ygc52Sr81hE?w=700&auto=format",
-      "https://www.larvalabs.com/cryptopunks/cryptopunk001.png",
+      "https://cryptopunks.app/api/punks/2008/image",
+      "https://coin-images.coingecko.com/nft_contracts/images/270/small_2x/cryptopunks.png?1707287245",
     ],
     tone: "from-cyan-300 via-sky-500 to-indigo-700",
     subtitle: "10,000 pixel legends",
@@ -48,8 +50,8 @@ const COLLECTIONS: Collection[] = [
     name: "Bored Ape Yacht Club",
     chain: "Ethereum",
     sources: [
-      "https://i.seadn.io/gae/Ju9CkWtV-1Okvf45wo8UctR-M9He2PjILP0oOvxE89AyiPPGtrR3gysu1Zgy0hjd2xKIgjJJtWIc0ybj4Vd7wv8t3pxDGHoJBzDB?w=700&auto=format",
-      "https://ipfs.io/ipfs/QmRRPWG96cmgTn2qSzjwr2qvfNEuhunv6FNeMFGa9bx6mQ",
+      "https://coinspot-nfts.s3-ap-southeast-2.amazonaws.com/0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d/400px/1722.png",
+      "https://coin-images.coingecko.com/nft_contracts/images/20/small_2x/bored-ape-yacht-club.png?1707287177",
     ],
     tone: "from-amber-300 via-orange-500 to-red-700",
     subtitle: "10,000 iconic apes",
@@ -58,9 +60,8 @@ const COLLECTIONS: Collection[] = [
     name: "Pudgy Penguins",
     chain: "Ethereum",
     sources: [
-      "https://i.seadn.io/gae/yNi-XdGxsgQCPpqSio4o31ygAV6wURdIdInWRcFIl46UjUQ1eV7BEndGe8L661OoG-clRi7EgInLX4LPu9Jfw4fq0bnVYHqg7RFi?w=700&auto=format",
-      "https://i.seadn.io/gcs/files/89f0cd4457af5632e66fb44bf43309cd.png?w=700&auto=format",
-      "https://ipfs.io/ipfs/QmNf1UsmdGaMbpatQ6toXSkzDpizaGmC9zfunCyoz1enD5/penguin/1919.png",
+      "https://www.coinrank.io/wp-content/uploads/2024/12/Pudgy-Penguins-NFT-1.webp",
+      "https://coin-images.coingecko.com/nft_contracts/images/38/small_2x/pudgy.jpg?1730778323",
     ],
     tone: "from-sky-200 via-cyan-400 to-blue-700",
     subtitle: "8,888 penguins",
@@ -69,9 +70,8 @@ const COLLECTIONS: Collection[] = [
     name: "Azuki",
     chain: "Ethereum",
     sources: [
-      "https://ipfs.io/ipfs/QmYDvPAXtiJg7s8JdRBSLWdgSphQdac8j1YuQNNxcGE1hg/1357.png",
-      "https://ikzttp.mypinata.cloud/ipfs/QmYDvPAXtiJg7s8JdRBSLWdgSphQdac8j1YuQNNxcGE1hg/1357.png",
-      "https://www.azuki.com/azuki-logo-red.svg",
+      "https://azk.imgix.net/big_azukis/a-3309.png?w=1200&h=1200&fit=crop",
+      "https://azk.imgix.net/big_azukis/a-253.png?w=1200&h=1200&fit=crop",
     ],
     tone: "from-rose-300 via-fuchsia-500 to-violet-700",
     subtitle: "10,000 anime-inspired NFTs",
@@ -121,7 +121,6 @@ function CollectionVisual({ collection }: { collection: Collection }) {
   useEffect(() => setSourceIndex(0), [collection.name]);
 
   const rawSource = collection.sources[sourceIndex];
-  const source = `/api/collection-image?src=${encodeURIComponent(rawSource)}`;
 
   return (
     <div className={`relative h-full w-full overflow-hidden rounded-[25px] bg-gradient-to-br ${collection.tone}`}>
@@ -132,9 +131,10 @@ function CollectionVisual({ collection }: { collection: Collection }) {
       <div className="absolute inset-0 flex items-center justify-center pb-5 pt-3 sm:pb-7 sm:pt-5">
         <div className="relative h-[62%] w-[62%] overflow-hidden rounded-[25px] border border-white/25 bg-black/20 shadow-[0_22px_55px_rgba(0,0,0,.42)] backdrop-blur-[2px] sm:h-[66%] sm:w-[66%]">
           <img
-            key={source}
-            src={source}
+            key={rawSource}
+            src={rawSource}
             alt={collection.name}
+            referrerPolicy="no-referrer"
             onError={() => setSourceIndex((value) => value + 1 < collection.sources.length ? value + 1 : value)}
             className="h-full w-full object-cover transition-transform duration-1000 ease-out"
           />
@@ -211,7 +211,10 @@ function ProjectCard({ project }: { project: Project }) {
   return <Link href={`/projects/${project.id}`} className="group overflow-hidden rounded-2xl border border-white/[.08] bg-white/[.025] transition duration-300 hover:-translate-y-1 hover:border-violet-500/40"><div className="relative h-36 overflow-hidden border-b border-white/[.06] bg-gradient-to-br from-violet-600/20 via-fuchsia-500/10 to-cyan-400/10">{project.bannerUrl ? <img src={project.bannerUrl} alt="" referrerPolicy="no-referrer" className="h-full w-full object-cover opacity-90 transition duration-500 group-hover:scale-105" /> : <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_40%,rgba(139,92,246,.35),transparent_35%),radial-gradient(circle_at_80%_60%,rgba(34,211,238,.18),transparent_30%)]" />}<div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/85 to-transparent" /><div className="absolute bottom-3 left-4"><Logo src={project.logoUrl} name={project.name} /></div></div><div className="p-4 sm:p-5"><div className="flex items-start justify-between gap-3"><h3 className="truncate font-black text-white">{project.name}</h3><span className="shrink-0 text-[9px] font-semibold text-zinc-600">View →</span></div><div className="mt-4 grid grid-cols-3 gap-2 border-t border-white/[.06] pt-4 text-[10px]"><div><div className="text-zinc-600">Supply</div><div className="mt-1 font-black text-zinc-200">{metadata.supply?.toLocaleString() ?? "Not set"}</div></div><div><div className="text-zinc-600">Mint date</div><div className="mt-1 font-black text-zinc-200">{mintDate}</div></div><div><div className="text-zinc-600">Mint price</div><div className="mt-1 font-black text-zinc-200">{metadata.mintPrice || "Not set"}</div></div></div></div></Link>;
 }
 
-function RaffleCard({ raffle }: { raffle: Raffle }) { const name = raffle.project?.name || raffle.title; return <Link href={`/raffles/${raffle.id}`} className="group min-w-0 rounded-2xl border border-white/[.08] bg-white/[.025] p-4 transition duration-300 hover:-translate-y-1 hover:border-violet-500/40 sm:p-5"><div className="flex items-start gap-3"><Logo src={raffle.project?.logoUrl} name={name} /><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><h3 className="truncate font-black text-white">{name}</h3><span className="shrink-0 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-1 text-[7px] font-black tracking-wider text-emerald-400">LIVE</span></div><p className="mt-1 truncate text-[9px] font-bold uppercase tracking-wider text-zinc-500">{raffle.prizeQuantity} × {raffle.prizeName}</p></div></div><div className="mt-5 grid grid-cols-2 gap-3 border-t border-white/[.06] pt-4 text-[10px]"><div><div className="uppercase tracking-wider text-zinc-600">Entries</div><div className="mt-1 font-black text-white">{(raffle._count?.entries || 0).toLocaleString()}</div></div><div><div className="uppercase tracking-wider text-zinc-600">Ends in</div><div className="mt-1 font-black text-white">{remaining(raffle.endsAt)}</div></div></div><div className="mt-5 rounded-xl bg-gradient-to-r from-violet-600/20 to-fuchsia-600/10 px-4 py-2.5 text-center text-xs font-black text-violet-300 transition group-hover:from-violet-600 group-hover:to-fuchsia-600 group-hover:text-white">Enter Raffle</div></Link>; }
+function RaffleCard({ raffle }: { raffle: Raffle }) {
+  const name = raffle.project?.name || raffle.title;
+  return <Link href={`/raffles/${raffle.id}`} className="group min-w-0 rounded-2xl border border-white/[.08] bg-white/[.025] p-4 transition duration-300 hover:-translate-y-1 hover:border-violet-500/40 sm:p-5"><div className="flex items-start gap-3"><Logo src={raffle.project?.logoUrl} name={name} /><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><h3 className="truncate font-black text-white">{name}</h3><span className="shrink-0 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-1 text-[7px] font-black tracking-wider text-emerald-400">LIVE</span></div><p className="mt-1 truncate text-[9px] font-bold uppercase tracking-wider text-zinc-500">{raffle.prizeQuantity} × {raffle.prizeName}</p></div></div><div className="mt-5 grid grid-cols-2 gap-3 border-t border-white/[.06] pt-4 text-[10px]"><div><div className="uppercase tracking-wider text-zinc-600">Entries</div><div className="mt-1 font-black text-white">{(raffle._count?.entries || 0).toLocaleString()}</div></div><div><div className="uppercase tracking-wider text-zinc-600">Ends in</div><div className="mt-1 font-black text-white">{remaining(raffle.endsAt)}</div></div></div><div className="mt-5 rounded-xl bg-gradient-to-r from-violet-600/20 to-fuchsia-600/10 px-4 py-2.5 text-center text-xs font-black text-violet-300 transition group-hover:from-violet-600 group-hover:to-fuchsia-600 group-hover:text-white">Enter Raffle</div></Link>;
+}
 
 export default function Home() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -219,13 +222,28 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(false);
 
-  useEffect(() => { let mounted = true; const load = () => readHome().then((data) => { if (!mounted) return; setProjects(Array.isArray(data.projects) ? data.projects : []); setRaffles(Array.isArray(data.raffles) ? data.raffles : []); setApiError(false); }).catch(() => mounted && setApiError(true)).finally(() => mounted && setLoading(false)); void load(); const timer = window.setInterval(load, 15000); return () => { mounted = false; window.clearInterval(timer); }; }, []);
+  useEffect(() => {
+    let mounted = true;
+    const load = () => readHome().then((data) => {
+      if (!mounted) return;
+      setProjects(Array.isArray(data.projects) ? data.projects : []);
+      setRaffles(Array.isArray(data.raffles) ? data.raffles : []);
+      setApiError(false);
+    }).catch(() => mounted && setApiError(true)).finally(() => mounted && setLoading(false));
+    void load();
+    const timer = window.setInterval(load, 15000);
+    return () => { mounted = false; window.clearInterval(timer); };
+  }, []);
+
   const active = useMemo(() => raffles.filter((raffle) => raffle.status === "ACTIVE"), [raffles]);
 
   return <main className="min-h-screen overflow-x-hidden bg-[#050507] text-white">
     <section className="mx-auto w-full max-w-[1380px] px-5 pb-14 pt-24 sm:px-8 lg:px-10 lg:pb-20 lg:pt-28"><div className="grid items-center gap-10 lg:grid-cols-[.82fr_1.18fr] lg:gap-12"><div className="min-w-0"><div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[.035] px-4 py-2 text-[9px] font-black tracking-[.24em] text-violet-300"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-violet-400" /> NFT RAFFLE ECOSYSTEM</div><h1 className="max-w-3xl text-5xl font-black leading-[.94] tracking-tight sm:text-6xl lg:text-7xl">Discover. Enter. <span className="text-violet-300">Win.</span></h1><p className="mt-6 max-w-xl text-base leading-7 text-zinc-400 sm:text-lg">Raven Oracle is built for transparent NFT raffles — clear requirements, real entries and recorded winners.</p><div className="mt-8 flex flex-wrap gap-3"><Link href="/raffles" className="rounded-xl bg-white px-5 py-3 text-sm font-black text-black transition hover:bg-zinc-200">Explore Raffles</Link><Link href="/projects" className="rounded-xl border border-white/10 bg-white/[.04] px-5 py-3 text-sm font-black text-white transition hover:bg-white/[.08]">NFT Projects</Link></div></div><OgShowcase /></div></section>
+
     <section className="mx-auto w-full max-w-[1380px] px-5 pb-20 sm:px-8 lg:px-10"><div className="flex items-end justify-between gap-5"><div><p className="text-xs font-semibold uppercase tracking-[.2em] text-violet-300">NFT Projects</p><h2 className="mt-2 text-3xl font-black">Projects on Raven Oracle</h2></div><Link href="/projects" className="text-sm font-semibold text-zinc-300 transition hover:text-white">View all →</Link></div>{loading ? <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">{[1,2,3].map((item) => <div key={item} className="h-72 animate-pulse rounded-2xl border border-white/[.06] bg-white/[.02]" />)}</div> : projects.length ? <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">{projects.slice(0, 6).map((project) => <ProjectCard key={project.id} project={project} />)}</div> : <div className="mt-8 rounded-2xl border border-dashed border-white/10 p-10 text-center"><div className="font-semibold text-white">No NFT projects yet</div><p className="mt-2 text-sm text-zinc-500">Featured projects will appear here when they are published.</p><Link href="/projects" className="mt-5 inline-block text-sm font-semibold text-violet-300">Explore projects →</Link></div>}</section>
+
     <section className="mx-auto w-full max-w-[1380px] px-5 pb-20 sm:px-8 lg:px-10"><div className="flex items-end justify-between gap-5"><div><p className="text-xs font-semibold uppercase tracking-[.2em] text-violet-300">Live Raffles</p><h2 className="mt-2 text-3xl font-black">Raffles you can enter</h2></div><Link href="/raffles" className="text-sm font-semibold text-zinc-300 transition hover:text-white">View all →</Link></div>{apiError ? <div className="mt-8 rounded-2xl border border-red-400/10 bg-red-400/[.04] p-6 text-sm text-zinc-400">Live platform data is temporarily unavailable.</div> : loading ? <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">{[1,2,3].map((item) => <div key={item} className="h-52 animate-pulse rounded-2xl border border-white/[.06] bg-white/[.02]" />)}</div> : active.length ? <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">{active.slice(0, 6).map((raffle) => <RaffleCard key={raffle.id} raffle={raffle} />)}</div> : <div className="mt-8 rounded-2xl border border-dashed border-white/10 p-10 text-center"><div className="font-semibold text-white">No active raffles yet</div><p className="mt-2 text-sm text-zinc-500">Live raffles will appear here as soon as they are published.</p><Link href="/raffles" className="mt-5 inline-block text-sm font-semibold text-violet-300">Explore raffles →</Link></div>}</section>
+
     <section className="border-y border-white/[.06] bg-[#07070a]"><div className="mx-auto flex max-w-[1380px] flex-col gap-8 px-5 py-12 sm:px-8 lg:flex-row lg:items-center lg:justify-between lg:px-10"><div><p className="text-xs font-semibold uppercase tracking-[.2em] text-violet-300">Safety</p><h2 className="mt-2 text-2xl font-black">Your wallet stays yours.</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">Raven Oracle does not ask for a seed phrase or private key, and no wallet connection is needed to use the platform or enter a raffle.</p></div><div className="rounded-xl border border-white/10 px-4 py-3 text-xs font-semibold text-zinc-400">No wallet connection needed</div></div></section>
   </main>;
 }
