@@ -30,7 +30,10 @@ export async function GET(request: NextRequest) {
   try {
     const upstream = await fetch(target.toString(), {
       cache: "no-store",
-      headers: { Accept: "image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8" },
+      headers: {
+        Accept: "image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8",
+        "User-Agent": "Mozilla/5.0 (compatible; RavenOracle/1.0)",
+      },
     });
 
     if (!upstream.ok) return new NextResponse("Image unavailable", { status: 502 });
