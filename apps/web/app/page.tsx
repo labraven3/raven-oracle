@@ -34,11 +34,15 @@ const COLLECTIONS: Collection[] = [
 ];
 
 const ECOSYSTEMS: Ecosystem[] = [
-  { name: "Ethereum", logo: "https://cdn.simpleicons.org/ethereum/627EEA", color: "#627EEA", fallback: "ETH" },
-  { name: "Solana", logo: "https://cdn.simpleicons.org/solana/14F195", color: "#14F195", fallback: "SOL" },
-  { name: "Bitcoin", logo: "https://cdn.simpleicons.org/bitcoin/F7931A", color: "#F7931A", fallback: "BTC" },
-  { name: "Polygon", logo: "https://cdn.simpleicons.org/polygon/8247E5", color: "#8247E5", fallback: "POL" },
-  { name: "Base", logo: "https://raw.githubusercontent.com/base/brand-kit/main/logo/Basemark/Digital/Base_basemark_blue.svg", color: "#0052FF", fallback: "BASE" },
+  { name: "Ethereum", logo: "https://api.iconify.design/simple-icons:ethereum.svg?color=%23627EEA", color: "#627EEA", fallback: "ETH" },
+  { name: "Solana", logo: "https://api.iconify.design/simple-icons:solana.svg?color=%2314F195", color: "#14F195", fallback: "SOL" },
+  { name: "Bitcoin", logo: "https://api.iconify.design/simple-icons:bitcoin.svg?color=%23F7931A", color: "#F7931A", fallback: "BTC" },
+  { name: "Polygon", logo: "https://api.iconify.design/simple-icons:polygon.svg?color=%238247E5", color: "#8247E5", fallback: "POL" },
+  { name: "Base", logo: "https://api.iconify.design/simple-icons:base.svg?color=%230052FF", color: "#0052FF", fallback: "BASE" },
+  { name: "Robinhood Chain", logo: "https://api.iconify.design/simple-icons:robinhood.svg?color=%23CCFF00", color: "#CCFF00", fallback: "RH" },
+  { name: "Arc", logo: "https://cms-images.arc.xyz/arc-logomark-white.svg", color: "#FFFFFF", fallback: "ARC" },
+  { name: "Sui", logo: "https://api.iconify.design/simple-icons:sui.svg?color=%236FBCF0", color: "#6FBCF0", fallback: "SUI" },
+  { name: "Ink", logo: "https://api.iconify.design/simple-icons:ink.svg?color=%237B61FF", color: "#7B61FF", fallback: "INK" },
 ];
 
 async function readHome() {
@@ -79,6 +83,11 @@ function CollectionVisual({ collection }: { collection: Collection }) {
   </div>;
 }
 
+function EcosystemLogo({ ecosystem }: { ecosystem: Ecosystem }) {
+  const [failed, setFailed] = useState(false);
+  return failed ? <span className="text-[9px] font-black" style={{ color: ecosystem.color }}>{ecosystem.fallback}</span> : <img src={ecosystem.logo} alt={ecosystem.name} referrerPolicy="no-referrer" onError={() => setFailed(true)} className="h-full w-full object-contain" />;
+}
+
 function OgShowcase() {
   const [index, setIndex] = useState(0);
   const [ecoIndex, setEcoIndex] = useState(0);
@@ -89,7 +98,7 @@ function OgShowcase() {
     <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(124,58,237,.32),transparent_40%),radial-gradient(circle_at_90%_15%,rgba(34,211,238,.14),transparent_28%),radial-gradient(circle_at_5%_90%,rgba(236,72,153,.13),transparent_28%)]" /><div className="absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-600/15 blur-[110px]" /><div className="absolute inset-5 rounded-[27px] border border-white/[.06]" />
     <div className="absolute left-7 top-7 z-20 rounded-full border border-white/10 bg-black/35 px-4 py-2.5 text-[8px] font-black tracking-[.2em] text-violet-200 backdrop-blur-xl">OG COLLECTIONS</div><div className="absolute right-7 top-8 z-20 flex gap-1.5">{COLLECTIONS.map((item, i) => <button aria-label={`Show ${item.name}`} key={item.name} onClick={() => setIndex(i)} className={`h-1.5 rounded-full transition-all ${i === index ? "w-8 bg-white" : "w-1.5 bg-white/30"}`} />)}</div>
     <div key={collection.name} className="absolute inset-x-8 top-[70px] bottom-[84px]"><div className="h-full w-full rotate-[-2deg] rounded-[36px] border border-white/15 bg-gradient-to-br from-white/10 to-white/[.015] p-3 shadow-[0_0_110px_rgba(139,92,246,.25)] transition duration-700 sm:p-5"><CollectionVisual collection={collection} /></div></div>
-    <div className="absolute bottom-7 left-7 right-7 z-20 flex items-center justify-between gap-4"><div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/60 px-3 py-2.5 backdrop-blur-xl sm:px-4 sm:py-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-black/45 p-2 shadow-lg" style={{ boxShadow: `0 0 28px ${ecosystem.color}55` }}><img src={ecosystem.logo} alt={ecosystem.name} referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.display = "none"; }} className="h-full w-full object-contain" /></div><div><div className="text-[7px] font-black tracking-[.2em] text-zinc-500">ECOSYSTEM</div><div className="text-xs font-black text-white">{ecosystem.name}</div></div></div><div className="hidden rounded-full border border-white/10 bg-black/45 px-4 py-2.5 text-[8px] font-black uppercase tracking-[.18em] text-zinc-400 backdrop-blur sm:block">{collection.chain} · OG</div></div>
+    <div className="absolute bottom-7 left-7 right-7 z-20 flex items-center justify-between gap-4"><div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/60 px-3 py-2.5 backdrop-blur-xl sm:px-4 sm:py-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-black/45 p-2 shadow-lg" style={{ boxShadow: `0 0 28px ${ecosystem.color}55` }}><EcosystemLogo ecosystem={ecosystem} /></div><div><div className="text-[7px] font-black tracking-[.2em] text-zinc-500">ECOSYSTEM</div><div className="text-xs font-black text-white">{ecosystem.name}</div></div></div><div className="hidden rounded-full border border-white/10 bg-black/45 px-4 py-2.5 text-[8px] font-black uppercase tracking-[.18em] text-zinc-400 backdrop-blur sm:block">{collection.chain} · OG</div></div>
   </div>;
 }
 
