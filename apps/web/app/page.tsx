@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { API_BASE_URL } from "@/lib/api-config";
+import { useTheme } from "@/contexts/ThemeContext";
 
 type Raffle = {
   id: string;
@@ -212,6 +213,8 @@ function EcosystemLogo({ ecosystem }: { ecosystem: Ecosystem }) {
 }
 
 function OgShowcase() {
+  const { theme } = useTheme();
+  const isLight = theme === "light";
   const [index, setIndex] = useState(0);
   const [ecoIndex, setEcoIndex] = useState(0);
   const collection = COLLECTIONS[index];
@@ -238,7 +241,13 @@ function OgShowcase() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(124,58,237,.34),transparent_38%),radial-gradient(circle_at_88%_18%,rgba(34,211,238,.14),transparent_25%),radial-gradient(circle_at_8%_85%,rgba(236,72,153,.12),transparent_25%)]" />
       <div className="absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-600/15 blur-[100px]" />
 
-      <div className="absolute left-5 top-5 z-20 rounded-full border border-white/10 bg-black/35 px-3 py-2 text-[8px] font-black tracking-[.2em] text-violet-200 backdrop-blur-xl">
+      <div
+        className={`absolute left-5 top-5 z-20 rounded-full px-3 py-2 text-[8px] font-black tracking-[.2em] backdrop-blur-xl ${
+          isLight
+            ? "border border-violet-200 bg-white/90 text-violet-700 shadow-sm"
+            : "border border-white/10 bg-black/35 text-violet-200"
+        }`}
+      >
         OG COLLECTIONS
       </div>
       <div className="absolute right-5 top-5 z-20 flex gap-1.5">
@@ -266,16 +275,32 @@ function OgShowcase() {
       </div>
 
       <div className="absolute bottom-4 left-4 right-4 z-20 flex items-center justify-between gap-3 sm:bottom-6 sm:left-6 sm:right-6">
-        <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/55 px-3 py-2.5 backdrop-blur-xl sm:px-4 sm:py-3">
+        <div
+          className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 backdrop-blur-xl sm:px-4 sm:py-3 ${
+            isLight
+              ? "border border-violet-200 bg-white/90 shadow-sm"
+              : "border border-white/10 bg-black/55"
+          }`}
+        >
           <div
-            className="grid h-9 w-9 place-items-center rounded-xl bg-black/40 p-2 shadow-lg"
+            className={`grid h-9 w-9 place-items-center rounded-xl p-2 shadow-lg ${
+              isLight ? "bg-black/10" : "bg-black/40"
+            }`}
             style={{ boxShadow: `0 0 24px ${ecosystem.color}55` }}
           >
             <EcosystemLogo ecosystem={ecosystem} />
           </div>
           <div>
-            <div className="text-[7px] font-black tracking-[.2em] text-zinc-500">ECOSYSTEM</div>
-            <div className="text-xs font-black text-white">{ecosystem.name}</div>
+            <div
+              className={`text-[7px] font-black tracking-[.2em] ${
+                isLight ? "text-violet-500" : "text-zinc-500"
+              }`}
+            >
+              ECOSYSTEM
+            </div>
+            <div className={`text-xs font-black ${isLight ? "text-zinc-900" : "text-white"}`}>
+              {ecosystem.name}
+            </div>
           </div>
         </div>
         <div className="hidden rounded-full border border-white/10 bg-black/40 px-3 py-2 text-[8px] font-black uppercase tracking-[.18em] text-zinc-400 backdrop-blur sm:block">
