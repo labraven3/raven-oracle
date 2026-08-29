@@ -145,40 +145,39 @@ function CollectionVisual({ collection }: { collection: Collection }) {
   const rawSource = collection.sources[sourceIndex];
 
   return (
-    <div className={`relative h-full w-full overflow-hidden rounded-[25px] bg-gradient-to-br ${collection.tone}`}>
-      <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/25 blur-3xl" />
-      <div className="absolute -bottom-16 -left-16 h-52 w-52 rounded-full bg-violet-950/35 blur-3xl" />
-      <div className="absolute inset-2.5 rounded-[22px] border border-white/20 bg-black/10" />
+    <div className={`relative h-full w-full overflow-hidden rounded-[27px] bg-gradient-to-br ${collection.tone}`}>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_22%_18%,rgba(255,255,255,.36),transparent_26%),radial-gradient(circle_at_82%_78%,rgba(255,255,255,.14),transparent_30%)]" />
+      <div className="absolute inset-2 rounded-[23px] border border-white/25" />
 
-      <div className="absolute inset-0 flex items-center justify-center pb-5 pt-3 sm:pb-7 sm:pt-5">
-        <div className="relative h-[62%] w-[62%] overflow-hidden rounded-[25px] border border-white/25 bg-black/20 shadow-[0_22px_55px_rgba(0,0,0,.42)] backdrop-blur-[2px] sm:h-[66%] sm:w-[66%]">
-          <img
-            key={rawSource}
-            src={rawSource}
-            alt={collection.name}
-            referrerPolicy="no-referrer"
-            onError={() =>
-              setSourceIndex((value) =>
-                value + 1 < collection.sources.length ? value + 1 : value,
-              )
-            }
-            className="h-full w-full object-cover transition-transform duration-1000 ease-out"
-          />
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-white/10" />
-          <div className="pointer-events-none absolute left-3 top-3 h-2 w-2 rounded-full bg-white/60 shadow-[0_0_12px_rgba(255,255,255,.7)]" />
-        </div>
+      <div className="absolute inset-[7%] overflow-hidden rounded-[24px] border border-white/25 bg-black/20 shadow-[0_24px_70px_rgba(0,0,0,.34)] backdrop-blur-[2px]">
+        <img
+          key={rawSource}
+          src={rawSource}
+          alt={collection.name}
+          referrerPolicy="no-referrer"
+          onError={() =>
+            setSourceIndex((value) =>
+              value + 1 < collection.sources.length ? value + 1 : value,
+            )
+          }
+          className="h-full w-full object-cover"
+        />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,.15),transparent_26%,transparent_58%,rgba(0,0,0,.78))]" />
+        <div className="pointer-events-none absolute left-4 top-4 h-2 w-2 rounded-full bg-white/80 shadow-[0_0_16px_rgba(255,255,255,.9)]" />
       </div>
 
-      <div className="absolute bottom-3 left-3 right-3 z-10 flex items-end justify-between gap-3 sm:bottom-5 sm:left-5 sm:right-5">
-        <div>
-          <div className="text-[7px] font-black uppercase tracking-[.22em] text-white/65 sm:text-[8px]">
-            {collection.chain}
-          </div>
-          <div className="mt-0.5 text-sm font-black text-white sm:text-base">{collection.name}</div>
-        </div>
-        <div className="rounded-full border border-white/20 bg-black/30 px-2.5 py-1 text-[7px] font-black uppercase tracking-[.15em] text-white/80 backdrop-blur sm:text-[8px]">
+      <div className="absolute left-5 right-5 top-5 z-10 flex items-center justify-between">
+        <span className="rounded-full border border-white/20 bg-black/25 px-2.5 py-1 text-[7px] font-black uppercase tracking-[.2em] text-white/85 backdrop-blur-md">
+          {collection.chain}
+        </span>
+        <span className="rounded-full border border-white/20 bg-white/15 px-2.5 py-1 text-[7px] font-black uppercase tracking-[.18em] text-white/90 backdrop-blur-md">
           OG
-        </div>
+        </span>
+      </div>
+
+      <div className="absolute bottom-5 left-5 right-5 z-10">
+        <div className="text-[9px] font-black uppercase tracking-[.18em] text-white/70">OG collection</div>
+        <div className="mt-1 text-base font-black text-white sm:text-lg">{collection.name}</div>
       </div>
     </div>
   );
@@ -236,74 +235,123 @@ function OgShowcase() {
   }, []);
 
   return (
-    <div className="relative min-h-[360px] overflow-hidden rounded-[30px] border border-violet-400/15 bg-[#08070e] shadow-2xl shadow-violet-950/20 sm:min-h-[470px]">
-      <style jsx>{`@keyframes ravenOgIn { from { opacity: 0; transform: translateY(18px) scale(.94) rotate(-2deg); } to { opacity: 1; transform: translateY(0) scale(1) rotate(-2deg); } } @keyframes ravenOgFloat { 0%,100% { transform: rotate(-2deg) translateY(0); } 50% { transform: rotate(-2deg) translateY(-7px); } }`}</style>
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(124,58,237,.34),transparent_38%),radial-gradient(circle_at_88%_18%,rgba(34,211,238,.14),transparent_25%),radial-gradient(circle_at_8%_85%,rgba(236,72,153,.12),transparent_25%)]" />
-      <div className="absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-600/15 blur-[100px]" />
+    <div
+      className={`relative min-h-[360px] overflow-hidden rounded-[30px] border sm:min-h-[470px] ${
+        isLight
+          ? "border-violet-100 bg-[radial-gradient(circle_at_50%_35%,rgba(196,181,253,.42),transparent_34%),radial-gradient(circle_at_15%_80%,rgba(224,242,254,.52),transparent_30%),#fff"
+          : "border-white/10 bg-[#08070e]"
+      }`}
+    >
+      <style jsx>{`
+        @keyframes ravenOgEnter {
+          0% { opacity: 0; transform: translateY(24px) scale(.92) rotateX(8deg) rotateY(-10deg); }
+          100% { opacity: 1; transform: translateY(0) scale(1) rotateX(0deg) rotateY(0deg); }
+        }
+        @keyframes ravenOgFloat {
+          0%, 100% { transform: translateY(0) rotateX(0deg) rotateY(-1deg); }
+          50% { transform: translateY(-9px) rotateX(1.5deg) rotateY(1.5deg); }
+        }
+        @keyframes ravenOgGlow {
+          0%, 100% { opacity: .55; transform: scale(.96); }
+          50% { opacity: .9; transform: scale(1.04); }
+        }
+        @keyframes ravenOgProgress {
+          from { width: 0%; }
+          to { width: 100%; }
+        }
+        @keyframes ravenOgShine {
+          0% { transform: translateX(-120%); opacity: 0; }
+          18% { opacity: .45; }
+          42% { opacity: .08; }
+          100% { transform: translateX(140%); opacity: 0; }
+        }
+      `}</style>
 
-      <div
-        className={`absolute left-5 top-5 z-20 rounded-full px-3 py-2 text-[8px] font-black tracking-[.2em] backdrop-blur-xl ${
-          isLight
-            ? "border border-violet-200 bg-white/90 text-violet-700 shadow-sm"
-            : "border border-white/10 bg-black/35 text-violet-200"
-        }`}
-      >
-        OG COLLECTIONS
-      </div>
-      <div className="absolute right-5 top-5 z-20 flex gap-1.5">
-        {COLLECTIONS.map((item, i) => (
-          <button
-            aria-label={`Show ${item.name}`}
-            key={item.name}
-            onClick={() => setIndex(i)}
-            className={`h-1.5 rounded-full transition-all ${i === index ? "w-7 bg-white" : "w-1.5 bg-white/30"}`}
-          />
-        ))}
-      </div>
+      <div className="pointer-events-none absolute -left-16 top-12 h-44 w-44 rounded-full bg-violet-400/20 blur-[80px]" style={{ animation: "ravenOgGlow 4.5s ease-in-out infinite" }} />
+      <div className="pointer-events-none absolute -right-20 bottom-8 h-52 w-52 rounded-full bg-cyan-300/15 blur-[90px]" style={{ animation: "ravenOgGlow 5.5s ease-in-out .6s infinite" }} />
 
-      <div className="absolute inset-x-0 top-[50px] flex justify-center sm:top-[58px]">
+      <div className="absolute left-5 right-5 top-5 z-20 flex items-center justify-between sm:left-6 sm:right-6 sm:top-6">
         <div
-          key={collection.name}
-          className="relative h-[250px] w-[250px] rounded-[32px] border border-white/20 bg-gradient-to-br from-white/10 to-white/[.02] p-2.5 shadow-[0_0_90px_rgba(139,92,246,.32)] sm:h-[330px] sm:w-[330px] sm:p-3.5"
-          style={{
-            animation:
-              "ravenOgIn .75s cubic-bezier(.22,.8,.22,1) both, ravenOgFloat 5s ease-in-out 1s infinite",
-          }}
+          className={`rounded-full border px-3 py-2 text-[8px] font-black uppercase tracking-[.2em] backdrop-blur-xl ${
+            isLight
+              ? "border-violet-200 bg-white/80 text-violet-700 shadow-[0_8px_30px_rgba(124,58,237,.08)]"
+              : "border-white/10 bg-black/35 text-violet-200"
+          }`}
         >
-          <CollectionVisual collection={collection} />
+          ✦ OG Collections
+        </div>
+
+        <div className={`flex items-center gap-2 rounded-full border px-2 py-1.5 backdrop-blur-xl ${isLight ? "border-slate-200 bg-white/75" : "border-white/10 bg-black/25"}`}>
+          {COLLECTIONS.map((item, i) => (
+            <button
+              aria-label={`Show ${item.name}`}
+              key={item.name}
+              onClick={() => setIndex(i)}
+              className="relative h-1.5 w-7 overflow-hidden rounded-full bg-black/10 dark:bg-white/15"
+            >
+              {i === index ? (
+                <span
+                  key={`progress-${index}`}
+                  className="absolute inset-y-0 left-0 rounded-full bg-violet-500"
+                  style={{ animation: "ravenOgProgress 5s linear both" }}
+                />
+              ) : null}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="absolute inset-x-0 top-[62px] flex justify-center px-5 sm:top-[70px] sm:px-8">
+        <div className="relative [perspective:1200px]">
+          <div
+            key={collection.name}
+            className="relative h-[255px] w-[255px] transform-gpu sm:h-[345px] sm:w-[345px]"
+            style={{ animation: "ravenOgEnter .7s cubic-bezier(.22,.8,.22,1) both, ravenOgFloat 5s ease-in-out .7s infinite" }}
+          >
+            <div className={`absolute -inset-7 rounded-[46px] blur-3xl ${isLight ? "bg-violet-300/35" : "bg-violet-500/20"}`} style={{ animation: "ravenOgGlow 4s ease-in-out infinite" }} />
+            <div className={`relative h-full w-full rounded-[34px] border p-2 shadow-[0_30px_80px_rgba(15,23,42,.18)] sm:p-3 ${isLight ? "border-white/80 bg-white/65" : "border-white/15 bg-white/[.06]"}`}>
+              <div className="relative h-full w-full overflow-hidden rounded-[29px] [transform-style:preserve-3d]">
+                <CollectionVisual collection={collection} />
+                <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[29px]">
+                  <div className="absolute -left-1/2 top-0 h-full w-[45%] skew-x-[-18deg] bg-gradient-to-r from-transparent via-white/30 to-transparent" style={{ animation: "ravenOgShine 5s ease-in-out 1s infinite" }} />
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="absolute bottom-4 left-4 right-4 z-20 flex items-center justify-between gap-3 sm:bottom-6 sm:left-6 sm:right-6">
         <div
-          className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 backdrop-blur-xl sm:px-4 sm:py-3 ${
+          className={`flex min-w-0 items-center gap-3 rounded-2xl border px-3 py-2.5 backdrop-blur-xl sm:px-4 sm:py-3 ${
             isLight
-              ? "border border-violet-200 bg-white/90 shadow-sm"
-              : "border border-white/10 bg-black/55"
+              ? "border-violet-100 bg-white/85 shadow-[0_12px_36px_rgba(124,58,237,.10)]"
+              : "border-white/10 bg-black/45"
           }`}
         >
           <div
-            className={`grid h-9 w-9 place-items-center rounded-xl p-2 shadow-lg ${
-              isLight ? "bg-black/10" : "bg-black/40"
-            }`}
-            style={{ boxShadow: `0 0 24px ${ecosystem.color}55` }}
+            className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl p-2 ${isLight ? "bg-slate-100" : "bg-white/10"}`}
+            style={{ boxShadow: `0 0 22px ${ecosystem.color}33` }}
           >
             <EcosystemLogo ecosystem={ecosystem} />
           </div>
-          <div>
-            <div
-              className={`text-[7px] font-black tracking-[.2em] ${
-                isLight ? "text-violet-500" : "text-zinc-500"
-              }`}
-            >
-              ECOSYSTEM
+          <div className="min-w-0">
+            <div className={`text-[7px] font-black uppercase tracking-[.2em] ${isLight ? "text-violet-500" : "text-zinc-500"}`}>
+              Ecosystem
             </div>
-            <div className={`text-xs font-black ${isLight ? "text-zinc-900" : "text-white"}`}>
+            <div className={`truncate text-xs font-black ${isLight ? "text-zinc-900" : "text-white"}`}>
               {ecosystem.name}
             </div>
           </div>
         </div>
-        <div className="hidden rounded-full border border-white/10 bg-black/40 px-3 py-2 text-[8px] font-black uppercase tracking-[.18em] text-zinc-400 backdrop-blur sm:block">
+
+        <div
+          className={`hidden rounded-full border px-3 py-2 text-[8px] font-black uppercase tracking-[.16em] backdrop-blur-xl sm:block ${
+            isLight
+              ? "border-slate-200 bg-white/75 text-slate-500"
+              : "border-white/10 bg-black/30 text-zinc-400"
+          }`}
+        >
           {collection.subtitle}
         </div>
       </div>
