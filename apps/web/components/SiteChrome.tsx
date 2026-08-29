@@ -15,6 +15,15 @@ const routesWithOwnHeader = [
   "/create",
   "/dashboard",
   "/how-it-works",
+  "/terms",
+  "/privacy",
+  "/contact",
+];
+
+const routesWithOwnFooter = [
+  "/terms",
+  "/privacy",
+  "/contact",
 ];
 
 function hasOwnHeader(pathname: string) {
@@ -25,6 +34,10 @@ function hasOwnHeader(pathname: string) {
   return false;
 }
 
+function hasOwnFooter(pathname: string) {
+  return routesWithOwnFooter.includes(pathname);
+}
+
 export default function SiteChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isAdmin = pathname === "/admin" || pathname.startsWith("/admin/");
@@ -33,6 +46,7 @@ export default function SiteChrome({ children }: { children: ReactNode }) {
   if (isAdmin || isApi) return <>{children}</>;
 
   const isHome = pathname === "/";
+  const ownFooter = hasOwnFooter(pathname);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -42,7 +56,7 @@ export default function SiteChrome({ children }: { children: ReactNode }) {
       )}
       <CreatorQuickActions />
       <main className="flex-1">{children}</main>
-      <SiteFooter />
+      {!ownFooter && <SiteFooter />}
     </div>
   );
 }
