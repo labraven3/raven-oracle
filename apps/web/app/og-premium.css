@@ -25,6 +25,16 @@
   50% { opacity: .78; transform: scale(1.035); }
 }
 
+@keyframes ravenEcosystemPulse {
+  0%, 100% { opacity: .55; transform: scale(.94); }
+  50% { opacity: .95; transform: scale(1.08); }
+}
+
+@keyframes ravenEcosystemGlow {
+  0%, 100% { opacity: .5; transform: scale(.9); }
+  50% { opacity: .9; transform: scale(1.08); }
+}
+
 /* Identify the OG showcase by the unique animated hero wrapper. */
 main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) {
   isolation: isolate;
@@ -123,4 +133,49 @@ main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) div[class*="rounde
 
 main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) div[class*="rounded-[27px]"] > div[class*="bottom-5 left-5 right-5"] > div:last-child {
   display: none !important;
+}
+
+/* Premium ecosystem glow. The existing inline ecosystem color remains the source of truth. */
+main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) > div[class*="bottom-4 left-4 right-4"] > div:first-child {
+  position: relative;
+  overflow: visible;
+  isolation: isolate;
+}
+
+main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) > div[class*="bottom-4 left-4 right-4"] > div:first-child::before {
+  content: "";
+  position: absolute;
+  inset: -10px;
+  z-index: -1;
+  border-radius: 28px;
+  background: var(--ecosystem-glow, rgba(124,58,237,.22));
+  filter: blur(18px);
+  opacity: .55;
+  animation: ravenEcosystemGlow 3.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) > div[class*="bottom-4 left-4 right-4"] > div:first-child > div:first-child {
+  position: relative;
+  z-index: 1;
+  animation: ravenEcosystemPulse 3.4s ease-in-out infinite;
+}
+
+main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) > div[class*="bottom-4 left-4 right-4"] > div:first-child > div:first-child img {
+  filter: drop-shadow(0 0 8px currentColor) drop-shadow(0 0 15px currentColor);
+}
+
+html.light main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) > div[class*="bottom-4 left-4 right-4"] > div:first-child::before {
+  opacity: .42;
+}
+
+html.dark main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) > div[class*="bottom-4 left-4 right-4"] > div:first-child::before {
+  opacity: .62;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) > div[class*="bottom-4 left-4 right-4"] > div:first-child::before,
+  main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) > div[class*="bottom-4 left-4 right-4"] > div:first-child > div:first-child {
+    animation: none !important;
+  }
 }
