@@ -1,0 +1,117 @@
+/* Premium marketplace treatment for the homepage OG showcase only. */
+
+@keyframes ravenPremiumEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(.95) rotateX(5deg) rotateY(-4deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotateX(0deg) rotateY(0deg);
+  }
+}
+
+@keyframes ravenPremiumFloat {
+  0%, 100% {
+    transform: translateY(0) rotateX(0deg) rotateY(-1deg);
+  }
+  50% {
+    transform: translateY(-7px) rotateX(.8deg) rotateY(1deg);
+  }
+}
+
+@keyframes ravenPremiumGlow {
+  0%, 100% { opacity: .48; transform: scale(.98); }
+  50% { opacity: .78; transform: scale(1.035); }
+}
+
+/* Identify the OG showcase by the unique animated hero wrapper. */
+main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) {
+  isolation: isolate;
+  border-color: rgba(148, 163, 184, .16) !important;
+  border-radius: 28px !important;
+  box-shadow: 0 26px 80px rgba(15, 23, 42, .10) !important;
+}
+
+main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) > div[class*="bg-[radial-gradient"] {
+  opacity: .72;
+}
+
+main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) [style*="ravenOgEnter"] {
+  animation: ravenPremiumEnter .75s cubic-bezier(.22,.8,.22,1) both,
+             ravenPremiumFloat 6s ease-in-out .75s infinite !important;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) > div[class*="absolute -left-16"] {
+  animation: ravenPremiumGlow 5.5s ease-in-out infinite !important;
+}
+
+main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) > div[class*="absolute -right-20"] {
+  animation: ravenPremiumGlow 6.5s ease-in-out .4s infinite !important;
+}
+
+/* Hero frame: quiet glass instead of another loud card. */
+main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) [style*="ravenOgEnter"] > div {
+  border-color: rgba(255,255,255,.62) !important;
+  background: rgba(255,255,255,.56) !important;
+  box-shadow: 0 30px 90px rgba(15,23,42,.14), inset 0 1px 0 rgba(255,255,255,.85) !important;
+  backdrop-filter: blur(14px);
+}
+
+/* The collection artwork becomes the primary visual. */
+main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) div[class*="rounded-[27px]"] {
+  background: linear-gradient(145deg, #f8fafc 0%, #eef2ff 46%, #f8fafc 100%) !important;
+  border-radius: 26px !important;
+  border-color: rgba(255,255,255,.82) !important;
+  box-shadow: 0 24px 65px rgba(15,23,42,.13) !important;
+}
+
+main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) div[class*="rounded-[27px]"] > div[class*="rounded-[23px]"] {
+  background: #111827 !important;
+  border-color: rgba(255,255,255,.55) !important;
+  box-shadow: 0 18px 50px rgba(15,23,42,.22) !important;
+}
+
+/* Keep the artwork crisp in light mode; avoid the heavy black wash. */
+html.light main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) div[class*="bg-[linear-gradient(180deg"] {
+  background: linear-gradient(180deg, rgba(255,255,255,.04), transparent 34%, rgba(0,0,0,.28)) !important;
+}
+
+/* Elegant, compact top badges. */
+main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) > div[class*="left-5 right-5 top-5"] {
+  z-index: 30;
+}
+
+html.light main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) > div[class*="left-5 right-5 top-5"] > div:first-child {
+  border-color: rgba(124,58,237,.14) !important;
+  background: rgba(255,255,255,.74) !important;
+  color: #6d28d9 !important;
+  box-shadow: 0 8px 28px rgba(124,58,237,.08) !important;
+}
+
+html.dark main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) > div[class*="left-5 right-5 top-5"] > div:first-child {
+  background: rgba(10,10,15,.52) !important;
+}
+
+/* Give the bottom metadata a marketplace-style hierarchy. */
+main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) > div[class*="bottom-4 left-4 right-4"] {
+  z-index: 30;
+}
+
+html.light main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) > div[class*="bottom-4 left-4 right-4"] > div:first-child {
+  border-color: rgba(148,163,184,.18) !important;
+  background: rgba(255,255,255,.82) !important;
+  box-shadow: 0 12px 34px rgba(15,23,42,.10) !important;
+}
+
+html.light main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) > div[class*="bottom-4 left-4 right-4"] > div:last-child {
+  border-color: rgba(148,163,184,.16) !important;
+  background: rgba(255,255,255,.68) !important;
+  color: #64748b !important;
+}
+
+html.dark main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) > div[class*="bottom-4 left-4 right-4"] > div:first-child {
+  background: rgba(10,10,15,.44) !important;
+}
