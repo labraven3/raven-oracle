@@ -54,7 +54,10 @@ function LoginForm() {
               <span className="text-lg">𝕏</span><span>{oauthLoading === "x" ? "Connecting…" : "Continue with X"}</span>
             </button>
             <button disabled={!!oauthLoading} onClick={() => void oauthLogin("discord")} className="flex w-full items-center justify-center gap-3 rounded-lg bg-[#5865F2] px-4 py-3 font-bold text-white hover:bg-[#4f5bd5] disabled:opacity-50">
-              <span>◉</span><span>{oauthLoading === "discord" ? "Connecting…" : "Continue with Discord"}</span>
+              <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-current">
+                <path d="M19.54 4.1A16.2 16.2 0 0 0 15.5 2.85l-.5 1.02a14.9 14.9 0 0 0-6 0l-.5-1.02A16.2 16.2 0 0 0 4.46 4.1C1.9 7.9 1.21 11.61 1.56 15.27a16.3 16.3 0 0 0 4.92 2.49l1.2-1.62c-.66-.24-1.3-.54-1.91-.9l.47-.36c3.69 1.73 7.69 1.73 11.34 0l.47.36c-.61.36-1.25.66-1.91.9l1.2 1.62a16.3 16.3 0 0 0 4.92-2.49c.41-4.24-.69-7.91-2.72-11.17ZM8.47 13.1c-1.1 0-2-.98-2-2.19s.88-2.19 2-2.19 2 .98 2 2.19-.9 2.19-2 2.19Zm7.06 0c-1.1 0-2-.98-2-2.19s.88-2.19 2-2.19 2 .98 2 2.19-.9 2.19-2 2.19Z" />
+              </svg>
+              <span>{oauthLoading === "discord" ? "Connecting…" : "Continue with Discord"}</span>
             </button>
           </div>
 
