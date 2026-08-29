@@ -115,3 +115,12 @@ html.light main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) > div[c
 html.dark main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) > div[class*="bottom-4 left-4 right-4"] > div:first-child {
   background: rgba(10,10,15,.44) !important;
 }
+
+/* Hide only the chain label and collection name inside the OG artwork. */
+main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) div[class*="rounded-[27px]"] > div[class*="left-5 right-5 top-5"] > span:first-child {
+  display: none !important;
+}
+
+main > section > div.mt-10 > div:has([style*="ravenOgEnter"]) div[class*="rounded-[27px]"] > div[class*="bottom-5 left-5 right-5"] > div:last-child {
+  display: none !important;
+}
