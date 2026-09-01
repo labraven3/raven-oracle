@@ -45,6 +45,21 @@ function extractXUsername(value: string): string | null {
   }
 }
 
+function extractXTweetId(value: string): string | null {
+  const raw = value.trim();
+  if (/^\d{1,19}$/.test(raw)) return raw;
+  try {
+    const url = new URL(raw);
+    if (!["x.com", "www.x.com", "twitter.com", "www.twitter.com"].includes(url.hostname.toLowerCase())) return null;
+    const parts = url.pathname.split("/").filter(Boolean);
+    const statusIndex = parts.findIndex((part) => part === "status" || part === "statuses");
+    const id = statusIndex >= 0 ? parts[statusIndex + 1] : null;
+    return id && /^\d{1,19}$/.test(id) ? id : null;
+  } catch {
+    return null;
+  }
+}
+
 async function resolveXUserId(accessToken: string, target: string): Promise<string | null> {
   const usernameOrId = extractXUsername(target);
   if (!usernameOrId) return null;
@@ -62,32 +77,36 @@ async function verifyXFollow(userId: string, target: string, projectXUrl?: strin
   const targetUserId = await resolveXUserId(tokenData.accessToken, targetValue);
   if (!targetUserId) return { verified: false, reason: "Unable to resolve the required X account" };
 
-  let paginationToken: string | undefined;
-  let checkedPages = 0;
-  do {
-    const qs = new URLSearchParams({ max_results: "1000", "user.fields": "username" });
-    if (paginationToken) qs.set("pagination_token", paginationToken);
-    const response = await xRequest(tokenData.accessToken, `/users/${encodeURIComponent(tokenData.account.providerAccountId)}/following?${qs.toString()}`);
-    const data = await response.json().catch(() => null) as { data?: Array<{ id: string; username?: string }>; meta?: { next_token?: string }; title?: string; detail?: string } | null;
-    if (!response.ok || !data?.data) {
-      return { verified: false, reason: data?.detail || data?.title || "X follow verification failed. Check your X API access." };
-    }
-    if (data.data.some((user) => user.id === targetUserId)) {
-      return { verified: true, evidence: { targetUserId, providerAccountId: tokenData.account.providerAccountId } };
-    }
-    paginationToken = data.meta?.next_token;
-    checkedPages += 1;
-  } while (paginationToken && checkedPages < 20);
-
-  return { verified: false, reason: "The connected X account does not follow the required account" };
+  // Only one following page per click. The previous implementation could
+  // walk 20 pages (up to 20,000 accounts) for one verification.
+  const qs = new URLSearchParams({ max_results: "1000", "user.fields": "username" });
+  const response = await xRequest(tokenData.accessToken, `/users/${encodeURIComponent(tokenData.account.providerAccountId)}/following?${qs.toString()}`);
+  const data = await response.json().catch(() => null) as { data?: Array<{ id: string; username?: string }>; title?: string; detail?: string } | null;
+  if (!response.ok || !data?.data) {
+    return { verified: false, reason: data?.detail || data?.title || "X follow verification failed. Check your X API access." };
+  }
+  const verified = data.data.some((user) => user.id === targetUserId);
+  return verified
+    ? { verified: true, evidence: { targetUserId, providerAccountId: tokenData.account.providerAccountId, checkedPages: 1 } }
+    : { verified: false, reason: "The connected X account was not found in the first 1,000 followed accounts. Raven Oracle will not paginate through more pages automatically." };
 }
 
-async function confirmManually(taskType: string): Promise<VerificationResult> {
-  return {
-    verified: true,
-    manual: true,
-    evidence: { mode: "participant_confirmation", taskType },
-  };
+async function verifyXTweetEngagement(userId: string, taskType: "X_LIKE" | "X_REPOST", target: string): Promise<VerificationResult> {
+  const tokenData = await getXAccessToken(userId);
+  if ("error" in tokenData) return { verified: false, reason: tokenData.error };
+  const tweetId = extractXTweetId(target);
+  if (!tweetId) return { verified: false, reason: "The task target must be an X post URL or tweet ID" };
+
+  const endpoint = taskType === "X_LIKE" ? `/tweets/${tweetId}/liking_users?max_results=100` : `/tweets/${tweetId}/retweeted_by?max_results=100`;
+  const response = await xRequest(tokenData.accessToken, endpoint);
+  const data = await response.json().catch(() => null) as { data?: Array<{ id: string }>; title?: string; detail?: string } | null;
+  if (!response.ok || !data?.data) {
+    return { verified: false, reason: data?.detail || data?.title || `X ${taskType === "X_LIKE" ? "like" : "repost"} verification failed. Check your X API access.` };
+  }
+  const verified = data.data.some((user) => user.id === tokenData.account.providerAccountId);
+  return verified
+    ? { verified: true, evidence: { tweetId, providerAccountId: tokenData.account.providerAccountId } }
+    : { verified: false, reason: `The connected X account has not ${taskType === "X_LIKE" ? "liked" : "reposted"} the required post` };
 }
 
 export async function verifyRaffleTask(taskId: string, entryId: string, userId: string): Promise<VerificationResult> {
@@ -103,7 +122,9 @@ export async function verifyRaffleTask(taskId: string, entryId: string, userId: 
 
   const result = task.type === "X_FOLLOW"
     ? await verifyXFollow(userId, task.targetUrl || task.target, task.raffle.project?.xUrl)
-    : await confirmManually(task.type);
+    : task.type === "X_LIKE" || task.type === "X_REPOST"
+      ? await verifyXTweetEngagement(userId, task.type, task.targetUrl || task.target)
+      : { verified: false, reason: "Discord task verification must be completed through the connected Discord account; manual confirmation is not accepted." };
 
   const verificationData = {
     status: result.verified ? "VERIFIED" : "FAILED",
