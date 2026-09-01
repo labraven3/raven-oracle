@@ -66,6 +66,24 @@ router.post("/:raffleId/tasks/:taskId/verify", requireAuth, async (req, res, nex
     const now = new Date(); if (raffle.status !== "ACTIVE") return res.status(400).json({ success: false, message: raffle.status === "SCHEDULED" ? "Raffle has not started yet" : "Raffle is not accepting verification" }); if (now < raffle.startsAt) return res.status(400).json({ success: false, message: "Raffle has not started yet" }); if (now > raffle.endsAt) return res.status(400).json({ success: false, message: "Raffle has ended" });
     const task = await prisma.raffleTask.findUnique({ where: { id: taskId } }); if (!task || task.raffleId !== raffleId) return res.status(404).json({ success: false, message: "Raffle task not found" });
     const entry = await prisma.raffleEntry.findUnique({ where: { raffleId_userId: { raffleId, userId: req.userId } } }); if (!entry) return res.status(404).json({ success: false, message: "You must create a raffle entry first" });
+
+    // Server-side sequential enforcement. A client cannot skip directly to
+    // task 3 just by calling its endpoint.
+    const previousRequiredTasks = await prisma.raffleTask.findMany({
+      where: { raffleId, isRequired: true, sortOrder: { lt: task.sortOrder } },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      select: { id: true, title: true, sortOrder: true },
+    });
+    if (previousRequiredTasks.length > 0) {
+      const previousVerifications = await prisma.raffleTaskVerification.findMany({
+        where: { entryId: entry.id, raffleTaskId: { in: previousRequiredTasks.map((item) => item.id) } },
+        select: { raffleTaskId: true, status: true },
+      });
+      const verifiedIds = new Set(previousVerifications.filter((item) => item.status === "VERIFIED").map((item) => item.raffleTaskId));
+      const missing = previousRequiredTasks.find((item) => !verifiedIds.has(item.id));
+      if (missing) return res.status(400).json({ success: false, code: "PREVIOUS_TASK_REQUIRED", message: `Complete the previous required task first: ${missing.title}` });
+    }
+
     const result = await verifyRaffleTask(taskId, entry.id, req.userId); return res.json({ success: true, taskId, entryId: entry.id, ...result });
   } catch (error) { next(error); }
 });
