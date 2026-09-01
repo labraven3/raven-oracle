@@ -4,7 +4,10 @@ import { decrypt as decryptDiscordToken } from "./discord-oauth.service.js";
 
 type VerificationResult = { verified: boolean; reason?: string; evidence?: Record<string, unknown>; manual?: boolean };
 
-async function xRequest(accessToken: string, path: string) { return fetch(`https://api.x.com/2${path}`, { headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" } }); }
+async function xRequest(accessToken: string, path: string) {
+  return fetch(`https://api.x.com/2${path}`, { headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" } });
+}
+
 async function getXAccount(userId: string) { return prisma.socialAccount.findFirst({ where: { userId, provider: "X", isActive: true } }); }
 async function getXAccessToken(userId: string): Promise<{ account: { providerAccountId: string }; accessToken: string } | { error: string }> {
   const account = await getXAccount(userId);
@@ -27,22 +30,91 @@ async function resolveXUserId(accessToken: string, target: string): Promise<stri
   const usernameOrId = extractXUsername(target); if (!usernameOrId) return null; if (/^\d+$/.test(usernameOrId)) return usernameOrId;
   const response = await xRequest(accessToken, `/users/by/username/${encodeURIComponent(usernameOrId)}`); const data = await response.json().catch(() => null) as { data?: { id: string } } | null; return response.ok ? data?.data?.id ?? null : null;
 }
+
 async function verifyXFollow(userId: string, target: string, projectXUrl?: string | null): Promise<VerificationResult> {
   const tokenData = await getXAccessToken(userId); if ("error" in tokenData) return { verified: false, reason: tokenData.error };
-  const targetValue = [target, projectXUrl ?? ""].find((value) => extractXUsername(value)) ?? target; const targetUserId = await resolveXUserId(tokenData.accessToken, targetValue); if (!targetUserId) return { verified: false, reason: "Unable to resolve the required X account" };
-  // One bounded page only. The old implementation paginated up to 20 pages;
-  // one click therefore consumed hundreds of billable user resources.
-  const qs = new URLSearchParams({ max_results: "100", "user.fields": "username" });
-  const response = await xRequest(tokenData.accessToken, `/users/${encodeURIComponent(tokenData.account.providerAccountId)}/following?${qs.toString()}`); const data = await response.json().catch(() => null) as { data?: Array<{ id: string; username?: string }>; title?: string; detail?: string } | null;
-  if (!response.ok || !data?.data) return { verified: false, reason: data?.detail || data?.title || "X follow verification failed. Check your X API access." };
-  return data.data.some((user) => user.id === targetUserId) ? { verified: true, evidence: { targetUserId, providerAccountId: tokenData.account.providerAccountId, checkedPages: 1, maxResults: 100 } } : { verified: false, reason: "The connected X account was not found in the first 100 followed accounts. Raven Oracle will not paginate through more pages automatically." };
+  const targetValue = [target, projectXUrl ?? ""].find((value) => extractXUsername(value)) ?? target;
+  const targetUserId = await resolveXUserId(tokenData.accessToken, targetValue);
+  if (!targetUserId) return { verified: false, reason: "Unable to resolve the required X account" };
+
+  // X does not expose a read-only "does source follow target?" endpoint.
+  // The supported lookup is the source user's following list. Use the API's
+  // maximum page size and only paginate when the user's list actually needs it.
+  // This means a user following 10-20 accounts costs exactly one lookup,
+  // while large accounts are still verified completely rather than receiving
+  // a false negative just because of an arbitrary 100-account cap.
+  const maxResults = 1000;
+  let paginationToken: string | undefined;
+  let checkedPages = 0;
+  let checkedAccounts = 0;
+  let expectedFollowingCount: number | null = null;
+
+  do {
+    const qs = new URLSearchParams({ max_results: String(maxResults), "user.fields": "username" });
+    if (paginationToken) qs.set("pagination_token", paginationToken);
+    const response = await xRequest(tokenData.accessToken, `/users/${encodeURIComponent(tokenData.account.providerAccountId)}/following?${qs.toString()}`);
+    const data = await response.json().catch(() => null) as {
+      data?: Array<{ id: string; username?: string }>;
+      meta?: { next_token?: string; result_count?: number };
+      title?: string;
+      detail?: string;
+    } | null;
+    if (!response.ok || !data?.data) {
+      return { verified: false, reason: data?.detail || data?.title || "X follow verification failed. Check your X API access." };
+    }
+
+    checkedPages += 1;
+    checkedAccounts += data.data.length;
+    if (data.data.some((user) => user.id === targetUserId)) {
+      return {
+        verified: true,
+        evidence: {
+          targetUserId,
+          providerAccountId: tokenData.account.providerAccountId,
+          checkedPages,
+          checkedAccounts,
+        },
+      };
+    }
+
+    paginationToken = data.meta?.next_token;
+
+    // If there is another page, fetch the authenticated user's public metrics
+    // once so we know how many pages can actually exist. This prevents an
+    // accidental open-ended pagination loop while still allowing complete
+    // verification for users with >1,000 follows.
+    if (paginationToken && expectedFollowingCount === null) {
+      const profileResponse = await xRequest(tokenData.accessToken, `/users/${encodeURIComponent(tokenData.account.providerAccountId)}?user.fields=public_metrics`);
+      const profileData = await profileResponse.json().catch(() => null) as { data?: { public_metrics?: { following_count?: number } }; detail?: string; title?: string } | null;
+      if (profileResponse.ok) {
+        const count = profileData?.data?.public_metrics?.following_count;
+        expectedFollowingCount = typeof count === "number" && Number.isFinite(count) ? count : null;
+      }
+      if (expectedFollowingCount === null) {
+        return { verified: false, reason: "Unable to safely determine the size of the connected X account's following list. Please try verification again later." };
+      }
+    }
+
+    if (paginationToken && expectedFollowingCount !== null) {
+      const maxPages = Math.ceil(expectedFollowingCount / maxResults);
+      if (checkedPages >= maxPages) paginationToken = undefined;
+    }
+  } while (paginationToken);
+
+  return {
+    verified: false,
+    reason: "The connected X account does not follow the required account",
+    evidence: { targetUserId, providerAccountId: tokenData.account.providerAccountId, checkedPages, checkedAccounts },
+  };
 }
+
 async function verifyXTweetEngagement(userId: string, taskType: "X_LIKE" | "X_REPOST", target: string): Promise<VerificationResult> {
   const tokenData = await getXAccessToken(userId); if ("error" in tokenData) return { verified: false, reason: tokenData.error }; const tweetId = extractXTweetId(target); if (!tweetId) return { verified: false, reason: "The task target must be an X post URL or tweet ID" };
   const endpoint = taskType === "X_LIKE" ? `/tweets/${tweetId}/liking_users?max_results=100` : `/tweets/${tweetId}/retweeted_by?max_results=100`; const response = await xRequest(tokenData.accessToken, endpoint); const data = await response.json().catch(() => null) as { data?: Array<{ id: string }>; title?: string; detail?: string } | null;
   if (!response.ok || !data?.data) return { verified: false, reason: data?.detail || data?.title || `X ${taskType === "X_LIKE" ? "like" : "repost"} verification failed. Check your X API access.` };
   return data.data.some((user) => user.id === tokenData.account.providerAccountId) ? { verified: true, evidence: { tweetId, providerAccountId: tokenData.account.providerAccountId } } : { verified: false, reason: `The connected X account has not ${taskType === "X_LIKE" ? "liked" : "reposted"} the required post` };
 }
+
 async function verifyDiscordJoin(userId: string, target: string): Promise<VerificationResult> {
   const account = await prisma.socialAccount.findFirst({ where: { userId, provider: "DISCORD", isActive: true } }); if (!account) return { verified: false, reason: "Connect your Discord account first" }; if (!account.accessTokenEncrypted) return { verified: false, reason: "Discord account has no usable access token" };
   let accessToken: string; try { accessToken = decryptDiscordToken(account.accessTokenEncrypted); } catch { return { verified: false, reason: "Unable to decrypt Discord access token" }; }
@@ -51,6 +123,7 @@ async function verifyDiscordJoin(userId: string, target: string): Promise<Verifi
   if (!response.ok || !Array.isArray(data)) return { verified: false, reason: !Array.isArray(data) && data?.message ? data.message : "Discord membership verification failed" };
   const guild = data.find((item) => item.id === guildId); return guild ? { verified: true, evidence: { guildId, guildName: guild.name ?? null } } : { verified: false, reason: "The connected Discord account is not a member of the required server" };
 }
+
 export async function verifyRaffleTask(taskId: string, entryId: string, userId: string): Promise<VerificationResult> {
   const task = await prisma.raffleTask.findUnique({ where: { id: taskId }, include: { raffle: { select: { project: { select: { xUrl: true } } } } } }); if (!task) throw new Error("Raffle task not found");
   const entry = await prisma.raffleEntry.findUnique({ where: { id: entryId } }); if (!entry) throw new Error("Raffle entry not found"); if (entry.userId !== userId) throw new Error("This raffle entry does not belong to you");
