@@ -7,7 +7,8 @@ import { API_BASE_URL } from "@/lib/api-config";
 
 type ProjectType = "ALL" | "NFT";
 type Chain = { id: string; name: string; slug: string };
-type Project = { id: string; name: string; description: string | null; websiteUrl: string | null; xUrl: string | null; discordUrl: string | null; logoUrl: string; bannerUrl: string | null; projectType: "NFT" | "TOKEN" | "AIRDROP" | "OTHER"; category: string; chain?: string | null };
+type NftMetadata = { supply?: number; mintPrice?: string; mintDate?: string };
+type Project = { id: string; name: string; description: string | null; websiteUrl: string | null; xUrl: string | null; discordUrl: string | null; logoUrl: string; bannerUrl: string | null; projectType: "NFT" | "TOKEN" | "AIRDROP" | "OTHER"; category: string; chain?: string | null; metadata?: NftMetadata };
 
 const DEFAULT_CHAINS = ["Ethereum", "Solana", "Polygon", "Aptos", "Sui", "Bitcoin", "Base", "Arbitrum", "Binance", "Monad", "Blast", "Scroll", "zkSync", "Linea", "ApeChain", "Abstract", "Bera", "Robinhood"];
 
@@ -45,7 +46,19 @@ export default function ProjectsPage() {
 
     fetch(`${API_BASE_URL}/projects/discovery?${params}`, { cache: "default", signal: controller.signal })
       .then(async r => { const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(d.message ?? "Unable to load projects"); return d; })
-      .then(d => { if (!controller.signal.aborted) setProjects(d.projects ?? []); })
+      .then(async d => {
+        const discovered = d.projects ?? [];
+        const enriched = await Promise.all(discovered.map(async (project: Project) => {
+          try {
+            const metadataResponse = await fetch(`${API_BASE_URL}/project-metadata/${project.id}`, { cache: "no-store", signal: controller.signal });
+            const metadataData = await metadataResponse.json().catch(() => ({}));
+            return { ...project, metadata: metadataData.metadata ?? {} };
+          } catch {
+            return project;
+          }
+        }));
+        if (!controller.signal.aborted) setProjects(enriched);
+      })
       .catch(e => { if (e.name !== "AbortError") setError(e instanceof Error ? e.message : "Unable to load projects"); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
 
@@ -62,7 +75,7 @@ export default function ProjectsPage() {
         </header>
         <div className="flex items-center justify-between px-5 py-4 text-[10px] font-semibold text-zinc-600 sm:px-7"><span>{loading ? "Loading…" : `${projects.length} projects`}</span><span>Sort by: <b className="text-zinc-300">Newest ↓</b></span></div>
         {error && <div className="mx-5 mb-5 rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-sm text-red-300 sm:mx-7">{error}</div>}
-        {loading ? <div className="p-16 text-center text-sm text-zinc-600">Loading projects…</div> : projects.length === 0 ? <div className="m-5 rounded-2xl border border-dashed border-white/10 p-16 text-center text-sm text-zinc-600">No projects found.</div> : <div className="grid gap-5 px-5 pb-7 sm:px-7 md:grid-cols-2">{projects.map(p => <Link key={p.id} href={`/projects/${p.id}`} className="group overflow-hidden rounded-2xl border border-white/10 bg-[#111218] transition hover:-translate-y-0.5 hover:border-violet-500/30"><div className="relative flex min-h-[210px] items-center justify-center overflow-hidden bg-[#17171e] p-2">{p.bannerUrl ? <img src={p.bannerUrl} alt="" loading="lazy" decoding="async" className="max-h-[300px] w-full object-contain transition duration-500 group-hover:scale-[1.01]" /> : <div className="h-[210px] w-full rounded-xl bg-gradient-to-br from-violet-950/70 via-[#17121f] to-[#0b0b0f]" />}<div className="absolute left-3 top-3 projects-chain-badge rounded-full bg-black/55 px-3 py-1.5 text-[9px] font-black text-white backdrop-blur">{p.chain || "TBA"}</div><div className="absolute right-3 top-3 projects-verified-badge rounded-full bg-black/55 px-3 py-1.5 text-[9px] font-black text-zinc-200 backdrop-blur">✓ Verified</div></div><div className="p-5"><div className="flex items-center gap-3"><div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full border border-white/10 bg-black">{p.logoUrl ? <img src={p.logoUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" /> : <span className="font-black">{p.name[0]}</span>}</div><div className="min-w-0 flex-1"><h2 className="truncate text-base font-semibold">{p.name}</h2><div className="mt-1 text-[10px] text-zinc-500">NFT</div></div><span className="text-xs text-zinc-500">↗</span></div><div className="mt-5 grid grid-cols-3 gap-2 border-t border-white/5 pt-4 text-center"><div><div className="text-[10px] font-bold">Supply</div><div className="mt-1 text-[10px] text-zinc-500">TBD</div></div><div><div className="text-[10px] font-bold">Mint price</div><div className="mt-1 text-[10px] text-zinc-500">TBD</div></div><div><div className="text-[10px] font-bold">Mint date</div><div className="mt-1 text-[10px] text-zinc-500">TBD</div></div></div></div></Link>)}</div>}
+        {loading ? <div className="p-16 text-center text-sm text-zinc-600">Loading projects…</div> : projects.length === 0 ? <div className="m-5 rounded-2xl border border-dashed border-white/10 p-16 text-center text-sm text-zinc-600">No projects found.</div> : <div className="grid gap-5 px-5 pb-7 sm:px-7 md:grid-cols-2">{projects.map(p => <Link key={p.id} href={`/projects/${p.id}`} className="group overflow-hidden rounded-2xl border border-white/10 bg-[#111218] transition hover:-translate-y-0.5 hover:border-violet-500/30"><div className="relative flex min-h-[210px] items-center justify-center overflow-hidden bg-[#17171e] p-2">{p.bannerUrl ? <img src={p.bannerUrl} alt="" loading="lazy" decoding="async" className="max-h-[300px] w-full object-contain transition duration-500 group-hover:scale-[1.01]" /> : <div className="h-[210px] w-full rounded-xl bg-gradient-to-br from-violet-950/70 via-[#17121f] to-[#0b0b0f]" />}<div className="absolute left-3 top-3 projects-chain-badge rounded-full bg-black/55 px-3 py-1.5 text-[9px] font-black text-white backdrop-blur">{p.chain || "TBA"}</div><div className="absolute right-3 top-3 projects-verified-badge rounded-full bg-black/55 px-3 py-1.5 text-[9px] font-black text-zinc-200 backdrop-blur">✓ Verified</div></div><div className="p-5"><div className="flex items-center gap-3"><div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full border border-white/10 bg-black">{p.logoUrl ? <img src={p.logoUrl} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" /> : <span className="font-black">{p.name[0]}</span>}</div><div className="min-w-0 flex-1"><h2 className="truncate text-base font-semibold">{p.name}</h2><div className="mt-1 text-[10px] text-zinc-500">NFT</div></div><span className="text-xs text-zinc-500">↗</span></div><div className="mt-5 grid grid-cols-3 gap-2 border-t border-white/5 pt-4 text-center"><div><div className="text-[10px] font-bold">Supply</div><div className="mt-1 text-[10px] text-zinc-500">{typeof p.metadata?.supply === "number" ? p.metadata.supply.toLocaleString() : "TBD"}</div></div><div><div className="text-[10px] font-bold">Mint price</div><div className="mt-1 text-[10px] text-zinc-500">{p.metadata?.mintPrice?.trim() || "TBD"}</div></div><div><div className="text-[10px] font-bold">Mint date</div><div className="mt-1 text-[10px] text-zinc-500">{p.metadata?.mintDate?.trim() || "TBD"}</div></div></div></div></Link>)}</div>}
       </div>
     </div>
     <style jsx global>{`
