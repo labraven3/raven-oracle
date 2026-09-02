@@ -34,78 +34,48 @@ async function resolveXUserId(accessToken: string, target: string): Promise<stri
 async function verifyXFollow(userId: string, target: string, projectXUrl?: string | null): Promise<VerificationResult> {
   const tokenData = await getXAccessToken(userId); if ("error" in tokenData) return { verified: false, reason: tokenData.error };
   const targetValue = [target, projectXUrl ?? ""].find((value) => extractXUsername(value)) ?? target;
-  const targetUserId = await resolveXUserId(tokenData.accessToken, targetValue);
-  if (!targetUserId) return { verified: false, reason: "Unable to resolve the required X account" };
+  const usernameOrId = extractXUsername(targetValue);
+  if (!usernameOrId) return { verified: false, reason: "Unable to resolve the required X account" };
 
-  // X does not expose a read-only "does source follow target?" endpoint.
-  // The supported lookup is the source user's following list. Use the API's
-  // maximum page size and only paginate when the user's list actually needs it.
-  // This means a user following 10-20 accounts costs exactly one lookup,
-  // while large accounts are still verified completely rather than receiving
-  // a false negative just because of an arbitrary 100-account cap.
-  const maxResults = 1000;
-  let paginationToken: string | undefined;
-  let checkedPages = 0;
-  let checkedAccounts = 0;
-  let expectedFollowingCount: number | null = null;
+  // X exposes the authenticated user's relationship to a specific user through
+  // user.fields=connection_status. This is the correct relationship lookup for
+  // a follow task: it returns one User resource instead of downloading the
+  // entrant's entire following list.
+  const endpoint = /^\d+$/.test(usernameOrId)
+    ? `/users/${encodeURIComponent(usernameOrId)}?user.fields=connection_status,username`
+    : `/users/by/username/${encodeURIComponent(usernameOrId)}?user.fields=connection_status,username`;
+  const response = await xRequest(tokenData.accessToken, endpoint);
+  const data = await response.json().catch(() => null) as {
+    data?: { id: string; username?: string; connection_status?: string[] };
+    title?: string;
+    detail?: string;
+  } | null;
 
-  do {
-    const qs = new URLSearchParams({ max_results: String(maxResults), "user.fields": "username" });
-    if (paginationToken) qs.set("pagination_token", paginationToken);
-    const response = await xRequest(tokenData.accessToken, `/users/${encodeURIComponent(tokenData.account.providerAccountId)}/following?${qs.toString()}`);
-    const data = await response.json().catch(() => null) as {
-      data?: Array<{ id: string; username?: string }>;
-      meta?: { next_token?: string; result_count?: number };
-      title?: string;
-      detail?: string;
-    } | null;
-    if (!response.ok || !data?.data) {
-      return { verified: false, reason: data?.detail || data?.title || "X follow verification failed. Check your X API access." };
-    }
+  if (!response.ok || !data?.data) {
+    return { verified: false, reason: data?.detail || data?.title || "X follow verification failed. Check your X API access." };
+  }
 
-    checkedPages += 1;
-    checkedAccounts += data.data.length;
-    if (data.data.some((user) => user.id === targetUserId)) {
-      return {
+  const following = Array.isArray(data.data.connection_status) && data.data.connection_status.includes("following");
+  return following
+    ? {
         verified: true,
         evidence: {
-          targetUserId,
+          targetUserId: data.data.id,
+          targetUsername: data.data.username ?? null,
           providerAccountId: tokenData.account.providerAccountId,
-          checkedPages,
-          checkedAccounts,
+          verificationMethod: "connection_status",
+        },
+      }
+    : {
+        verified: false,
+        reason: "The connected X account does not follow the required account",
+        evidence: {
+          targetUserId: data.data.id,
+          targetUsername: data.data.username ?? null,
+          providerAccountId: tokenData.account.providerAccountId,
+          verificationMethod: "connection_status",
         },
       };
-    }
-
-    paginationToken = data.meta?.next_token;
-
-    // If there is another page, fetch the authenticated user's public metrics
-    // once so we know how many pages can actually exist. This prevents an
-    // accidental open-ended pagination loop while still allowing complete
-    // verification for users with >1,000 follows.
-    if (paginationToken && expectedFollowingCount === null) {
-      const profileResponse = await xRequest(tokenData.accessToken, `/users/${encodeURIComponent(tokenData.account.providerAccountId)}?user.fields=public_metrics`);
-      const profileData = await profileResponse.json().catch(() => null) as { data?: { public_metrics?: { following_count?: number } }; detail?: string; title?: string } | null;
-      if (profileResponse.ok) {
-        const count = profileData?.data?.public_metrics?.following_count;
-        expectedFollowingCount = typeof count === "number" && Number.isFinite(count) ? count : null;
-      }
-      if (expectedFollowingCount === null) {
-        return { verified: false, reason: "Unable to safely determine the size of the connected X account's following list. Please try verification again later." };
-      }
-    }
-
-    if (paginationToken && expectedFollowingCount !== null) {
-      const maxPages = Math.ceil(expectedFollowingCount / maxResults);
-      if (checkedPages >= maxPages) paginationToken = undefined;
-    }
-  } while (paginationToken);
-
-  return {
-    verified: false,
-    reason: "The connected X account does not follow the required account",
-    evidence: { targetUserId, providerAccountId: tokenData.account.providerAccountId, checkedPages, checkedAccounts },
-  };
 }
 
 async function verifyXTweetEngagement(userId: string, taskType: "X_LIKE" | "X_REPOST", target: string): Promise<VerificationResult> {
