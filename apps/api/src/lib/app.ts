@@ -1,5 +1,5 @@
 import express from "express";
-import { securityMiddleware, authRateLimit } from "../middleware/security.js";
+import { securityMiddleware } from "../middleware/security.js";
 import { raffleMutationGuard } from "../middleware/raffle-mutation-guard.js";
 import { projectCatalogGuard } from "../middleware/project-catalog-guard.js";
 import { projectApprovalGuard } from "../middleware/project-approval-guard.js";
@@ -58,14 +58,11 @@ export function createApp() {
   app.use(express.json({ limit: "1mb" }));
   app.use("/api/health", healthRouter);
 
-  // Brute-force protection for password/OTP/session endpoints. The global
-  // write limiter still applies, while this route gets an additional tighter cap.
-  app.use("/api/auth", authRateLimit);
-  app.use("/api/auth/admin", authRateLimit);
-  app.use("/api/auth/google", authRateLimit);
-  app.use("/api/auth/x", authRateLimit);
-  app.use("/api/auth/discord", authRateLimit);
-
+  // Authentication endpoints have their own route-specific brute-force
+  // protection in auth.ts. Do NOT put one shared limiter in front of the
+  // entire /api/auth tree: OAuth start/callback routes are GET requests and
+  // repeated OAuth redirects from X/Discord can otherwise trigger the same
+  // login-attempt error even though no password login is happening.
   app.use("/api/users", usersRouter);
   app.use("/api/auth", authRouter);
   app.use("/api/auth/admin", adminAuthRouter);
