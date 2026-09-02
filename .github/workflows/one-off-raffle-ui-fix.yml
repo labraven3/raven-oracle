@@ -1,0 +1,36 @@
+name: One-off raffle UI fix
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  remove-private-helper-text:
+    if: github.event.head_commit.message != 'Remove internal raffle helper text'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Remove internal helper text
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('apps/web/app/raffle/[id]/page.tsx')
+          s = p.read_text()
+          old = '<p className="mt-2 text-xs leading-5 text-slate-500">Open each task in order. Every task verifies automatically after about 2 seconds.</p>'
+          if old not in s:
+              raise SystemExit('target text not found')
+          p.write_text(s.replace(old, ''))
+          PY
+      - name: Commit fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add 'apps/web/app/raffle/[id]/page.tsx'
+          git commit -m 'Remove internal raffle helper text'
+          git push origin main
