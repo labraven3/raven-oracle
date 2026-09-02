@@ -35,8 +35,6 @@ export async function verifyRaffleTask(
   if (entry.raffleId !== task.raffleId) throw new Error("Raffle task does not belong to this raffle entry");
 
   // No external request. This is intentionally identical for Follow/Like/Repost/Discord.
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-
   const verifiedAt = new Date();
   const evidence = {
     verificationMethod: "simulated_social_task",

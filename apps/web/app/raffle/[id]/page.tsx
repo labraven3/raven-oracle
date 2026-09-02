@@ -62,6 +62,7 @@ export default function FastRafflePage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [checking, setChecking] = useState<string | null>(null);
+  const [readyToVerify, setReadyToVerify] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
   const load = useCallback(async () => {
@@ -131,15 +132,29 @@ export default function FastRafflePage() {
       return setMessage(`Complete the previous task first: ${required[index - 1].title}`);
     }
     if (checking) return;
-    const url = taskUrl(task, raffle!);
-    if (url) window.open(url, "_blank", "noopener,noreferrer");
+
+    if (readyToVerify !== task.id) {
+      const url = taskUrl(task, raffle!);
+      if (url) window.open(url, "_blank", "noopener,noreferrer");
+      setReadyToVerify(null);
+      setChecking(task.id);
+      setMessage(`Complete ${label(task)} in the opened tab…`);
+      window.setTimeout(() => {
+        setChecking(null);
+        setReadyToVerify(task.id);
+        setMessage(`Come back here and click Verify ${label(task)}.`);
+      }, 2000);
+      return;
+    }
+
     setChecking(task.id);
-    setMessage(`Checking ${label(task)}…`);
+    setMessage(`Verifying ${label(task)}…`);
     try {
       const data = await api<{ verified?: boolean; reason?: string }>(`/raffles/${id}/tasks/${task.id}/verify`, { method: "POST" });
       const verified = data.verified === true;
       setResults((current) => ({ ...current, [task.id]: { taskId: task.id, verified, reason: data.reason ?? null } }));
-      if (verified) setMessage(`${label(task)} verified ✓`);
+      setReadyToVerify(null);
+      if (verified) setMessage(`${label(task)} completed ✓`);
       else setMessage(data.reason || "Task could not be verified.");
       if (verified) await refreshEligibility();
     } catch (error) {
@@ -212,7 +227,7 @@ export default function FastRafflePage() {
                       const locked = Boolean(entry) && task.isRequired && !previousDone;
                       const checkingThis = checking === task.id;
                       return <div key={task.id} className={`rounded-xl border p-3 transition ${result?.verified ? "border-emerald-300 bg-emerald-50/60 dark:border-emerald-500/30 dark:bg-emerald-500/5" : locked ? "border-slate-200 bg-slate-50 opacity-60 dark:border-white/10 dark:bg-white/[.02]" : "border-slate-200 dark:border-white/10"}`}>
-                        <div className="flex items-center gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-violet-500/10 text-sm text-violet-500">{icon(task)}</span><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><b className="text-xs">{label(task)}</b>{task.isRequired && <span className="text-[7px] font-black uppercase tracking-wider text-violet-500">Required</span>}</div><p className="mt-1 truncate text-[10px] text-slate-500">{task.type === "X_FOLLOW" ? `@${task.target.replace(/^@/, "")}` : task.target}</p></div><button onClick={() => void verifyTask(task)} disabled={!entry || busy || Boolean(checking) || locked || Boolean(result?.verified)} className={`shrink-0 rounded-lg px-3 py-2 text-[9px] font-black disabled:cursor-not-allowed disabled:opacity-40 ${result?.verified ? "text-emerald-600" : "border border-violet-300 text-violet-700 dark:border-violet-400/30 dark:text-violet-300"}`}>{result?.verified ? "✓ Verified" : checkingThis ? "Checking…" : locked ? "Locked" : "Open task"}</button></div>
+                        <div className="flex items-center gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-violet-500/10 text-sm text-violet-500">{icon(task)}</span><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><b className="text-xs">{label(task)}</b>{task.isRequired && <span className="text-[7px] font-black uppercase tracking-wider text-violet-500">Required</span>}</div><p className="mt-1 truncate text-[10px] text-slate-500">{task.type === "X_FOLLOW" ? `@${task.target.replace(/^@/, "")}` : task.target}</p></div><button onClick={() => void verifyTask(task)} disabled={!entry || busy || (Boolean(checking) && checking !== task.id) || locked || Boolean(result?.verified)} className={`shrink-0 rounded-lg px-3 py-2 text-[9px] font-black disabled:cursor-not-allowed disabled:opacity-40 ${result?.verified ? "text-emerald-600" : "border border-violet-300 text-violet-700 dark:border-violet-400/30 dark:text-violet-300"}`}>{result?.verified ? "✓ Completed" : checkingThis ? "Opening…" : readyToVerify === task.id ? "Verify" : locked ? "Locked" : "Open task"}</button></div>
                         {result?.reason && !result.verified && <p className="mt-2 text-[10px] text-red-500">{result.reason}</p>}
                       </div>;
                     })}
