@@ -8,12 +8,12 @@ type VerificationResult = {
 };
 
 /**
- * Temporary task verification mode.
+ * Temporary social-task verification.
  *
- * Social APIs are intentionally NOT called here for now. A participant opens
- * the task link from the UI, waits briefly, and the task is marked verified.
- * This keeps the raffle flow simple while real X/Discord verification is
- * paused. Server-side ordering is still enforced by the task route.
+ * IMPORTANT: X and Discord APIs are deliberately NOT called here.
+ * X_FOLLOW, X_LIKE, X_REPOST and DISCORD_JOIN all use the exact same
+ * simulated verification flow: open the target link in the UI, wait 2s,
+ * then persist a VERIFIED task record.
  */
 export async function verifyRaffleTask(
   taskId: string,
@@ -22,7 +22,7 @@ export async function verifyRaffleTask(
 ): Promise<VerificationResult> {
   const task = await prisma.raffleTask.findUnique({
     where: { id: taskId },
-    select: { id: true, title: true, raffleId: true },
+    select: { id: true, title: true, type: true, raffleId: true },
   });
   if (!task) throw new Error("Raffle task not found");
 
@@ -34,13 +34,15 @@ export async function verifyRaffleTask(
   if (entry.userId !== userId) throw new Error("This raffle entry does not belong to you");
   if (entry.raffleId !== task.raffleId) throw new Error("Raffle task does not belong to this raffle entry");
 
-  // Deliberate 2-second verification delay so the UI feels like it is
-  // checking the task, without making any paid external API request.
+  // No external request. This is intentionally identical for Follow/Like/Repost/Discord.
   await new Promise((resolve) => setTimeout(resolve, 2000));
 
+  const verifiedAt = new Date();
   const evidence = {
-    verificationMethod: "temporary_manual",
-    verifiedAt: new Date().toISOString(),
+    verificationMethod: "simulated_social_task",
+    externalApiCalled: false,
+    taskType: task.type,
+    verifiedAt: verifiedAt.toISOString(),
     taskTitle: task.title,
   };
 
@@ -56,15 +58,36 @@ export async function verifyRaffleTask(
       entryId,
       userId,
       status: "VERIFIED",
-      verifiedAt: new Date(),
+      verifiedAt,
       failureReason: null,
       evidence,
     },
     update: {
       status: "VERIFIED",
-      verifiedAt: new Date(),
+      verifiedAt,
       failureReason: null,
       evidence,
+    },
+  });
+
+  // Keep the entry's social flag in sync from persisted task records only.
+  // This is a DB read, not an X/Discord verification call.
+  const requiredTasks = await prisma.raffleTask.findMany({
+    where: { raffleId: task.raffleId, isRequired: true },
+    select: { id: true },
+  });
+  const verifiedRequired = await prisma.raffleTaskVerification.count({
+    where: {
+      entryId,
+      status: "VERIFIED",
+      raffleTaskId: { in: requiredTasks.map((item) => item.id) },
+    },
+  });
+
+  await prisma.raffleEntry.update({
+    where: { id: entryId },
+    data: {
+      socialVerifiedAtEntry: verifiedRequired === requiredTasks.length,
     },
   });
 
