@@ -1,0 +1,76 @@
+name: Fix raffle task open then verify flow
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix-task-flow:
+    if: github.event.head_commit.message != 'Fix raffle task open then verify flow' && github.event.head_commit.message != 'Remove task flow fix workflow'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Update raffle page and verifier
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          page = Path('apps/web/app/raffle/[id]/page.tsx')
+          s = page.read_text()
+
+          old_state = '  const [checking, setChecking] = useState<string | null>(null);\n  const [message, setMessage] = useState("");'
+          new_state = '  const [checking, setChecking] = useState<string | null>(null);\n  const [readyToVerify, setReadyToVerify] = useState<string | null>(null);\n  const [message, setMessage] = useState("");'
+          if old_state not in s:
+              raise SystemExit('state block not found')
+          s = s.replace(old_state, new_state, 1)
+
+          old_fn = '''  const verifyTask = async (task: Task) => {\n    if (!user) return router.push(`/login?next=${encodeURIComponent(`/raffles/${id}`)}`);\n    if (!entry) return setMessage("Click Enter Giveaway first.");\n    const index = required.findIndex((item) => item.id === task.id);\n    if (task.isRequired && index > 0 && !results[required[index - 1].id]?.verified) {\n      return setMessage(`Complete the previous task first: ${required[index - 1].title}`);\n    }\n    if (checking) return;\n    const url = taskUrl(task, raffle!);\n    if (url) window.open(url, "_blank", "noopener,noreferrer");\n    setChecking(task.id);\n    setMessage(`Checking ${label(task)}…`);\n    try {\n      const data = await api<{ verified?: boolean; reason?: string }>(`/raffles/${id}/tasks/${task.id}/verify`, { method: "POST" });\n      const verified = data.verified === true;\n      setResults((current) => ({ ...current, [task.id]: { taskId: task.id, verified, reason: data.reason ?? null } }));\n      if (verified) setMessage(`${label(task)} verified ✓`);\n      else setMessage(data.reason || "Task could not be verified.");\n      if (verified) await refreshEligibility();\n    } catch (error) {\n      setResults((current) => ({ ...current, [task.id]: { taskId: task.id, verified: false, reason: error instanceof Error ? error.message : "Verification failed" } }));\n      setMessage(error instanceof Error ? error.message : "Verification failed");\n    } finally { setChecking(null); }\n  };'''
+
+          new_fn = '''  const verifyTask = async (task: Task) => {\n    if (!user) return router.push(`/login?next=${encodeURIComponent(`/raffles/${id}`)}`);\n    if (!entry) return setMessage("Click Enter Giveaway first.");\n    const index = required.findIndex((item) => item.id === task.id);\n    if (task.isRequired && index > 0 && !results[required[index - 1].id]?.verified) {\n      return setMessage(`Complete the previous task first: ${required[index - 1].title}`);\n    }\n    if (checking) return;\n\n    if (!readyToVerify || readyToVerify !== task.id) {\n      const url = taskUrl(task, raffle!);\n      if (url) window.open(url, "_blank", "noopener,noreferrer");\n      setReadyToVerify(null);\n      setChecking(task.id);\n      setMessage(`Complete ${label(task)} in the opened tab…`);\n      window.setTimeout(() => {\n        setChecking(null);\n        setReadyToVerify(task.id);\n        setMessage(`Come back here and click Verify ${label(task)}.`);\n      }, 2000);\n      return;\n    }\n\n    setChecking(task.id);\n    setMessage(`Verifying ${label(task)}…`);\n    try {\n      const data = await api<{ verified?: boolean; reason?: string }>(`/raffles/${id}/tasks/${task.id}/verify`, { method: "POST" });\n      const verified = data.verified === true;\n      setResults((current) => ({ ...current, [task.id]: { taskId: task.id, verified, reason: data.reason ?? null } }));\n      setReadyToVerify(null);\n      if (verified) setMessage(`${label(task)} completed ✓`);\n      else setMessage(data.reason || "Task could not be verified.");\n      if (verified) await refreshEligibility();\n    } catch (error) {\n      setResults((current) => ({ ...current, [task.id]: { taskId: task.id, verified: false, reason: error instanceof Error ? error.message : "Verification failed" } }));\n      setMessage(error instanceof Error ? error.message : "Verification failed");\n    } finally { setChecking(null); }\n  };'''
+
+          if old_fn not in s:
+              raise SystemExit('verifyTask block not found')
+          s = s.replace(old_fn, new_fn, 1)
+
+          old_button = '''{result?.verified ? "✓ Verified" : checkingThis ? "Checking…" : locked ? "Locked" : "Open task"}'''
+          new_button = '''{result?.verified ? "✓ Completed" : checkingThis ? "Opening…" : readyToVerify === task.id ? "Verify" : locked ? "Locked" : "Open task"}'''
+          if old_button not in s:
+              raise SystemExit('button label block not found')
+          s = s.replace(old_button, new_button, 1)
+
+          old_disabled = '''disabled={!entry || busy || Boolean(checking) || locked || Boolean(result?.verified)}'''
+          new_disabled = '''disabled={!entry || busy || (Boolean(checking) && checking !== task.id) || locked || Boolean(result?.verified)}'''
+          if old_disabled not in s:
+              raise SystemExit('button disabled block not found')
+          s = s.replace(old_disabled, new_disabled, 1)
+
+          page.write_text(s)
+
+          verifier = Path('apps/api/src/services/raffle-task-verification.service.ts')
+          v = verifier.read_text()
+          delay = '''  await new Promise((resolve) => setTimeout(resolve, 2000));\n\n'''
+          if delay in v:
+              v = v.replace(delay, '', 1)
+          verifier.write_text(v)
+          PY
+
+      - name: Commit changes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add 'apps/web/app/raffle/[id]/page.tsx' 'apps/api/src/services/raffle-task-verification.service.ts'
+          git commit -m 'Fix raffle task open then verify flow'
+          git push origin main
+
+      - name: Remove one-off workflow
+        run: |
+          git rm .github/workflows/one-off-task-flow-fix.yml
+          git commit -m 'Remove task flow fix workflow'
+          git push origin main
