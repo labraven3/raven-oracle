@@ -4,6 +4,8 @@ import { decrypt as decryptDiscordToken } from "./discord-oauth.service.js";
 
 type VerificationResult = { verified: boolean; reason?: string; evidence?: Record<string, unknown>; manual?: boolean };
 
+type XApiError = { title?: string; detail?: string; type?: string; status?: number; account_id?: string };
+
 async function xRequest(accessToken: string, path: string) {
   return fetch(`https://api.x.com/2${path}`, { headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" } });
 }
@@ -26,10 +28,6 @@ function extractXTweetId(value: string): string | null {
   try { const url = new URL(raw); if (!["x.com", "www.x.com", "twitter.com", "www.twitter.com"].includes(url.hostname.toLowerCase())) return null; const parts = url.pathname.split("/").filter(Boolean); const statusIndex = parts.findIndex((part) => part === "status" || part === "statuses"); const id = statusIndex >= 0 ? parts[statusIndex + 1] : null; return id && /^\d{1,19}$/.test(id) ? id : null; }
   catch { return null; }
 }
-async function resolveXUserId(accessToken: string, target: string): Promise<string | null> {
-  const usernameOrId = extractXUsername(target); if (!usernameOrId) return null; if (/^\d+$/.test(usernameOrId)) return usernameOrId;
-  const response = await xRequest(accessToken, `/users/by/username/${encodeURIComponent(usernameOrId)}`); const data = await response.json().catch(() => null) as { data?: { id: string } } | null; return response.ok ? data?.data?.id ?? null : null;
-}
 
 async function verifyXFollow(userId: string, target: string, projectXUrl?: string | null): Promise<VerificationResult> {
   const tokenData = await getXAccessToken(userId); if ("error" in tokenData) return { verified: false, reason: tokenData.error };
@@ -37,10 +35,9 @@ async function verifyXFollow(userId: string, target: string, projectXUrl?: strin
   const usernameOrId = extractXUsername(targetValue);
   if (!usernameOrId) return { verified: false, reason: "Unable to resolve the required X account" };
 
-  // X exposes the authenticated user's relationship to a specific user through
-  // user.fields=connection_status. This is the correct relationship lookup for
-  // a follow task: it returns one User resource instead of downloading the
-  // entrant's entire following list.
+  // Check the relationship directly. Do not download the entrant's following list.
+  // X's connection_status is specifically the relationship between the authenticated
+  // user (the entrant) and the looked-up target user, so one target = one User resource.
   const endpoint = /^\d+$/.test(usernameOrId)
     ? `/users/${encodeURIComponent(usernameOrId)}?user.fields=connection_status,username`
     : `/users/by/username/${encodeURIComponent(usernameOrId)}?user.fields=connection_status,username`;
@@ -49,10 +46,29 @@ async function verifyXFollow(userId: string, target: string, projectXUrl?: strin
     data?: { id: string; username?: string; connection_status?: string[] };
     title?: string;
     detail?: string;
+    type?: string;
+    status?: number;
+    account_id?: string;
   } | null;
 
   if (!response.ok || !data?.data) {
-    return { verified: false, reason: data?.detail || data?.title || "X follow verification failed. Check your X API access." };
+    const apiError = data as XApiError | null;
+    const accountId = apiError?.account_id ? ` (enrolled account ${apiError.account_id})` : "";
+    const status = apiError?.status ?? response.status;
+    if (status === 402 || apiError?.type?.includes("credits")) {
+      return {
+        verified: false,
+        reason: `X API billing error (402): ${apiError?.detail || apiError?.title || "credits depleted"}${accountId}. Check the X Developer Project/enrolled account that owns this OAuth app.` ,
+        evidence: {
+          providerAccountId: tokenData.account.providerAccountId,
+          verificationMethod: "connection_status",
+          xApiStatus: status,
+          xApiType: apiError?.type ?? null,
+          xApiAccountId: apiError?.account_id ?? null,
+        },
+      };
+    }
+    return { verified: false, reason: apiError?.detail || apiError?.title || "X follow verification failed. Check your X API access." };
   }
 
   const following = Array.isArray(data.data.connection_status) && data.data.connection_status.includes("following");
