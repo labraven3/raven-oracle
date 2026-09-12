@@ -5,7 +5,7 @@ export const DEFAULT_CHAINS = [
   "Sei", "Base", "Ripple", "Arbitrum", "Immutable", "Flow", "Binance", "Tezos", "MultiversX", "Near",
   "Hedera", "Cosmos", "Reef", "Starknet", "Manta", "Monad", "Blast", "Stargaze", "Scroll", "zkSync",
   "Enjin", "Linea", "Oraichain", "TON", "Viction", "Bera", "Tron", "ApeChain", "Abstract", "Hyperliquid",
-  "Story", "XION", "Somnia", "Sophon", "Robinhood",
+  "Story", "XION", "Somnia", "Sophon", "Robinhood", "Arc",
 ] as const;
 
 function slugify(value: string) { return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""); }
@@ -18,6 +18,11 @@ async function initializeChainStore() {
   await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "ProjectChainMap" ("projectId" TEXT PRIMARY KEY,"chainName" TEXT NOT NULL,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
   const countRows = await prisma.$queryRawUnsafe<Array<{ count: bigint }>>(`SELECT COUNT(*)::bigint AS count FROM "ChainConfig"`);
   if (Number(countRows[0]?.count ?? 0) === 0) {
+    for (const [index, name] of DEFAULT_CHAINS.entries()) {
+      await prisma.$executeRawUnsafe(`INSERT INTO "ChainConfig" ("id","name","slug","isActive","sortOrder") VALUES (md5(random()::text || clock_timestamp()::text),$1,$2,TRUE,$3) ON CONFLICT ("name") DO NOTHING`, name, slugify(name), index);
+    }
+  } else {
+    // Keep existing deployments in sync when new supported networks are added.
     for (const [index, name] of DEFAULT_CHAINS.entries()) {
       await prisma.$executeRawUnsafe(`INSERT INTO "ChainConfig" ("id","name","slug","isActive","sortOrder") VALUES (md5(random()::text || clock_timestamp()::text),$1,$2,TRUE,$3) ON CONFLICT ("name") DO NOTHING`, name, slugify(name), index);
     }
