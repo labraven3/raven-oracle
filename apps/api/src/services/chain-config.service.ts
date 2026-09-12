@@ -16,11 +16,9 @@ async function initializeChainStore() {
   if (ready) return;
   await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "ChainConfig" ("id" TEXT PRIMARY KEY,"name" TEXT NOT NULL UNIQUE,"slug" TEXT NOT NULL UNIQUE,"isActive" BOOLEAN NOT NULL DEFAULT TRUE,"sortOrder" INTEGER NOT NULL DEFAULT 0,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
   await prisma.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "ProjectChainMap" ("projectId" TEXT PRIMARY KEY,"chainName" TEXT NOT NULL,"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
-  const countRows = await prisma.$queryRawUnsafe<Array<{ count: bigint }>>(`SELECT COUNT(*)::bigint AS count FROM "ChainConfig"`);
   for (const [index, name] of DEFAULT_CHAINS.entries()) {
     await prisma.$executeRawUnsafe(`INSERT INTO "ChainConfig" ("id","name","slug","isActive","sortOrder") VALUES (md5(random()::text || clock_timestamp()::text),$1,$2,TRUE,$3) ON CONFLICT ("name") DO NOTHING`, name, slugify(name), index);
   }
-  void countRows;
   ready = true;
 }
 
