@@ -40,7 +40,7 @@ router.get("/", async (req, res, next) => {
 
 router.post("/:raffleId/evaluate", async (req, res, next) => {
   try {
-    const raffle = await prisma.raffle.findUnique({ where: { id: req.params.raffleId }, select: { id: true, status: true } });
+    const raffle = await prisma.raffle.findUnique({ where: { id: req.params.raffleId }, select: { id: true, status: true, endsAt: true } });
     if (!raffle) return res.status(404).json({ success: false, message: "Raffle not found" });
     if (!["CLOSED", "DRAWING"].includes(raffle.status)) return res.status(400).json({ success: false, message: "Raffle must be closed before evaluation" });
     const entries = await prisma.raffleEntry.findMany({ where: { raffleId: raffle.id, status: { not: "INELIGIBLE" } }, select: { id: true } });
@@ -53,13 +53,34 @@ router.post("/:raffleId/evaluate", async (req, res, next) => {
 
 router.post("/:raffleId/draw", async (req, res, next) => {
   try {
+    if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
     const raffle = await prisma.raffle.findUnique({ where: { id: req.params.raffleId }, select: { id: true, status: true, endsAt: true } });
     if (!raffle) return res.status(404).json({ success: false, message: "Raffle not found" });
-    if (raffle.status !== "CLOSED") return res.status(400).json({ success: false, message: "Raffle must be CLOSED before drawing" });
+    if (["COMPLETED", "DRAWING"].includes(raffle.status)) return res.status(409).json({ success: false, message: "Raffle has already been drawn or is currently drawing" });
     if (new Date() < raffle.endsAt) return res.status(400).json({ success: false, message: "Raffle end time has not arrived" });
-    const result = await drawRaffle(raffle.id, req.userId!);
+    if (!["CLOSED", "ACTIVE", "SCHEDULED"].includes(raffle.status)) return res.status(400).json({ success: false, message: "Raffle is not drawable in its current state" });
+
+    // Admins can finalize an ended raffle directly. This keeps the admin
+    // workflow one-click: close the raffle, evaluate pending entries, then draw.
+    if (raffle.status !== "CLOSED") {
+      await prisma.raffle.updateMany({ where: { id: raffle.id, status: raffle.status as never }, data: { status: "CLOSED" } });
+    }
+
+    const pendingEntries = await prisma.raffleEntry.findMany({ where: { raffleId: raffle.id, status: "PENDING" }, select: { id: true } });
+    for (const entry of pendingEntries) await evaluateRaffleEntry(entry.id);
+
+    const result = await drawRaffle(raffle.id, req.userId, { allowAdmin: true, actorUserId: req.userId });
     const notifications = await Promise.allSettled(result.winners.map((winner) => notifyWinner(raffle.id, winner.id)));
     return res.json({ success: true, result, notifications: notifications.map((n, i) => ({ winnerId: result.winners[i]?.id, sent: n.status === "fulfilled" })) });
+  } catch (error) { next(error); }
+});
+
+router.get("/:raffleId/winners", async (req, res, next) => {
+  try {
+    const raffle = await prisma.raffle.findUnique({ where: { id: req.params.raffleId }, select: { id: true, title: true, status: true, winnerCount: true, prizeName: true } });
+    if (!raffle) return res.status(404).json({ success: false, message: "Raffle not found" });
+    const winners = await prisma.raffleWinner.findMany({ where: { raffleId: raffle.id }, orderBy: { selectionRank: "asc" }, select: { id: true, entryId: true, userId: true, walletAddressSnapshot: true, selectionRank: true, status: true, notificationStatus: true, selectedAt: true, notifiedAt: true, user: { select: { displayName: true, username: true, email: true, socialAccounts: { where: { provider: { in: ["X", "DISCORD"] }, isActive: true }, select: { provider: true, providerUsername: true, displayName: true } } } } } });
+    return res.json({ success: true, raffle, winners });
   } catch (error) { next(error); }
 });
 
@@ -68,34 +89,8 @@ router.get("/:raffleId/winners/export.google-sheet", async (req, res, next) => {
     if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
     const raffle = await prisma.raffle.findUnique({ where: { id: req.params.raffleId }, select: { id: true, title: true } });
     if (!raffle) return res.status(404).json({ success: false, message: "Raffle not found" });
-    const winners = await prisma.raffleWinner.findMany({
-      where: { raffleId: raffle.id },
-      orderBy: { selectionRank: "asc" },
-      select: {
-        walletAddressSnapshot: true,
-        user: {
-          select: {
-            email: true,
-            socialAccounts: {
-              where: { provider: { in: ["X", "DISCORD"] }, isActive: true },
-              select: { provider: true, providerUsername: true, displayName: true },
-            },
-          },
-        },
-        entry: { select: { enteredAt: true } },
-      },
-    });
-    const rows = winners.map((winner) => {
-      const x = winner.user.socialAccounts.find((account) => account.provider === "X");
-      const discord = winner.user.socialAccounts.find((account) => account.provider === "DISCORD");
-      return {
-        x: x?.providerUsername ?? x?.displayName ?? "",
-        discord: discord?.providerUsername ?? discord?.displayName ?? "",
-        walletAddress: winner.walletAddressSnapshot,
-        email: winner.user.email ?? "",
-        enteredAt: winner.entry.enteredAt,
-      };
-    });
+    const winners = await prisma.raffleWinner.findMany({ where: { raffleId: raffle.id }, orderBy: { selectionRank: "asc" }, select: { walletAddressSnapshot: true, user: { select: { email: true, socialAccounts: { where: { provider: { in: ["X", "DISCORD"] }, isActive: true }, select: { provider: true, providerUsername: true, displayName: true } } } }, entry: { select: { enteredAt: true } } } });
+    const rows = winners.map((winner) => { const x = winner.user.socialAccounts.find((account) => account.provider === "X"); const discord = winner.user.socialAccounts.find((account) => account.provider === "DISCORD"); return { x: x?.providerUsername ?? x?.displayName ?? "", discord: discord?.providerUsername ?? discord?.displayName ?? "", walletAddress: winner.walletAddressSnapshot, email: winner.user.email ?? "", enteredAt: winner.entry.enteredAt }; });
     const accessToken = await getGoogleOAuthAccessToken(req.userId);
     const result = await createWinnerGoogleSheetForUser({ accessToken, raffleTitle: raffle.title, rows });
     return res.json({ success: true, ...result, rowCount: rows.length });
@@ -106,11 +101,7 @@ router.get("/:raffleId/winners/export.csv", async (req, res, next) => {
   try {
     const raffle = await prisma.raffle.findUnique({ where: { id: req.params.raffleId }, select: { id: true, title: true, prizeName: true, status: true } });
     if (!raffle) return res.status(404).json({ success: false, message: "Raffle not found" });
-    const winners = await prisma.raffleWinner.findMany({
-      where: { raffleId: raffle.id },
-      orderBy: { selectionRank: "asc" },
-      select: { id: true, selectionRank: true, status: true, walletAddressSnapshot: true, selectedAt: true, notifiedAt: true, notificationStatus: true, user: { select: { username: true, displayName: true, email: true } } },
-    });
+    const winners = await prisma.raffleWinner.findMany({ where: { raffleId: raffle.id }, orderBy: { selectionRank: "asc" }, select: { id: true, selectionRank: true, status: true, walletAddressSnapshot: true, selectedAt: true, notifiedAt: true, notificationStatus: true, user: { select: { username: true, displayName: true, email: true } } } });
     const header = ["rank", "winner_id", "username", "display_name", "email", "wallet", "status", "notification_status", "selected_at", "notified_at"];
     const rows = winners.map((winner) => [winner.selectionRank, winner.id, winner.user.username, winner.user.displayName, winner.user.email, winner.walletAddressSnapshot, winner.status, winner.notificationStatus, winner.selectedAt.toISOString(), winner.notifiedAt?.toISOString() ?? ""]);
     const csv = [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n") + "\r\n";
