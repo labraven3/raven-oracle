@@ -9,6 +9,12 @@ function seededRandomIndex(seed: Buffer, max: number, counter: number) { if (max
 type DrawOptions = { allowEarlyFcfs?: boolean; allowAdmin?: boolean; actorUserId?: string };
 
 export async function drawRaffle(raffleId: string, requestingUserId: string, options: DrawOptions = {}) {
+  // Winner selection writes one winner + one entry update per selected spot,
+  // then persists the fairness snapshot and audit record. On production DBs
+  // with non-local latency the Prisma default interactive-transaction timeout
+  // can expire before these writes finish, leaving the UI with a generic
+  // "database error". Give the atomic draw enough time while keeping a hard
+  // upper bound so a stuck transaction cannot live indefinitely.
   return prisma.$transaction(async (tx) => {
     const raffle = await tx.raffle.findUnique({ where: { id: raffleId } });
     if (!raffle) throw new Error("Raffle not found");
@@ -42,9 +48,9 @@ export async function drawRaffle(raffleId: string, requestingUserId: string, opt
     const algorithmVersion = raffleType === "FCFS" ? FCFS_ALGORITHM_VERSION : ALGORITHM_VERSION;
     const snapshot = await tx.raffleEligibilitySnapshot.create({ data: { raffleId, eligibleEntryCount: eligibleEntries.length, eligibleEntryIdsHash, randomnessSource: raffleType === "FCFS" ? "entry-order" : "node:crypto.randomBytes", randomnessRequestRef: null, randomnessValueHash, algorithmVersion, winnerIndexResults: selectedIndexes } });
     const updatedRaffle = await tx.raffle.update({ where: { id: raffleId }, data: { status: "COMPLETED", fairnessAlgorithmVersion: algorithmVersion } });
-    await tx.auditLog.create({ data: { actorUserId: options.actorUserId ?? requestingUserId, action: "RAFFLE_WINNER_SELECTED", entityType: "Raffle", entityId: raffleId, summary: `Drew ${winnerCount} winner(s) from ${eligibleEntries.length} eligible entries`, metadata: { winnerCount, eligibleEntryCount: eligibleEntries.length, algorithmVersion, eligibleEntryIdsHash, randomnessSource: raffleType === "FCFS" ? "entry-order" : "node:crypto.randomBytes", randomnessValueHash, snapshotId: snapshot.id, winnerIndexes: selectedIndexes } } });
+    await tx.auditLog.create({ data: { actorUserId: options.actorUserId ?? requestingUserId, action: "RAFFLE_WINNER_SELECTED", entityType: "Raffle", entityId: raffleId, summary: `Drew ${winnerCount} winner(s) from ${eligibleEntries.length} eligible entries`, metadata: { winnerCount, eligibleEntryCount: eligibleEntries.length, algorithmVersion, eligibleEntryIdsHash, randomnessSource: raffleType === "FCFS" ? "entry-order" : "node:crypto.randomBytes", randomnessValueHash, snapshotId: snapshot.id, winnerIndexes: selectedIndexes } });
     const winners = await tx.raffleWinner.findMany({ where: { raffleId }, orderBy: { selectionRank: "asc" } }); return { raffle: updatedRaffle, snapshot, winners };
-  });
+  }, { maxWait: 10000, timeout: 30000 });
 }
 
 export async function maybeAutoDrawFcfs(raffleId: string, _triggeringUserId?: string) {
