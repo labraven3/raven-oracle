@@ -6,16 +6,16 @@ const ALGORITHM_VERSION = "sha256-csprng-v3";
 const FCFS_ALGORITHM_VERSION = "fcfs-v1";
 function hashEntryIds(entryIds: string[]) { return createHash("sha256").update(entryIds.join("\n")).digest("hex"); }
 function seededRandomIndex(seed: Buffer, max: number, counter: number) { if (max <= 0) throw new Error("Cannot select from an empty set"); const limit = Math.floor(0x100000000 / max) * max; let attempt = 0; while (true) { const digest = createHash("sha256").update(seed).update(Buffer.from(`|draw:${counter}:attempt:${attempt}`, "utf8")).digest(); const value = digest.readUInt32BE(0); if (value < limit) return value % max; attempt += 1; } }
-type DrawOptions = { allowEarlyFcfs?: boolean };
+type DrawOptions = { allowEarlyFcfs?: boolean; allowAdmin?: boolean; actorUserId?: string };
 
 export async function drawRaffle(raffleId: string, requestingUserId: string, options: DrawOptions = {}) {
   return prisma.$transaction(async (tx) => {
     const raffle = await tx.raffle.findUnique({ where: { id: raffleId } });
     if (!raffle) throw new Error("Raffle not found");
-    if (raffle.createdByUserId !== requestingUserId) throw new Error("Only the raffle creator can draw this raffle");
+    if (raffle.createdByUserId !== requestingUserId && !options.allowAdmin) throw new Error("Only the raffle creator can draw this raffle");
     if (raffle.status === "COMPLETED") throw new Error("Raffle has already been drawn");
     if (raffle.status === "CANCELLED") throw new Error("Cancelled raffle cannot be drawn");
-    if (raffle.status !== "CLOSED") throw new Error("Raffle must be closed before drawing winners");
+    if (raffle.status !== "CLOSED") throw new Error("Raffle must be closed before drawing");
     if (new Date() < raffle.endsAt) {
       const entryRules = raffle.entryRules && typeof raffle.entryRules === "object" && !Array.isArray(raffle.entryRules) ? raffle.entryRules as Record<string, unknown> : {};
       if (!(options.allowEarlyFcfs && entryRules.raffleType === "FCFS")) throw new Error("Raffle end time has not been reached");
@@ -42,7 +42,7 @@ export async function drawRaffle(raffleId: string, requestingUserId: string, opt
     const algorithmVersion = raffleType === "FCFS" ? FCFS_ALGORITHM_VERSION : ALGORITHM_VERSION;
     const snapshot = await tx.raffleEligibilitySnapshot.create({ data: { raffleId, eligibleEntryCount: eligibleEntries.length, eligibleEntryIdsHash, randomnessSource: raffleType === "FCFS" ? "entry-order" : "node:crypto.randomBytes", randomnessRequestRef: null, randomnessValueHash, algorithmVersion, winnerIndexResults: selectedIndexes } });
     const updatedRaffle = await tx.raffle.update({ where: { id: raffleId }, data: { status: "COMPLETED", fairnessAlgorithmVersion: algorithmVersion } });
-    await tx.auditLog.create({ data: { actorUserId: requestingUserId, action: "RAFFLE_WINNER_SELECTED", entityType: "Raffle", entityId: raffleId, summary: `Drew ${winnerCount} winner(s) from ${eligibleEntries.length} eligible entries`, metadata: { winnerCount, eligibleEntryCount: eligibleEntries.length, algorithmVersion, eligibleEntryIdsHash, randomnessSource: raffleType === "FCFS" ? "entry-order" : "node:crypto.randomBytes", randomnessValueHash, snapshotId: snapshot.id, winnerIndexes: selectedIndexes } } });
+    await tx.auditLog.create({ data: { actorUserId: options.actorUserId ?? requestingUserId, action: "RAFFLE_WINNER_SELECTED", entityType: "Raffle", entityId: raffleId, summary: `Drew ${winnerCount} winner(s) from ${eligibleEntries.length} eligible entries`, metadata: { winnerCount, eligibleEntryCount: eligibleEntries.length, algorithmVersion, eligibleEntryIdsHash, randomnessSource: raffleType === "FCFS" ? "entry-order" : "node:crypto.randomBytes", randomnessValueHash, snapshotId: snapshot.id, winnerIndexes: selectedIndexes } } });
     const winners = await tx.raffleWinner.findMany({ where: { raffleId }, orderBy: { selectionRank: "asc" } }); return { raffle: updatedRaffle, snapshot, winners };
   });
 }
@@ -56,8 +56,6 @@ export async function maybeAutoDrawFcfs(raffleId: string, _triggeringUserId?: st
     prisma.raffleEntry.count({ where: { raffleId, status: "ELIGIBLE", walletAddressId: { not: null }, walletAddressSnapshot: { not: null } } }),
     prisma.raffleEntry.count({ where: { raffleId, status: "PENDING" } }),
   ]);
-  // Never close/finalize while another entry is still awaiting eligibility
-  // evaluation. Otherwise the draw can enter DRAWING and immediately fail.
   if (pendingCount > 0 || eligibleCount < raffle.winnerCount) return null;
   const closed = await prisma.raffle.updateMany({ where: { id: raffleId, status: "ACTIVE" }, data: { status: "CLOSED" } });
   if (closed.count !== 1) return null;
