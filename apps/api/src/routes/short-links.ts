@@ -104,8 +104,8 @@ async function redirectShortLink(req: Parameters<typeof visitorLimiter>[0], res:
     const today = new Date().toISOString().slice(0, 10);
     await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`UPDATE "RaffleShortLink" SET "clickCount"="clickCount"+1,"lastClickedAt"=CURRENT_TIMESTAMP,"updatedAt"=CURRENT_TIMESTAMP WHERE "id"=${link.id}::uuid`;
-      await tx.$executeRaw`INSERT INTO "RaffleShortLinkClick" ("id","shortLinkId","referrer","userAgent","deviceType") VALUES (${crypto.randomUUID()}::uuid,${link.id}::uuid,${referrer},${ua},${deviceType(ua)})`;
-      const inserted = await tx.$queryRaw<Array<{ id: string }>>`INSERT INTO "RaffleShortLinkVisitor" ("id","shortLinkId","visitorHash","visitedOn") VALUES (${crypto.randomUUID()}::uuid,${link.id}::uuid,${hash},${today}::date) ON CONFLICT ("shortLinkId","visitorHash","visitedOn") DO NOTHING RETURNING "id"`;
+      await tx.$executeRaw`INSERT INTO "RaffleShortLinkClick" ("id","shortLinkId","referrer","userAgent","deviceType") VALUES (${crypto.randomUUID()}::uuid,${link.id}::uuid,LEFT(${referrer},2048),LEFT(${ua},512),${deviceType(ua)})`;
+      const inserted = await tx.$queryRaw<Array<{ id: string }>>`INSERT INTO "RaffleShortLinkVisitor" ("id","shortLinkId","visitorHash","visitedOn") VALUES (${crypto.randomUUID()}::uuid,${link.id}::uuid,${hash},${today}::date) ON CONFLICT ("shortLinkId","visitorHash") DO NOTHING RETURNING "id"`;
       if (inserted.length) await tx.$executeRaw`UPDATE "RaffleShortLink" SET "uniqueClickCount"="uniqueClickCount"+1 WHERE "id"=${link.id}::uuid`;
     });
     res.set("Cache-Control", "no-store");
