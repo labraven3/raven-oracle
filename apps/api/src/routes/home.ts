@@ -32,7 +32,7 @@ router.get("/", async (_req, res, next) => {
         select: {
           id: true, title: true, description: true, prizeName: true, prizeQuantity: true,
           startsAt: true, endsAt: true, status: true, winnerCount: true,
-          project: { select: { id: true, name: true, logoUrl: true } },
+          project: { select: { id: true, name: true, logoUrl: true, bannerUrl: true } },
           _count: { select: { entries: true, winners: true, tasks: true } },
         },
       }),
@@ -47,17 +47,30 @@ router.get("/", async (_req, res, next) => {
     const metadataByProject = new Map(projectMetadata);
     const projectsWithMetadata = projects.map((project) => ({ ...project, metadata: metadataByProject.get(project.id) ?? {} }));
 
+    const raffleProjectIds = raffles.map((raffle) => raffle.project?.id).filter(Boolean) as string[];
+    const raffleProjectMetadata = await Promise.all([...new Set(raffleProjectIds)].map(async (projectId) => {
+      const rows = await prisma.$queryRaw<Array<{ metadata: unknown }>>`
+        SELECT "metadata" FROM "ProjectClassification" WHERE "projectId" = ${projectId}::uuid LIMIT 1
+      `;
+      return [projectId, rows[0]?.metadata ?? {}] as const;
+    }));
+    const raffleMetadataByProject = new Map(raffleProjectMetadata);
+
     const normalizedRaffles = raffles.map((raffle) => {
       let status = raffle.status;
       if (status === "SCHEDULED" && now >= raffle.startsAt && now < raffle.endsAt) status = "ACTIVE";
       if ((status === "SCHEDULED" || status === "ACTIVE") && now >= raffle.endsAt) status = "CLOSED";
-      return { ...raffle, status };
+      return {
+        ...raffle,
+        status,
+        project: raffle.project
+          ? { ...raffle.project, metadata: raffleMetadataByProject.get(raffle.project.id) ?? {} }
+          : null,
+      };
     }).filter((raffle) => raffle.status === "SCHEDULED" || raffle.status === "ACTIVE");
 
-    // The homepage previously filtered for the legacy presentation status
-    // "PUBLISHED", while the raffle model correctly uses SCHEDULED/ACTIVE.
-    // Keep the real lifecycle status available while exposing the presentation
-    // status expected by the existing homepage live-raffle section.
+    // Keep the legacy presentation status for the current homepage while also
+    // exposing the real raffle lifecycle status as raffleStatus.
     const homeRaffles = normalizedRaffles.map((raffle) => ({
       ...raffle,
       raffleStatus: raffle.status,
