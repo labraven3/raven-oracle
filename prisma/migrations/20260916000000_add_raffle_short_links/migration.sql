@@ -18,7 +18,7 @@ CREATE INDEX "RaffleShortLink_raffleId_idx" ON "RaffleShortLink"("raffleId");
 CREATE INDEX "RaffleShortLink_active_idx" ON "RaffleShortLink"("active");
 CREATE INDEX "RaffleShortLink_lastClickedAt_idx" ON "RaffleShortLink"("lastClickedAt");
 
--- One privacy-preserving fingerprint per link/day. No raw IP is persisted.
+-- One privacy-preserving fingerprint per link. No raw IP is persisted.
 CREATE TABLE "RaffleShortLinkVisitor" (
   "id" UUID NOT NULL,
   "shortLinkId" UUID NOT NULL,
@@ -26,7 +26,7 @@ CREATE TABLE "RaffleShortLinkVisitor" (
   "visitedOn" DATE NOT NULL,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT "RaffleShortLinkVisitor_pkey" PRIMARY KEY ("id"),
-  CONSTRAINT "RaffleShortLinkVisitor_shortLinkId_visitorHash_visitedOn_key" UNIQUE ("shortLinkId", "visitorHash", "visitedOn"),
+  CONSTRAINT "RaffleShortLinkVisitor_shortLinkId_visitorHash_key" UNIQUE ("shortLinkId", "visitorHash"),
   CONSTRAINT "RaffleShortLinkVisitor_shortLinkId_fkey" FOREIGN KEY ("shortLinkId") REFERENCES "RaffleShortLink"("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
