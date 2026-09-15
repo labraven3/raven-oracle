@@ -54,10 +54,20 @@ router.get("/", async (_req, res, next) => {
       return { ...raffle, status };
     }).filter((raffle) => raffle.status === "SCHEDULED" || raffle.status === "ACTIVE");
 
+    // The homepage previously filtered for the legacy presentation status
+    // "PUBLISHED", while the raffle model correctly uses SCHEDULED/ACTIVE.
+    // Keep the real lifecycle status available while exposing the presentation
+    // status expected by the existing homepage live-raffle section.
+    const homeRaffles = normalizedRaffles.map((raffle) => ({
+      ...raffle,
+      raffleStatus: raffle.status,
+      status: raffle.status === "ACTIVE" ? "PUBLISHED" : raffle.status,
+    }));
+
     const payload = {
       success: true,
       projects: projectsWithMetadata,
-      raffles: normalizedRaffles,
+      raffles: homeRaffles,
       stats: { projects: projectsWithMetadata.length, liveRaffles: normalizedRaffles.filter((raffle) => raffle.status === "ACTIVE").length },
     };
 
