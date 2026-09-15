@@ -51,14 +51,28 @@ async function ensureRaffleShortLink(raffleId: string, title: string) {
   await ensureSchema();
   const existing = await prisma.$queryRaw<Array<{ id: string; slug: string }>>`SELECT "id","slug" FROM "RaffleShortLink" WHERE "raffleId"=${raffleId}::uuid LIMIT 1`;
   if (existing[0]) return { ...existing[0], url: `/r/${encodeURIComponent(existing[0].slug)}` };
-  const base = slugify(title); let slug = base; let suffix = 2;
-  while (true) {
+  const base = slugify(title);
+  let suffix = 1;
+  for (;;) {
+    const slug = suffix === 1 ? base : `${base}-${suffix}`;
     const collision = await prisma.$queryRaw<Array<{ id: string }>>`SELECT "id" FROM "RaffleShortLink" WHERE "slug"=${slug} LIMIT 1`;
-    if (!collision.length) break; slug = `${base}-${suffix++}`;
+    if (collision.length) {
+      suffix += 1;
+      continue;
+    }
+    const id = crypto.randomUUID();
+    try {
+      await prisma.$executeRaw`INSERT INTO "RaffleShortLink" ("id","slug","raffleId","updatedAt") VALUES (${id}::uuid,${slug},${raffleId}::uuid,CURRENT_TIMESTAMP)`;
+      return { id, slug, url: `/r/${encodeURIComponent(slug)}` };
+    } catch (error) {
+      // Another request may have created the same raffle link between the
+      // collision check and INSERT. Re-read it before retrying with a suffix.
+      const created = await prisma.$queryRaw<Array<{ id: string; slug: string }>>`SELECT "id","slug" FROM "RaffleShortLink" WHERE "raffleId"=${raffleId}::uuid LIMIT 1`;
+      if (created[0]) return { ...created[0], url: `/r/${encodeURIComponent(created[0].slug)}` };
+      suffix += 1;
+      if (suffix > 1000) throw error;
+    }
   }
-  const id = crypto.randomUUID();
-  await prisma.$executeRaw`INSERT INTO "RaffleShortLink" ("id","slug","raffleId","updatedAt") VALUES (${id}::uuid,${slug},${raffleId}::uuid,CURRENT_TIMESTAMP)`;
-  return { id, slug, url: `/r/${encodeURIComponent(slug)}` };
 }
 
 export async function autoRaffleShortLink(req: Request, res: Response, next: NextFunction) {
@@ -80,7 +94,9 @@ router.get("/", requireAdminAuth, async (_req, res, next) => {
     // Backfill links for older raffles once, so this page is never empty just because
     // the short-link feature was added after those raffles were created.
     const raffles = await prisma.raffle.findMany({ where: { status: { not: "CANCELLED" } }, select: { id: true, title: true }, orderBy: { startsAt: "desc" }, take: 500 });
-    await Promise.all(raffles.map((raffle) => ensureRaffleShortLink(raffle.id, raffle.title)));
+    // Process sequentially so multiple raffles with the same title cannot race
+    // while generating their unique slugs.
+    for (const raffle of raffles) await ensureRaffleShortLink(raffle.id, raffle.title);
     const rows = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(`
       SELECT sl."id", sl."slug", sl."raffleId", sl."active", sl."clickCount", sl."uniqueClickCount", sl."createdAt", sl."updatedAt", sl."lastClickedAt",
              r."title" AS "raffleTitle", r."prizeName", p."name" AS "projectName"
