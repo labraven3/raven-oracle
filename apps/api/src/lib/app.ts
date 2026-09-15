@@ -45,24 +45,15 @@ import pendingUserCleanupRouter from "../routes/pending-user-cleanup.js";
 import raffleXVerifyRouter from "../routes/raffle-x-verify.js";
 import raffleHotfixRouter from "../routes/raffle-hotfix.js";
 import adminDeleteRouter from "../routes/admin-delete.js";
+import shortLinksRouter from "../routes/short-links.js";
 
 export function createApp() {
   const app = express();
   app.disable("x-powered-by");
-  // Raven Oracle runs behind a single reverse proxy (Nginx/Cloudflare).
-  // Trusting that proxy lets rate limiting use the real client IP.
   app.set("trust proxy", 1);
   app.use(securityMiddleware);
-  // Raffle data is submitted as small JSON payloads. Keep the parser limit
-  // deliberately low so malformed requests cannot consume unnecessary memory.
   app.use(express.json({ limit: "1mb" }));
   app.use("/api/health", healthRouter);
-
-  // Authentication endpoints have their own route-specific brute-force
-  // protection in auth.ts. Do NOT put one shared limiter in front of the
-  // entire /api/auth tree: OAuth start/callback routes are GET requests and
-  // repeated OAuth redirects from X/Discord can otherwise trigger the same
-  // login-attempt error even though no password login is happening.
   app.use("/api/users", usersRouter);
   app.use("/api/auth", authRouter);
   app.use("/api/auth/admin", adminAuthRouter);
@@ -91,6 +82,8 @@ export function createApp() {
   app.use("/api/raffle-drafts", raffleDraftsRouter);
   app.use("/api/raffle-captcha", raffleCaptchaRouter);
   app.use("/api/raffle-security", raffleSecurityRouter);
+  app.use("/api/short-links", shortLinksRouter);
+  app.use("/r", shortLinksRouter);
   app.use("/api/alpha", alphaRouter);
   app.use("/api/chat", chatRouter);
   app.use("/api/admin", projectApprovalGuard);
