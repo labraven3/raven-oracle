@@ -81,7 +81,7 @@ router.get("/", requireAdminAuth, async (_req, res, next) => {
     // the short-link feature was added after those raffles were created.
     const raffles = await prisma.raffle.findMany({ where: { status: { not: "CANCELLED" } }, select: { id: true, title: true }, orderBy: { startsAt: "desc" }, take: 500 });
     await Promise.all(raffles.map((raffle) => ensureRaffleShortLink(raffle.id, raffle.title)));
-    const rows = await prisma.$queryRaw<Array<Record<string, unknown>>>(`
+    const rows = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(`
       SELECT sl."id", sl."slug", sl."raffleId", sl."active", sl."clickCount", sl."uniqueClickCount", sl."createdAt", sl."updatedAt", sl."lastClickedAt",
              r."title" AS "raffleTitle", r."prizeName", p."name" AS "projectName"
       FROM "RaffleShortLink" sl JOIN "Raffle" r ON r."id" = sl."raffleId" LEFT JOIN "Project" p ON p."id" = r."projectId"
