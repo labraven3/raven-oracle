@@ -45,7 +45,7 @@ import pendingUserCleanupRouter from "../routes/pending-user-cleanup.js";
 import raffleXVerifyRouter from "../routes/raffle-x-verify.js";
 import raffleHotfixRouter from "../routes/raffle-hotfix.js";
 import adminDeleteRouter from "../routes/admin-delete.js";
-import shortLinksRouter from "../routes/short-links.js";
+import shortLinksRouter, { autoRaffleShortLink } from "../routes/short-links.js";
 
 export function createApp() {
   const app = express();
@@ -70,7 +70,7 @@ export function createApp() {
   app.use("/api/raffles", raffleMutationGuard, raffleXVerifyRouter);
   app.use("/api/raffles", raffleMutationGuard, raffleHotfixRouter);
   app.use("/api/projects", raffleHotfixRouter);
-  app.use("/api/projects", projectCatalogGuard, projectsRouter);
+  app.use("/api/projects", autoRaffleShortLink, projectCatalogGuard, projectsRouter);
   app.use("/api/project-metadata", projectMetadataRouter);
   app.use("/api/project-approval", projectApprovalRouter);
   app.use("/api/chains", chainsRouter);
