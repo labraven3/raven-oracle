@@ -7,7 +7,7 @@ import { simpleRateLimit } from "../middleware/simple-rate-limit.js";
 const router = Router();
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const RESERVED = new Set(["api", "admin", "account", "auth", "dashboard", "projects", "raffles", "raffle", "r", "login", "register", "about", "privacy", "terms", "docs", "chat", "alpha"]);
-const visitorLimiter = simpleRateLimit({ windowMs: 60_000, max: 120 });
+const visitorLimiter = simpleRateLimit({ windowMs: 60_000, max: 120, message: "Too many short-link requests. Please try again shortly." });
 
 function normalizeSlug(value: unknown) {
   if (typeof value !== "string") return null;
@@ -21,6 +21,13 @@ function visitorHash(req: { ip?: string; headers: Record<string, string | string
   const ua = typeof req.headers["user-agent"] === "string" ? req.headers["user-agent"] : "unknown";
   const salt = process.env.SHORT_LINK_ANALYTICS_SALT ?? process.env.JWT_SECRET ?? "raven-oracle-short-link";
   return crypto.createHash("sha256").update(`${salt}:${ip}:${ua}`).digest("hex");
+}
+
+function deviceType(userAgent: string | null) {
+  if (!userAgent) return "unknown";
+  if (/bot|crawler|spider|preview|slurp/i.test(userAgent)) return "bot";
+  if (/mobile|android|iphone|ipad/i.test(userAgent)) return "mobile";
+  return "desktop";
 }
 
 function publicUrl(slug: string) { return `/r/${encodeURIComponent(slug)}`; }
@@ -46,7 +53,7 @@ router.post("/", requireAdminAuth, async (req, res, next) => {
     const raffleId = typeof req.body?.raffleId === "string" ? req.body.raffleId : "";
     if (!slug) return res.status(400).json({ success: false, message: "Invalid slug. Use 2-80 lowercase letters, numbers and hyphens." });
     if (!raffleId) return res.status(400).json({ success: false, message: "A raffle is required." });
-    const raffle = await prisma.raffle.findUnique({ where: { id: raffleId }, select: { id: true, title: true } });
+    const raffle = await prisma.raffle.findUnique({ where: { id: raffleId }, select: { id: true } });
     if (!raffle) return res.status(404).json({ success: false, message: "Raffle not found." });
     const existing = await prisma.$queryRaw<Array<{ id: string }>>`SELECT "id" FROM "RaffleShortLink" WHERE "slug" = ${slug} LIMIT 1`;
     if (existing.length) return res.status(409).json({ success: false, message: "That slug is already in use." });
@@ -92,12 +99,13 @@ router.get("/resolve/:slug", visitorLimiter, async (req, res, next) => {
     const link = rows[0];
     if (!link) return res.status(404).json({ success: false, message: "Short link not found." });
 
-    const referrer = typeof req.get("referer") === "string" ? req.get("referer") : null;
-    const ua = typeof req.get("user-agent") === "string" ? req.get("user-agent") : null;
+    const referrer = req.get("referer") ?? null;
+    const ua = req.get("user-agent") ?? null;
     const hash = visitorHash(req);
     const today = new Date().toISOString().slice(0, 10);
     await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`UPDATE "RaffleShortLink" SET "clickCount"="clickCount"+1,"lastClickedAt"=CURRENT_TIMESTAMP,"updatedAt"=CURRENT_TIMESTAMP WHERE "id"=${link.id}::uuid`;
+      await tx.$executeRaw`INSERT INTO "RaffleShortLinkClick" ("id","shortLinkId","referrer","userAgent","deviceType") VALUES (${crypto.randomUUID()}::uuid,${link.id}::uuid,${referrer},${ua},${deviceType(ua)})`;
       const inserted = await tx.$queryRaw<Array<{ id: string }>>`INSERT INTO "RaffleShortLinkVisitor" ("id","shortLinkId","visitorHash","visitedOn") VALUES (${crypto.randomUUID()}::uuid,${link.id}::uuid,${hash},${today}::date) ON CONFLICT ("shortLinkId","visitorHash","visitedOn") DO NOTHING RETURNING "id"`;
       if (inserted.length) await tx.$executeRaw`UPDATE "RaffleShortLink" SET "uniqueClickCount"="uniqueClickCount"+1 WHERE "id"=${link.id}::uuid`;
     });
