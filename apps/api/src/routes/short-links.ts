@@ -91,14 +91,13 @@ router.delete("/:id", requireAdminAuth, async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-router.get("/resolve/:slug", visitorLimiter, async (req, res, next) => {
+async function redirectShortLink(req: Parameters<typeof visitorLimiter>[0], res: any, next: any) {
   try {
     const slug = normalizeSlug(req.params.slug);
     if (!slug) return res.status(404).json({ success: false, message: "Short link not found." });
     const rows = await prisma.$queryRaw<Array<{ id: string; raffleId: string }>>`SELECT "id","raffleId" FROM "RaffleShortLink" WHERE "slug"=${slug} AND "active"=true LIMIT 1`;
     const link = rows[0];
     if (!link) return res.status(404).json({ success: false, message: "Short link not found." });
-
     const referrer = req.get("referer") ?? null;
     const ua = req.get("user-agent") ?? null;
     const hash = visitorHash(req);
@@ -111,8 +110,10 @@ router.get("/resolve/:slug", visitorLimiter, async (req, res, next) => {
     });
     res.set("Cache-Control", "no-store");
     res.set("X-Robots-Tag", "noindex, nofollow, noarchive");
-    res.redirect(302, `/raffles/${link.raffleId}`);
-  } catch (error) { next(error); }
-});
+    return res.redirect(302, `/raffles/${link.raffleId}`);
+  } catch (error) { return next(error); }
+}
+
+router.get("/:slug", visitorLimiter, redirectShortLink);
 
 export default router;
