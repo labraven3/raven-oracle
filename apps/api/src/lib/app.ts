@@ -47,6 +47,7 @@ import raffleXVerifyRouter from "../routes/raffle-x-verify.js";
 import raffleHotfixRouter from "../routes/raffle-hotfix.js";
 import adminDeleteRouter from "../routes/admin-delete.js";
 import shortLinksRouter, { autoRaffleShortLink } from "../routes/short-links.js";
+import raffleDiscordPromotionRouter from "../routes/raffle-discord-promotion.js";
 
 export function createApp() {
   const app = express();
@@ -76,6 +77,7 @@ export function createApp() {
   app.use("/api/project-approval", projectApprovalRouter);
   app.use("/api/chains", chainsRouter);
   app.use("/api/raffles/public", publicRafflesRouter);
+  app.use("/api/raffles", raffleDiscordPromotionRouter);
   app.use("/api/raffles", raffleMutationGuard, raffleEntrySocialGuard, raffleEntriesRouter);
   app.use("/api/raffles", raffleMutationGuard, raffleTasksRouter);
   app.use("/api/raffles", raffleMutationGuard, raffleWinnersRouter);
