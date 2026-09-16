@@ -1,6 +1,7 @@
 import express from "express";
 import { securityMiddleware } from "../middleware/security.js";
 import { raffleMutationGuard } from "../middleware/raffle-mutation-guard.js";
+import { raffleEntrySocialGuard } from "../middleware/raffle-entry-social-guard.js";
 import { projectCatalogGuard } from "../middleware/project-catalog-guard.js";
 import { projectApprovalGuard } from "../middleware/project-approval-guard.js";
 import { errorHandler, notFoundHandler } from "../middleware/error-handler.js";
@@ -75,7 +76,7 @@ export function createApp() {
   app.use("/api/project-approval", projectApprovalRouter);
   app.use("/api/chains", chainsRouter);
   app.use("/api/raffles/public", publicRafflesRouter);
-  app.use("/api/raffles", raffleMutationGuard, rafflesRouter);
+  app.use("/api/raffles", raffleMutationGuard, raffleEntriesSocialGuard, raffleEntriesRouter);
   app.use("/api/raffles", raffleMutationGuard, raffleEntriesRouter);
   app.use("/api/raffles", raffleMutationGuard, raffleTasksRouter);
   app.use("/api/raffles", raffleMutationGuard, raffleWinnersRouter);
