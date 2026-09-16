@@ -78,6 +78,7 @@ export function createApp() {
   app.use("/api/chains", chainsRouter);
   app.use("/api/raffles/public", publicRafflesRouter);
   app.use("/api/raffles", raffleDiscordPromotionRouter);
+  app.use("/api/raffles", rafflesRouter);
   app.use("/api/raffles", raffleMutationGuard, raffleEntrySocialGuard, raffleEntriesRouter);
   app.use("/api/raffles", raffleMutationGuard, raffleTasksRouter);
   app.use("/api/raffles", raffleMutationGuard, raffleWinnersRouter);
