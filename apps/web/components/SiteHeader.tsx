@@ -41,6 +41,47 @@ export default function SiteHeader() {
 
   useEffect(() => { const onPointerDown = (event: MouseEvent) => { if (profileRef.current && !profileRef.current.contains(event.target as Node)) setProfileOpen(false); }; document.addEventListener("mousedown", onPointerDown); return () => document.removeEventListener("mousedown", onPointerDown); }, []);
 
+  useEffect(() => {
+    const match = pathname.match(/^\/dashboard\/raffles\/([^/]+)$/);
+    if (!match) return;
+    let cancelled = false;
+    let observer: MutationObserver | null = null;
+    const hidden: HTMLElement[] = [];
+    const hideReviewAction = () => {
+      if (cancelled) return;
+      for (const button of Array.from(document.querySelectorAll("button"))) {
+        if (button.textContent?.trim() !== "Review eligibility") continue;
+        if (button.dataset.ravenFcfsReviewHidden === "1") continue;
+        button.dataset.ravenFcfsReviewHidden = "1";
+        button.style.display = "none";
+        hidden.push(button);
+      }
+    };
+    const run = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/raffles/${encodeURIComponent(match[1])}`, { cache: "no-store" });
+        const data = await response.json().catch(() => ({})) as { raffle?: { entryRules?: unknown } };
+        const rules = data.raffle?.entryRules;
+        const isFcfs = Boolean(rules && typeof rules === "object" && !Array.isArray(rules) && (rules as Record<string, unknown>).raffleType === "FCFS");
+        if (!isFcfs || cancelled) return;
+        hideReviewAction();
+        observer = new MutationObserver(hideReviewAction);
+        observer.observe(document.body, { childList: true, subtree: true });
+      } catch {
+        // Leave the standard action visible when the raffle type cannot be determined.
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+      observer?.disconnect();
+      for (const element of hidden) {
+        element.style.display = "";
+        delete element.dataset.ravenFcfsReviewHidden;
+      }
+    };
+  }, [pathname]);
+
   const nav = [["/projects", "NFT Projects"], ["/raffles", "Raffles"], ["/how-it-works", "How it Works"], ["/docs", "Docs"]] as const;
 
   return (
@@ -48,8 +89,7 @@ export default function SiteHeader() {
       <div className="mx-auto flex min-h-[60px] max-w-[1380px] items-center gap-3 px-4 sm:px-6 lg:px-10">
         <Link href="/" className="shrink-0" aria-label="Raven Oracle home"><RavenLogo compact /></Link>
         <div className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <div className="flex min-w-max items-center justify-center gap-4 px-1 py-1 text-[12px] font-semibold sm:gap-6 sm:text-[14px] lg:gap-8">            {nav.map(([href, label]) => <Link key={href} href={href} className={`whitespace-nowrap transition-colors ${pathname === href || pathname.startsWith(`${href}/`) ? "text-white" : "text-zinc-500 hover:text-white"}`}>{label}</Link>)}
-          </div>
+          <div className="flex min-w-max items-center justify-center gap-4 px-1 py-1 text-[12px] font-semibold sm:gap-6 sm:text-[14px] lg:gap-8">{nav.map(([href, label]) => <Link key={href} href={href} className={`whitespace-nowrap transition-colors ${pathname === href || pathname.startsWith(`${href}/`) ? "text-white" : "text-zinc-500 hover:text-white"}`}>{label}</Link>)}</div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           {!authChecked ? null : isLoggedIn ? (
