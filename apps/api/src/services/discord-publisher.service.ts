@@ -55,8 +55,8 @@ export async function verifyDiscordChannel(channelId: string, expectedGuildId?: 
 
 export async function publishDiscordGiveaway(input: {
   channelId: string;
-  guildId?: string | null;
-  mentionRoleId?: string | null;
+  guildId?: string | null | undefined;
+  mentionRoleId?: string | null | undefined;
   title: string;
   description?: string | null;
   prizeName: string;
