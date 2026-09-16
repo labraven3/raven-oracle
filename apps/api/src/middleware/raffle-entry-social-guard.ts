@@ -36,6 +36,20 @@ export async function raffleEntrySocialGuard(req: Request, res: Response, next: 
         });
       }
 
+      const originalJson = res.json.bind(res);
+      res.json = (body: any) => {
+        if (!body?.success || !body?.entry?.id) return originalJson(body);
+        void prisma.raffleEntry.update({
+          where: { id: String(body.entry.id) },
+          data: { socialVerifiedAtEntry: true },
+        }).then(() => originalJson({
+          ...body,
+          entry: { ...body.entry, socialVerifiedAtEntry: true },
+          requirements: { xConnected: true, discordConnected: true, ready: true },
+        })).catch((error) => next(error));
+        return res;
+      };
+
       return next();
     } catch (error) {
       return next(error);
