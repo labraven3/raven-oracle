@@ -1,9 +1,45 @@
 import { prisma } from "../lib/prisma.js";
 import { evaluateRaffleEntry } from "../services/eligibility.service.js";
 import { drawRaffle } from "../services/raffle-draw.service.js";
+import { announceDiscordWinners, type DiscordPromotionConfig } from "../services/discord-publisher.service.js";
+import { env } from "../config/env.js";
 
 const DRAW_DELAY_MS = 5 * 60 * 1000;
 let running = false;
+
+function promotionFromRules(entryRules: unknown): DiscordPromotionConfig {
+  if (!entryRules || typeof entryRules !== "object" || Array.isArray(entryRules)) return {};
+  const promotion = (entryRules as Record<string, unknown>).discordPromotion;
+  return promotion && typeof promotion === "object" && !Array.isArray(promotion) ? promotion as DiscordPromotionConfig : {};
+}
+
+async function announceWinnersOnDiscord(raffleId: string, draw: Awaited<ReturnType<typeof drawRaffle>>) {
+  if (!env.DISCORD_BOT_TOKEN) return;
+  const rules = draw.raffle.entryRules;
+  const promotion = promotionFromRules(rules);
+  if (!promotion.enabled || !promotion.channelId || !promotion.messageId || promotion.winnerAnnouncedAt) return;
+
+  const accounts = await prisma.socialAccount.findMany({
+    where: { userId: { in: draw.winners.map((winner) => winner.userId) }, provider: "DISCORD", isActive: true },
+    select: { userId: true, providerAccountId: true, providerUsername: true },
+  });
+  const byUser = new Map(accounts.map((account) => [account.userId, account]));
+  const announcement = await announceDiscordWinners({
+    channelId: promotion.channelId,
+    title: draw.raffle.title,
+    raffleUrl: `${env.WEB_ORIGIN}/raffles/${raffleId}`,
+    winners: draw.winners.map((winner) => {
+      const account = byUser.get(winner.userId);
+      return { username: account?.providerUsername ?? null, discordAccountId: account?.providerAccountId ?? null };
+    }),
+  });
+
+  const currentRules = rules && typeof rules === "object" && !Array.isArray(rules) ? rules as Record<string, unknown> : {};
+  await prisma.raffle.update({
+    where: { id: raffleId },
+    data: { entryRules: { ...currentRules, discordPromotion: { ...promotion, winnerAnnouncementMessageId: announcement.messageId, winnerAnnouncedAt: announcement.announcedAt } } },
+  });
+}
 
 /**
  * Automatically closes and draws raffles five minutes after endsAt.
@@ -55,7 +91,14 @@ export async function processAutomaticRaffleDraws() {
           }
         }
 
-        await drawRaffle(raffle.id, raffle.createdByUserId);
+        const draw = await drawRaffle(raffle.id, raffle.createdByUserId);
+        try {
+          await announceWinnersOnDiscord(raffle.id, draw);
+        } catch (error) {
+          // Discord is an optional notification channel; a Discord outage must
+          // never roll back or invalidate a completed raffle draw.
+          console.error(`[auto-draw] Discord winner announcement failed for ${raffle.id}:`, error instanceof Error ? error.message : error);
+        }
         console.log(`[auto-draw] completed raffle ${raffle.id}`);
       } catch (error) {
         // Leave a failed raffle CLOSED so the normal manual controls remain
