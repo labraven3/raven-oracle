@@ -59,38 +59,17 @@ export async function drawRaffle(
         where: { id: raffleId, status: "CLOSED" },
         data: { status: "DRAWING" },
       });
-      if (claimed.count !== 1) {
-        throw new Error("Raffle draw is already in progress or is no longer drawable");
-      }
+      if (claimed.count !== 1) throw new Error("Raffle draw is already in progress or is no longer drawable");
 
-      const pendingCount = await tx.raffleEntry.count({
-        where: { raffleId, status: "PENDING" },
-      });
-      if (pendingCount > 0) {
-        throw new Error(
-          `Raffle has ${pendingCount} unevaluated entr${pendingCount === 1 ? "y" : "ies"}; evaluate entries before drawing`,
-        );
-      }
+      const pendingCount = await tx.raffleEntry.count({ where: { raffleId, status: "PENDING" } });
+      if (pendingCount > 0) throw new Error(`Raffle has ${pendingCount} unevaluated entr${pendingCount === 1 ? "y" : "ies"}; evaluate entries before drawing`);
 
       const eligibleEntries = await tx.raffleEntry.findMany({
-        where: {
-          raffleId,
-          status: "ELIGIBLE",
-          walletAddressId: { not: null },
-          walletAddressSnapshot: { not: null },
-        },
+        where: { raffleId, status: "ELIGIBLE", walletAddressId: { not: null }, walletAddressSnapshot: { not: null } },
         orderBy: [{ enteredAt: "asc" }, { id: "asc" }],
-        select: {
-          id: true,
-          userId: true,
-          walletAddressSnapshot: true,
-          enteredAt: true,
-        },
+        select: { id: true, userId: true, walletAddressSnapshot: true, enteredAt: true },
       });
-
-      if (eligibleEntries.length === 0) {
-        throw new Error("No eligible entries with payout wallets available");
-      }
+      if (eligibleEntries.length === 0) throw new Error("No eligible entries with payout wallets available");
 
       const entryRules = raffle.entryRules && typeof raffle.entryRules === "object" && !Array.isArray(raffle.entryRules)
         ? (raffle.entryRules as Record<string, unknown>)
@@ -107,10 +86,7 @@ export async function drawRaffle(
       for (let rank = 1; rank <= winnerCount; rank += 1) {
         const index = raffleType === "FCFS" ? 0 : seededRandomIndex(randomness, remaining.length, rank);
         const selected = remaining.splice(index, 1)[0];
-        if (!selected?.entry.walletAddressSnapshot) {
-          throw new Error("Winner selection failed: payout wallet missing");
-        }
-
+        if (!selected?.entry.walletAddressSnapshot) throw new Error("Winner selection failed: payout wallet missing");
         selectedIndexes.push(selected.originalIndex);
         await tx.raffleWinner.create({
           data: {
@@ -123,75 +99,18 @@ export async function drawRaffle(
             notificationStatus: "PENDING",
           },
         });
-        await tx.raffleEntry.update({
-          where: { id: selected.entry.id },
-          data: { status: "WINNER" },
-        });
+        await tx.raffleEntry.update({ where: { id: selected.entry.id }, data: { status: "WINNER" } });
       }
 
-      await tx.raffleEntry.updateMany({
-        where: { raffleId, status: "ELIGIBLE" },
-        data: { status: "NOT_SELECTED" },
-      });
-
+      await tx.raffleEntry.updateMany({ where: { raffleId, status: "ELIGIBLE" }, data: { status: "NOT_SELECTED" } });
       const algorithmVersion = raffleType === "FCFS" ? FCFS_ALGORITHM_VERSION : ALGORITHM_VERSION;
-
-      // Prisma 7's generated JSON input types can be stricter than the
-      // runtime JSON column accepts. Serialize/parse here to keep the
-      // persisted values as JSON objects/arrays while avoiding the generated
-      // client type incompatibility that was breaking production typecheck.
       const winnerIndexResults = JSON.parse(JSON.stringify(selectedIndexes));
-      const auditMetadata = JSON.parse(
-        JSON.stringify({
-          winnerCount,
-          eligibleEntryCount: eligibleEntries.length,
-          algorithmVersion,
-          eligibleEntryIdsHash,
-          randomnessSource: raffleType === "FCFS" ? "entry-order" : "node:crypto.randomBytes",
-          randomnessValueHash,
-          snapshotId: "pending",
-          winnerIndexes: selectedIndexes,
-        }),
-      );
-
-      const snapshot = await tx.raffleEligibilitySnapshot.create({
-        data: {
-          raffleId,
-          eligibleEntryCount: eligibleEntries.length,
-          eligibleEntryIdsHash,
-          randomnessSource: raffleType === "FCFS" ? "entry-order" : "node:crypto.randomBytes",
-          randomnessRequestRef: null,
-          randomnessValueHash,
-          algorithmVersion,
-          winnerIndexResults,
-        },
-      });
-
+      const auditMetadata = JSON.parse(JSON.stringify({ winnerCount, eligibleEntryCount: eligibleEntries.length, algorithmVersion, eligibleEntryIdsHash, randomnessSource: raffleType === "FCFS" ? "entry-order" : "node:crypto.randomBytes", randomnessValueHash, snapshotId: "pending", winnerIndexes: selectedIndexes }));
+      const snapshot = await tx.raffleEligibilitySnapshot.create({ data: { raffleId, eligibleEntryCount: eligibleEntries.length, eligibleEntryIdsHash, randomnessSource: raffleType === "FCFS" ? "entry-order" : "node:crypto.randomBytes", randomnessRequestRef: null, randomnessValueHash, algorithmVersion, winnerIndexResults } });
       auditMetadata.snapshotId = snapshot.id;
-      await tx.auditLog.create({
-        data: {
-          actorUserId: options.actorUserId ?? requestingUserId,
-          action: "RAFFLE_WINNER_SELECTED",
-          entityType: "Raffle",
-          entityId: raffleId,
-          summary: `Drew ${winnerCount} winner(s) from ${eligibleEntries.length} eligible entries`,
-          metadata: auditMetadata,
-        },
-      });
-
-      const updatedRaffle = await tx.raffle.update({
-        where: { id: raffleId },
-        data: {
-          status: "COMPLETED",
-          fairnessAlgorithmVersion: algorithmVersion,
-        },
-      });
-
-      const winners = await tx.raffleWinner.findMany({
-        where: { raffleId },
-        orderBy: { selectionRank: "asc" },
-      });
-
+      await tx.auditLog.create({ data: { actorUserId: options.actorUserId ?? requestingUserId, action: "RAFFLE_WINNER_SELECTED", entityType: "Raffle", entityId: raffleId, summary: `Drew ${winnerCount} winner(s) from ${eligibleEntries.length} eligible entries`, metadata: auditMetadata } });
+      const updatedRaffle = await tx.raffle.update({ where: { id: raffleId }, data: { status: "COMPLETED", fairnessAlgorithmVersion: algorithmVersion } });
+      const winners = await tx.raffleWinner.findMany({ where: { raffleId }, orderBy: { selectionRank: "asc" } });
       return { raffle: updatedRaffle, snapshot, winners };
     },
     { maxWait: 10000, timeout: 30000 },
@@ -201,16 +120,9 @@ export async function drawRaffle(
 export async function maybeAutoDrawFcfs(raffleId: string, _triggeringUserId?: string) {
   const raffle = await prisma.raffle.findUnique({
     where: { id: raffleId },
-    select: {
-      id: true,
-      createdByUserId: true,
-      status: true,
-      winnerCount: true,
-      entryRules: true,
-    },
+    select: { id: true, createdByUserId: true, status: true, winnerCount: true, entryRules: true },
   });
-
-  if (!raffle || raffle.status !== "ACTIVE") return null;
+  if (!raffle || !["ACTIVE", "CLOSED"].includes(raffle.status)) return null;
 
   const rules = raffle.entryRules && typeof raffle.entryRules === "object" && !Array.isArray(raffle.entryRules)
     ? (raffle.entryRules as Record<string, unknown>)
@@ -218,24 +130,14 @@ export async function maybeAutoDrawFcfs(raffleId: string, _triggeringUserId?: st
   if (rules.raffleType !== "FCFS") return null;
 
   const [eligibleCount, pendingCount] = await Promise.all([
-    prisma.raffleEntry.count({
-      where: {
-        raffleId,
-        status: "ELIGIBLE",
-        walletAddressId: { not: null },
-        walletAddressSnapshot: { not: null },
-      },
-    }),
+    prisma.raffleEntry.count({ where: { raffleId, status: "ELIGIBLE", walletAddressId: { not: null }, walletAddressSnapshot: { not: null } } }),
     prisma.raffleEntry.count({ where: { raffleId, status: "PENDING" } }),
   ]);
-
   if (pendingCount > 0 || eligibleCount < raffle.winnerCount) return null;
 
-  const closed = await prisma.raffle.updateMany({
-    where: { id: raffleId, status: "ACTIVE" },
-    data: { status: "CLOSED" },
-  });
-  if (closed.count !== 1) return null;
-
+  if (raffle.status === "ACTIVE") {
+    const closed = await prisma.raffle.updateMany({ where: { id: raffleId, status: "ACTIVE" }, data: { status: "CLOSED" } });
+    if (closed.count !== 1) return null;
+  }
   return drawRaffle(raffleId, raffle.createdByUserId, { allowEarlyFcfs: true });
 }
