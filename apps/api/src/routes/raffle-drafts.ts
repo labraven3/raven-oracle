@@ -1,7 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
-import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
+import { prisma } from "../lib/prisma.js";
+import { env } from "../config/env.js";
+import { publishDiscordGiveaway, type DiscordPromotionConfig } from "../services/discord-publisher.service.js";
 
 const router = Router();
 
@@ -12,6 +14,15 @@ const taskSchema = z.object({
   target: z.string().trim().max(500).default(""),
   targetUrl: z.string().url().optional().or(z.literal("")).default(""),
   isRequired: z.boolean().default(true),
+});
+
+const discordPromotionSchema = z.object({
+  enabled: z.boolean().default(false),
+  guildId: z.string().regex(/^\d{15,25}$/).nullable().default(null),
+  channelId: z.string().regex(/^\d{15,25}$/).nullable().default(null),
+  mentionRoleId: z.string().regex(/^\d{15,25}$/).nullable().default(null),
+}).superRefine((promotion, ctx) => {
+  if (promotion.enabled && !promotion.channelId) ctx.addIssue({ code: "custom", path: ["channelId"], message: "Channel is required when Discord posting is enabled" });
 });
 
 const draftSchema = z.object({
@@ -27,6 +38,7 @@ const draftSchema = z.object({
   startsAt: z.string().optional().default(""),
   endsAt: z.string().optional().default(""),
   tasks: z.array(taskSchema).default([]),
+  discordPromotion: discordPromotionSchema.default({ enabled: false, guildId: null, channelId: null, mentionRoleId: null }),
 });
 
 function normalizeTask(task: z.infer<typeof taskSchema>) {
@@ -149,12 +161,32 @@ router.post("/:projectId/:draftId/publish", async (req, res, next) => {
     if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || endsAt <= startsAt || endsAt <= now) return res.status(400).json({ success: false, message: "Invalid raffle dates" });
     if (data.winnerCount > data.prizeQuantity) return res.status(400).json({ success: false, message: "Winner count cannot exceed WL spots" });
     const normalizedTasks = data.tasks.map(normalizeTask);
+    const promotion = data.discordPromotion as DiscordPromotionConfig;
     const raffle = await prisma.$transaction(async (tx) => {
-      const updated = await tx.raffle.update({ where: { id: existing.id }, data: { title: data.title, description: data.description || null, prizeName: data.prizeName, prizeDescription: null, prizeQuantity: data.winnerCount, startsAt, endsAt, status: startsAt > now ? "SCHEDULED" : "ACTIVE", maxEntriesPerUser: 1, winnerCount: data.winnerCount, fairnessAlgorithmVersion: null, entryRules: { raffleType: data.raffleType, tasks: normalizedTasks, walletRequired: true, socialRequired: true } } });
+      const updated = await tx.raffle.update({ where: { id: existing.id }, data: { title: data.title, description: data.description || null, prizeName: data.prizeName, prizeDescription: null, prizeQuantity: data.winnerCount, startsAt, endsAt, status: startsAt > now ? "SCHEDULED" : "ACTIVE", maxEntriesPerUser: 1, winnerCount: data.winnerCount, fairnessAlgorithmVersion: null, entryRules: { raffleType: data.raffleType, tasks: normalizedTasks, walletRequired: true, socialRequired: true, discordPromotion: promotion } } });
       if (normalizedTasks.length) await tx.raffleTask.createMany({ data: normalizedTasks.map((task, index) => ({ raffleId: updated.id, type: task.type, title: task.title, description: null, target: task.target, targetUrl: task.targetUrl || null, isRequired: task.isRequired, sortOrder: index })) });
       return updated;
     });
-    return res.json({ success: true, raffleId: raffle.id });
+
+    let discordPosted = false;
+    let discordWarning: string | null = null;
+    if (promotion.enabled && promotion.channelId) {
+      if (!env.DISCORD_BOT_TOKEN) {
+        discordWarning = "Discord posting is enabled, but the Discord bot is not configured yet.";
+      } else {
+        try {
+          const result = await publishDiscordGiveaway({ channelId: promotion.channelId, guildId: promotion.guildId, mentionRoleId: promotion.mentionRoleId, title: raffle.title, description: raffle.description, prizeName: raffle.prizeName, prizeQuantity: raffle.prizeQuantity, winnerCount: raffle.winnerCount, startsAt: raffle.startsAt, endsAt: raffle.endsAt, raffleUrl: `${env.WEB_ORIGIN}/raffles/${raffle.id}` });
+          const rules = raffle.entryRules && typeof raffle.entryRules === "object" && !Array.isArray(raffle.entryRules) ? raffle.entryRules as Record<string, unknown> : {};
+          await prisma.raffle.update({ where: { id: raffle.id }, data: { entryRules: { ...rules, discordPromotion: { ...promotion, messageId: result.messageId, postedAt: result.postedAt } } } });
+          discordPosted = true;
+        } catch (error) {
+          discordWarning = error instanceof Error ? error.message : "Discord posting failed";
+          console.error(`[raffle-publish] Discord post failed for ${raffle.id}:`, error);
+        }
+      }
+    }
+
+    return res.json({ success: true, raffleId: raffle.id, discordPosted, discordWarning });
   } catch (error) { next(error); }
 });
 
