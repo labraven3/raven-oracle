@@ -76,8 +76,7 @@ export function createApp() {
   app.use("/api/project-approval", projectApprovalRouter);
   app.use("/api/chains", chainsRouter);
   app.use("/api/raffles/public", publicRafflesRouter);
-  app.use("/api/raffles", raffleMutationGuard, raffleEntriesSocialGuard, raffleEntriesRouter);
-  app.use("/api/raffles", raffleMutationGuard, raffleEntriesRouter);
+  app.use("/api/raffles", raffleMutationGuard, raffleEntrySocialGuard, raffleEntriesRouter);
   app.use("/api/raffles", raffleMutationGuard, raffleTasksRouter);
   app.use("/api/raffles", raffleMutationGuard, raffleWinnersRouter);
   app.use("/api/raffle-drafts", raffleDraftsRouter);
