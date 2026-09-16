@@ -7,6 +7,7 @@ import { publishDiscordGiveaway, verifyDiscordChannel, type DiscordPromotionConf
 
 const router = Router();
 const DISCORD_API = "https://discord.com/api/v10";
+const DISCORD_BOT_PERMISSIONS = String(1024 + 2048 + 16384); // View Channel + Send Messages + Embed Links
 
 function raffleUrl(id: string) { return `${env.WEB_ORIGIN}/raffles/${id}`; }
 
@@ -44,16 +45,19 @@ async function discordBotRequest<T>(path: string) {
   return (text ? JSON.parse(text) : null) as T;
 }
 
+async function manageableGuilds(userId: string) {
+  const account = await prisma.socialAccount.findFirst({ where: { userId, provider: "DISCORD", isActive: true }, select: { accessTokenEncrypted: true } });
+  if (!account?.accessTokenEncrypted) return [] as Array<{ id: string; name: string; owner: boolean; permissions?: string }>;
+  const accessToken = decrypt(account.accessTokenEncrypted);
+  const guilds = await discordUserRequest<Array<{ id: string; name: string; owner?: boolean; permissions?: string }>>(accessToken, "/users/@me/guilds");
+  return guilds.filter((guild) => guild.owner || Boolean((BigInt(guild.permissions ?? "0") & 32n) || (BigInt(guild.permissions ?? "0") & 8n)));
+}
+
 router.get("/discord-promotion/options", requireAuth, async (req, res, next) => {
   try {
     if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
-    const account = await prisma.socialAccount.findFirst({ where: { userId: req.userId, provider: "DISCORD", isActive: true }, select: { accessTokenEncrypted: true } });
-    if (!account?.accessTokenEncrypted) return res.json({ success: true, botConfigured: Boolean(env.DISCORD_BOT_TOKEN), connected: false, guilds: [] });
-
-    const accessToken = decrypt(account.accessTokenEncrypted);
-    const guilds = await discordUserRequest<Array<{ id: string; name: string; owner?: boolean; permissions?: string }>>(accessToken, "/users/@me/guilds");
-    const manageable = guilds.filter((guild) => guild.owner || Boolean((BigInt(guild.permissions ?? "0") & 32n) || (BigInt(guild.permissions ?? "0") & 8n)));
-    const result = await Promise.all(manageable.slice(0, 50).map(async (guild) => {
+    const guilds = await manageableGuilds(req.userId);
+    const result = await Promise.all(guilds.slice(0, 50).map(async (guild) => {
       const channels = await discordBotRequest<Array<{ id: string; name: string; type: number; guild_id?: string }>>(`/guilds/${guild.id}/channels`);
       return {
         id: guild.id,
@@ -64,7 +68,20 @@ router.get("/discord-promotion/options", requireAuth, async (req, res, next) => 
       };
     }));
 
-    return res.json({ success: true, botConfigured: Boolean(env.DISCORD_BOT_TOKEN), connected: true, guilds: result });
+    return res.json({ success: true, botConfigured: Boolean(env.DISCORD_BOT_TOKEN), connected: Boolean(guilds.length || await prisma.socialAccount.findFirst({ where: { userId: req.userId, provider: "DISCORD", isActive: true }, select: { id: true } })), guilds: result });
+  } catch (error) { next(error); }
+});
+
+router.get("/discord-promotion/install-url", requireAuth, async (req, res, next) => {
+  try {
+    if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
+    if (!env.DISCORD_CLIENT_ID) return res.status(503).json({ success: false, message: "Discord bot application is not configured" });
+    const guildId = typeof req.query.guildId === "string" ? req.query.guildId.trim() : "";
+    if (!/^\d{15,25}$/.test(guildId)) return res.status(400).json({ success: false, message: "Invalid Discord server ID" });
+    const allowed = (await manageableGuilds(req.userId)).some((guild) => guild.id === guildId);
+    if (!allowed) return res.status(403).json({ success: false, message: "You do not have permission to install Raven Oracle in this server" });
+    const params = new URLSearchParams({ client_id: env.DISCORD_CLIENT_ID, scope: "bot applications.commands", permissions: DISCORD_BOT_PERMISSIONS, guild_id: guildId, disable_guild_select: "true" });
+    return res.json({ success: true, authorizationUrl: `https://discord.com/oauth2/authorize?${params.toString()}` });
   } catch (error) { next(error); }
 });
 
@@ -72,24 +89,19 @@ router.patch("/:id/discord-promotion", requireAuth, async (req, res, next) => {
   try {
     const raffle = await getOwnedRaffle(req, res);
     if (!raffle) return;
-
     const enabled = req.body?.enabled === true;
     const channelId = typeof req.body?.channelId === "string" ? req.body.channelId.trim() : "";
     const guildId = typeof req.body?.guildId === "string" ? req.body.guildId.trim() : null;
     const mentionRoleId = typeof req.body?.mentionRoleId === "string" && req.body.mentionRoleId.trim() ? req.body.mentionRoleId.trim() : null;
     const publishNow = req.body?.publishNow === true;
-
     if (enabled && !channelId) return res.status(400).json({ success: false, message: "channelId is required when Discord promotion is enabled" });
     if (channelId && !/^\d{15,25}$/.test(channelId)) return res.status(400).json({ success: false, message: "Invalid Discord channel ID" });
     if (guildId && !/^\d{15,25}$/.test(guildId)) return res.status(400).json({ success: false, message: "Invalid Discord server ID" });
     if (mentionRoleId && !/^\d{15,25}$/.test(mentionRoleId)) return res.status(400).json({ success: false, message: "Invalid Discord role ID" });
-
     const currentRules = objectRecord(raffle.entryRules);
     const currentPromotion = readPromotion(raffle.entryRules);
     const promotion: DiscordPromotionConfig = { ...currentPromotion, enabled, channelId: channelId || null, guildId, mentionRoleId };
-
     if (channelId && env.DISCORD_BOT_TOKEN) await verifyDiscordChannel(channelId, guildId);
-
     let published = false;
     if (publishNow) {
       if (!enabled || !channelId) return res.status(400).json({ success: false, message: "Enable Discord promotion and choose a channel before publishing" });
@@ -99,7 +111,6 @@ router.patch("/:id/discord-promotion", requireAuth, async (req, res, next) => {
       promotion.postedAt = result.postedAt;
       published = true;
     }
-
     const updated = await prisma.raffle.update({ where: { id: raffle.id }, data: { entryRules: { ...currentRules, discordPromotion: promotion } }, select: { entryRules: true } });
     return res.json({ success: true, promotion: readPromotion(updated.entryRules), published });
   } catch (error) { next(error); }
