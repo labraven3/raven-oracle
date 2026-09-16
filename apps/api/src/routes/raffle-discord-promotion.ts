@@ -2,9 +2,11 @@ import { Router, type Request, type Response } from "express";
 import { requireAuth } from "../middleware/auth.js";
 import { prisma } from "../lib/prisma.js";
 import { env } from "../config/env.js";
+import { decrypt } from "../services/discord-oauth.service.js";
 import { publishDiscordGiveaway, verifyDiscordChannel, type DiscordPromotionConfig } from "../services/discord-publisher.service.js";
 
 const router = Router();
+const DISCORD_API = "https://discord.com/api/v10";
 
 function raffleUrl(id: string) { return `${env.WEB_ORIGIN}/raffles/${id}`; }
 
@@ -26,6 +28,45 @@ async function getOwnedRaffle(req: Request, res: Response) {
   if (raffle.createdByUserId !== req.userId) { res.status(403).json({ success: false, message: "You do not own this raffle" }); return null; }
   return raffle;
 }
+
+async function discordUserRequest<T>(accessToken: string, path: string) {
+  const response = await fetch(`${DISCORD_API}${path}`, { headers: { Authorization: `Bearer ${accessToken}`, "User-Agent": "RavenOracle/1.0" } });
+  const text = await response.text();
+  if (!response.ok) throw new Error(`Discord user API ${response.status}`);
+  return (text ? JSON.parse(text) : null) as T;
+}
+
+async function discordBotRequest<T>(path: string) {
+  if (!env.DISCORD_BOT_TOKEN) return null;
+  const response = await fetch(`${DISCORD_API}${path}`, { headers: { Authorization: `Bot ${env.DISCORD_BOT_TOKEN}`, "User-Agent": "RavenOracle/1.0" } });
+  const text = await response.text();
+  if (!response.ok) return null;
+  return (text ? JSON.parse(text) : null) as T;
+}
+
+router.get("/discord-promotion/options", requireAuth, async (req, res, next) => {
+  try {
+    if (!req.userId) return res.status(401).json({ success: false, message: "Authentication required" });
+    const account = await prisma.socialAccount.findFirst({ where: { userId: req.userId, provider: "DISCORD", isActive: true }, select: { accessTokenEncrypted: true } });
+    if (!account?.accessTokenEncrypted) return res.json({ success: true, botConfigured: Boolean(env.DISCORD_BOT_TOKEN), connected: false, guilds: [] });
+
+    const accessToken = decrypt(account.accessTokenEncrypted);
+    const guilds = await discordUserRequest<Array<{ id: string; name: string; owner?: boolean; permissions?: string }>>(accessToken, "/users/@me/guilds");
+    const manageable = guilds.filter((guild) => guild.owner || Boolean((BigInt(guild.permissions ?? "0") & 32n) || (BigInt(guild.permissions ?? "0") & 8n)));
+    const result = await Promise.all(manageable.slice(0, 50).map(async (guild) => {
+      const channels = await discordBotRequest<Array<{ id: string; name: string; type: number; guild_id?: string }>>(`/guilds/${guild.id}/channels`);
+      return {
+        id: guild.id,
+        name: guild.name,
+        owner: Boolean(guild.owner),
+        botInstalled: Boolean(channels),
+        channels: (channels ?? []).filter((channel) => [0, 5].includes(channel.type)).map((channel) => ({ id: channel.id, name: channel.name, type: channel.type })),
+      };
+    }));
+
+    return res.json({ success: true, botConfigured: Boolean(env.DISCORD_BOT_TOKEN), connected: true, guilds: result });
+  } catch (error) { next(error); }
+});
 
 router.patch("/:id/discord-promotion", requireAuth, async (req, res, next) => {
   try {
