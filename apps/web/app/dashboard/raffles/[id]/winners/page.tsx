@@ -68,9 +68,14 @@ export default function WinnerCenterPage() {
 
   const notify = async (winnerId: string, resend = false) => {
     setBusy(winnerId); setError(""); setMessage("");
-    try { await api(`/raffles/${id}/winners/${winnerId}/${resend ? "resend" : "notify"}`, { method: "POST" }); setMessage(resend ? "Winner notification sent again." : "Winner notification sent successfully."); await load(); }
-    catch (e) { setError(e instanceof Error ? e.message : "Unable to send winner notification"); }
-    finally { setBusy(""); }
+    try {
+      await api(`/raffles/${id}/winners/${winnerId}/${resend ? "resend" : "notify"}`, { method: "POST" });
+      setMessage(resend ? "Winner notification sent again." : "Winner notification sent successfully.");
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to send winner notification");
+      await load();
+    } finally { setBusy(""); }
   };
 
   if (loading) return <main className="min-h-screen bg-[#06060a] text-zinc-500"><SiteHeader/><div className="mx-auto max-w-6xl p-10">Loading winner results…</div></main>;
