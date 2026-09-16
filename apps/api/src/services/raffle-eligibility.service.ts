@@ -7,20 +7,24 @@ export async function verifyRaffleEligibility(raffleId: string, entryId: string,
     include: { tasks: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] } },
   });
   if (!raffle) throw new Error("Raffle not found");
+  const rules = raffle.entryRules && typeof raffle.entryRules === "object" && !Array.isArray(raffle.entryRules)
+    ? (raffle.entryRules as Record<string, unknown>)
+    : {};
+  const isFcfs = rules.raffleType === "FCFS";
   const now = new Date();
-  if (raffle.status !== "ACTIVE") throw new Error(raffle.status === "SCHEDULED" ? "Raffle has not started yet" : "Raffle is not accepting verification");
+  if (isFcfs) {
+    if (!["ACTIVE", "CLOSED"].includes(raffle.status)) throw new Error(raffle.status === "SCHEDULED" ? "Raffle has not started yet" : "Raffle is not accepting verification");
+  } else if (raffle.status !== "ACTIVE") {
+    throw new Error(raffle.status === "SCHEDULED" ? "Raffle has not started yet" : "Raffle is not accepting verification");
+  }
   if (now < raffle.startsAt) throw new Error("Raffle has not started yet");
-  if (now > raffle.endsAt) throw new Error("Raffle has ended");
+  if (!isFcfs && now > raffle.endsAt) throw new Error("Raffle has ended");
 
   const entry = await prisma.raffleEntry.findUnique({ where: { id: entryId } });
   if (!entry) throw new Error("Raffle entry not found");
   if (entry.userId !== userId) throw new Error("Raffle entry does not belong to this user");
   if (entry.raffleId !== raffleId) throw new Error("Raffle entry does not belong to this raffle");
 
-  // IMPORTANT: this endpoint is now a READ/eligibility pass, not an external
-  // verification loop. Individual task verification is performed only by
-  // POST /tasks/:taskId/verify. Re-running verification here was causing one
-  // UI refresh to hit every X task again and was the source of the API-cost bug.
   const stored = await prisma.raffleTaskVerification.findMany({
     where: { entryId: entry.id, raffleTaskId: { in: raffle.tasks.map((task) => task.id) } },
     select: { raffleTaskId: true, status: true, verifiedAt: true, failureReason: true, evidence: true },
