@@ -63,6 +63,26 @@ if command_exists pm2; then
   log "Restarting Raven Oracle services from ecosystem.config.js..."
   pm2 delete raven-api >/dev/null 2>&1 || true
   pm2 delete raven-web >/dev/null 2>&1 || true
+
+  # Raven Oracle reserves port 3001 for Next.js. Raven Alpha owns port 3000;
+  # never touch or kill anything on port 3000 during this deployment.
+  if command_exists fuser; then
+    PORT_3001_PIDS=$(fuser -n tcp 3001 2>/dev/null || true)
+    if [ -n "$PORT_3001_PIDS" ]; then
+      log "Clearing stale listener(s) on Raven Oracle port 3001..."
+      for PID in $PORT_3001_PIDS; do
+        kill "$PID" 2>/dev/null || true
+      done
+      sleep 2
+      PORT_3001_PIDS=$(fuser -n tcp 3001 2>/dev/null || true)
+      if [ -n "$PORT_3001_PIDS" ]; then
+        for PID in $PORT_3001_PIDS; do
+          kill -9 "$PID" 2>/dev/null || true
+        done
+      fi
+    fi
+  fi
+
   pm2 start ecosystem.config.js
 
   log "Waiting for services to start..."
