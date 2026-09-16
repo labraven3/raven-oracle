@@ -5,6 +5,7 @@ import { API_BASE_URL } from "@/lib/api-config";
 
 type GateProps = { raffleId: string; children: React.ReactNode };
 type RaffleResponse = { raffle?: { entryRules?: unknown } };
+type SocialAccount = { provider: "X" | "DISCORD"; isActive?: boolean };
 
 declare global { interface Window { turnstile?: { render: (el: HTMLElement, options: Record<string, unknown>) => string; reset: (id?: string) => void }; } }
 
@@ -15,6 +16,8 @@ export default function RaffleCaptchaGate({ raffleId, children }: GateProps) {
   const [entryExists, setEntryExists] = useState(false);
   const [verified, setVerified] = useState(false);
   const [message, setMessage] = useState("");
+  const [socials, setSocials] = useState<SocialAccount[]>([]);
+  const [socialLoading, setSocialLoading] = useState(true);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const widgetRef = useRef<string | null>(null);
 
@@ -27,9 +30,25 @@ export default function RaffleCaptchaGate({ raffleId, children }: GateProps) {
         if (!cancelled) setNeedsCaptcha(required(data.raffle?.entryRules));
       } catch { /* public page continues */ }
     };
+    const loadSocials = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/social-accounts/`, { credentials: "include", cache: "no-store" });
+        if (response.ok) {
+          const data = await response.json() as { accounts?: SocialAccount[] };
+          if (!cancelled) setSocials(data.accounts ?? []);
+        }
+      } finally {
+        if (!cancelled) setSocialLoading(false);
+      }
+    };
     void loadRaffle();
+    void loadSocials();
     return () => { cancelled = true; };
   }, [raffleId]);
+
+  const hasX = socials.some((social) => social.provider === "X" && social.isActive !== false);
+  const hasDiscord = socials.some((social) => social.provider === "DISCORD" && social.isActive !== false);
+  const socialsReady = hasX && hasDiscord;
 
   useEffect(() => {
     if (!needsCaptcha || entryExists) return;
@@ -71,8 +90,24 @@ export default function RaffleCaptchaGate({ raffleId, children }: GateProps) {
     return () => { widgetRef.current = null; };
   }, [needsCaptcha, entryExists, verified, raffleId]);
 
-  return <>
+  const connect = (provider: "x" | "discord") => {
+    const returnTo = `/raffles/${encodeURIComponent(raffleId)}`;
+    window.location.assign(`${API_BASE_URL}/auth/${provider}/start?returnTo=${encodeURIComponent(returnTo)}`);
+  };
+
+  const handleClickCapture = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (socialLoading || socialsReady) return;
+    const target = event.target as HTMLElement | null;
+    const button = target?.closest("button");
+    if (!button || !/enter giveaway/i.test(button.textContent ?? "")) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setMessage("Connect both X and Discord before joining this giveaway.");
+  };
+
+  return <div onClickCapture={handleClickCapture}>
+    {!socialLoading && !socialsReady && <div className="mx-auto mb-5 max-w-6xl px-5"><section className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-5"><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><div className="text-[9px] font-black tracking-[.18em] text-violet-300">ENTRY REQUIREMENT</div><h2 className="mt-1 text-sm font-semibold text-zinc-100">Connect X + Discord to join</h2><p className="mt-1 text-xs text-zinc-500">Both accounts are required before Raven Oracle can accept your giveaway entry.</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={() => connect("x")} disabled={hasX} className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-[9px] font-black text-white disabled:opacity-50">{hasX ? "✓ X Connected" : "Connect X"}</button><button type="button" onClick={() => connect("discord")} disabled={hasDiscord} className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-[9px] font-black text-white disabled:opacity-50">{hasDiscord ? "✓ Discord Connected" : "Connect Discord"}</button></div></div>{message && <p className="mt-3 text-xs text-violet-200">{message}</p>}</section></div>}
     {needsCaptcha && <div className="mx-auto mb-5 max-w-6xl px-5"><section className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><div className="text-[9px] font-black tracking-[.18em] text-amber-300">ANTI-BOT VERIFICATION</div><h2 className="mt-1 text-sm font-semibold text-zinc-100">CAPTCHA required for this raffle</h2><p className="mt-1 text-xs text-zinc-500">Enter the raffle first, then complete Turnstile here to refresh your eligibility.</p></div>{entryExists && !verified && <div ref={containerRef} className="min-h-[65px]" />}</div>{verified && <p className="mt-3 text-xs font-semibold text-emerald-400">✓ CAPTCHA verified</p>}{message && <p className="mt-3 text-xs text-zinc-400">{message}</p>}</section></div>}
     {children}
-  </>;
+  </div>;
 }
