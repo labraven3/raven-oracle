@@ -4,9 +4,9 @@ const DISCORD_API = "https://discord.com/api/v10";
 
 export type DiscordPromotionConfig = {
   enabled?: boolean;
-  guildId?: string | null;
+  guildId?: string | null | undefined;
   channelId?: string | null;
-  mentionRoleId?: string | null;
+  mentionRoleId?: string | null | undefined;
   messageId?: string | null;
   postedAt?: string | null;
   winnerAnnouncedAt?: string | null;
