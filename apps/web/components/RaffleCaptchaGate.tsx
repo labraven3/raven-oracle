@@ -90,9 +90,21 @@ export default function RaffleCaptchaGate({ raffleId, children }: GateProps) {
     return () => { widgetRef.current = null; };
   }, [needsCaptcha, entryExists, verified, raffleId]);
 
-  const connect = (provider: "x" | "discord") => {
-    const returnTo = `/raffles/${encodeURIComponent(raffleId)}`;
-    window.location.assign(`${API_BASE_URL}/auth/${provider}/start?returnTo=${encodeURIComponent(returnTo)}`);
+  const connect = async (provider: "x" | "discord") => {
+    try {
+      const returnTo = `/raffles/${encodeURIComponent(raffleId)}`;
+      const response = await fetch(`${API_BASE_URL}/auth/${provider}/start?returnTo=${encodeURIComponent(returnTo)}`, {
+        credentials: "include",
+        cache: "no-store",
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || typeof data.authorizationUrl !== "string") {
+        throw new Error(data.message ?? `Unable to connect ${provider === "discord" ? "Discord" : "X"}`);
+      }
+      window.location.assign(data.authorizationUrl);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : `Unable to connect ${provider === "discord" ? "Discord" : "X"}`);
+    }
   };
 
   const handleClickCapture = (event: React.MouseEvent<HTMLDivElement>) => {
