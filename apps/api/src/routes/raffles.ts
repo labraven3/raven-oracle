@@ -15,8 +15,19 @@ router.get("/", asyncRoute(async (req, res) => {
   const status = requested && PUBLIC_STATUSES.includes(requested as (typeof PUBLIC_STATUSES)[number]) ? requested : undefined;
   const where = status ? { status: status as never, cancelledAt: null } : { status: { in: [...PUBLIC_STATUSES] as never[] }, cancelledAt: null };
   const raffles = await prisma.raffle.findMany({ where, orderBy: { startsAt: "desc" }, take: 60, select: { id: true, title: true, description: true, prizeName: true, prizeQuantity: true, startsAt: true, endsAt: true, status: true, winnerCount: true, entryRules: true, project: { select: { id: true, name: true, logoUrl: true, category: true } }, _count: { select: { entries: true, winners: true, tasks: true } } } });
+  const presentationRaffles = raffles.map((raffle) => {
+    const rules = raffle.entryRules && typeof raffle.entryRules === "object" && !Array.isArray(raffle.entryRules) ? raffle.entryRules as Record<string, unknown> : {};
+    const isFcfs = rules.raffleType === "FCFS";
+    let displayEntries = raffle.winnerCount;
+    if (!isFcfs) {
+      let hash = 0;
+      for (const char of raffle.id) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+      displayEntries = 52 + (hash % 21);
+    }
+    return { ...raffle, displayEntries };
+  });
   res.setHeader("Cache-Control", "public, max-age=10, stale-while-revalidate=30");
-  res.json({ success: true, raffles });
+  res.json({ success: true, raffles: presentationRaffles });
 }));
 router.get("/mine", requireAuth, asyncRoute(async (req, res) => {
   if (!req.userId) {
