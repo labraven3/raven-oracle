@@ -18,6 +18,7 @@ type Raffle = {
   winnerCount: number;
   project: { id: string; name: string; logoUrl: string | null; category: string } | null;
   _count: { entries: number; winners: number; tasks: number };
+  displayEntries: number;
 };
 
 function dateLabel(value: string) { return new Date(value).toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" }); }
@@ -88,7 +89,7 @@ export default function RafflesPage() {
                 </div>
                 <div className="pl-[4.5rem] text-xs text-zinc-500 md:pl-0">{raffle.project?.name ?? "Project"}<span className="mt-1 block text-[9px] uppercase tracking-[.1em] text-zinc-400">{raffle.project?.category ?? ""}</span></div>
                 <div className="pl-[4.5rem] text-xs font-semibold md:pl-0">{raffle.winnerCount}</div>
-                <div className="pl-[4.5rem] text-xs text-zinc-500 md:pl-0">{raffle._count.entries}</div>
+                <div className="pl-[4.5rem] text-xs text-zinc-500 md:pl-0">{raffle.displayEntries}</div>
                 <div className="pl-[4.5rem] text-xs text-zinc-500 md:pl-0">{dateLabel(raffle.endsAt)}</div>
               </Link>
             ))}
