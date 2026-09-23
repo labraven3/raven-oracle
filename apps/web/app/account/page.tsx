@@ -9,10 +9,11 @@ import { API_BASE_URL } from "@/lib/api-config";
 type User = { id: string; email: string | null; emailVerifiedAt?: string | null; displayName?: string | null; username?: string | null; role?: string; status?: string };
 type Social = { id: string; provider: "X" | "DISCORD"; providerUsername?: string | null; displayName?: string | null };
 type Wallet = { id: string; address: string; chain: string; network: string; label?: string | null; status?: string; isPrimary?: boolean };
-type Chain = { id: string; name: string; icon: string; family: "EVM" | "SOLANA" };
+type Chain = { id: string; name: string; icon: string; family: "EVM" | "SOLANA" | "ZEC" };
 const CHAINS: Chain[] = [
   { id: "ethereum", name: "Ethereum", family: "EVM", icon: "https://atlas3.io/images/network_ethereum.svg" },
   { id: "solana", name: "Solana", family: "SOLANA", icon: "https://atlas3.io/images/network_solana.svg" },
+  { id: "zcash", name: "Zcash", family: "ZEC", icon: "https://atlas3.io/images/network_zcash.svg" },
   { id: "polygon", name: "Polygon", family: "EVM", icon: "https://atlas3.io/images/network_polygon.svg" },
   { id: "base", name: "Base", family: "EVM", icon: "https://atlas3.io/images/network_base.svg" },
   { id: "arbitrum", name: "Arbitrum", family: "EVM", icon: "https://atlas3.io/images/network_arbitrum.svg" },
@@ -35,7 +36,12 @@ async function api<T>(path: string, options: RequestInit = {}) {
   if (!response.ok) throw new Error(data.message ?? `Request failed (${response.status})`); return data as T;
 }
 function shorten(address: string) { return address.length <= 16 ? address : `${address.slice(0, 6)}...${address.slice(-6)}`; }
-function compatible(address: string, family: Chain["family"]) { const value = address.trim(); return family === "EVM" ? /^0x[0-9a-fA-F]{40}$/.test(value) : value.length >= 32 && value.length <= 44 && /^[1-9A-HJ-NP-Za-km-z]+$/.test(value); }
+function compatible(address: string, family: Chain["family"]) {
+  const value = address.trim();
+  if (family === "EVM") return /^0x[0-9a-fA-F]{40}$/.test(value);
+  if (family === "ZEC") return /^zs1[023456789acdefghjklmnpqrstuvwxyz]{75}$/.test(value);
+  return value.length >= 32 && value.length <= 44 && /^[1-9A-HJ-NP-Za-km-z]+$/.test(value);
+}
 function SocialIcon({ provider }: { provider: "X" | "DISCORD" }) { return provider === "X" ? <span className="text-lg font-semibold text-black dark:text-white">𝕏</span> : <span className="text-sm font-black text-[#5865f2]">◉</span>; }
 
 export default function AccountPage() {
