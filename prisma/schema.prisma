@@ -30,6 +30,7 @@ enum SocialProvider {
 enum WalletChain {
   EVM
   SOLANA
+  ZEC
 }
 enum WalletStatus {
   ACTIVE
