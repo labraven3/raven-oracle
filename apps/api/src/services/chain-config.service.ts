@@ -5,7 +5,7 @@ export const DEFAULT_CHAINS = [
   "Sei", "Base", "Ripple", "Arbitrum", "Immutable", "Flow", "Binance", "Tezos", "MultiversX", "Near",
   "Hedera", "Cosmos", "Reef", "Starknet", "Manta", "Monad", "Blast", "Stargaze", "Scroll", "zkSync",
   "Enjin", "Linea", "Oraichain", "TON", "Viction", "Bera", "Tron", "ApeChain", "Abstract", "Hyperliquid",
-  "Story", "XION", "Somnia", "Sophon", "Robinhood", "Arc",
+  "Story", "XION", "Somnia", "Sophon", "Robinhood", "Arc", "Zcash",
 ] as const;
 
 function slugify(value: string) { return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""); }
