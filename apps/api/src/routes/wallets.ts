@@ -11,7 +11,7 @@ const NETWORKS = [
   "sei", "base", "ripple", "arbitrum", "immutable", "flow", "binance", "tezos", "multiversx", "near",
   "hedera", "cosmos", "reef", "starknet", "manta", "monad", "blast", "stargaze", "scroll", "zksync",
   "enjin", "linea", "oraichain", "ton", "viction", "bera", "tron", "apechain", "abstract", "hyperliquid",
-  "story", "xion", "somnia", "sophon", "robinhood",
+  "story", "xion", "somnia", "sophon", "robinhood", "zcash",
 ] as const;
 
 type Network = (typeof NETWORKS)[number];
@@ -22,18 +22,20 @@ const FAMILY_BY_NETWORK: Record<Network, WalletAddressFamily> = {
   immutable: "EVM", flow: "FLOW", binance: "EVM", tezos: "TEZOS", multiversx: "MULTIVERSX", near: "NEAR", hedera: "HEDERA",
   cosmos: "COSMOS", reef: "REEF", starknet: "STARKNET", manta: "EVM", monad: "EVM", blast: "EVM", stargaze: "COSMOS",
   scroll: "EVM", zksync: "EVM", enjin: "EVM", linea: "EVM", oraichain: "COSMOS", ton: "TON", viction: "EVM", bera: "EVM",
-  tron: "TRON", apechain: "EVM", abstract: "EVM", hyperliquid: "EVM", story: "EVM", xion: "COSMOS", somnia: "EVM", sophon: "EVM", robinhood: "EVM",
+  tron: "TRON", apechain: "EVM", abstract: "EVM", hyperliquid: "EVM", story: "EVM", xion: "COSMOS", somnia: "EVM", sophon: "EVM", robinhood: "EVM", zcash: "ZEC",
 };
 
 const walletSchema = z.object({
   address: z.string().trim().min(1).max(255),
-  chain: z.enum(["EVM", "SOLANA"]).optional(),
+  chain: z.enum(["EVM", "SOLANA", "ZEC"]).optional(),
   network: z.enum(NETWORKS).optional(),
   label: z.string().trim().min(1).max(100).optional(),
 });
 
-function dbChainForFamily(family: WalletAddressFamily): "EVM" | "SOLANA" {
-  return family === "SOLANA" ? "SOLANA" : "EVM";
+function dbChainForFamily(family: WalletAddressFamily): "EVM" | "SOLANA" | "ZEC" {
+  if (family === "SOLANA") return "SOLANA";
+  if (family === "ZEC") return "ZEC";
+  return "EVM";
 }
 
 function normalizedKey(normalizedAddress: string, network: Network): string {
