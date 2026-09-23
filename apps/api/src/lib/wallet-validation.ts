@@ -31,7 +31,7 @@ export function normalizeSolanaAddress(address: string): string {
 
 export type WalletAddressFamily =
   | "EVM" | "SOLANA" | "APTOS" | "SUI" | "CARDANO" | "BITCOIN" | "COSMOS" | "RIPPLE" | "TRON"
-  | "TON" | "VENOM" | "TEZOS" | "MULTIVERSX" | "NEAR" | "HEDERA" | "FLOW" | "REEF" | "STARKNET";
+  | "TON" | "VENOM" | "TEZOS" | "MULTIVERSX" | "NEAR" | "HEDERA" | "FLOW" | "REEF" | "STARKNET" | "ZEC";
 
 export function isValidWalletAddress(address: string, family: WalletAddressFamily): boolean {
   if (!address || typeof address !== "string") return false;
@@ -56,6 +56,7 @@ export function isValidWalletAddress(address: string, family: WalletAddressFamil
     case "HEDERA": return /^0\.0\.\d+$/.test(value) || /^0x[0-9a-fA-F]{40}$/.test(value);
     case "FLOW": return /^0x[0-9a-fA-F]{16}$/.test(value);
     case "REEF": return /^5[1-9A-HJ-NP-Za-km-z]{45,50}$/.test(value);
+    case "ZEC": return /^zs1[023456789acdefghjklmnpqrstuvwxyz]{75}$/.test(value);
     default: return false;
   }
 }
