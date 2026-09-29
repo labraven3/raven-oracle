@@ -63,7 +63,7 @@ router.post("/", requireAuth, async (req, res, next) => {
     const address = parsed.data.address;
     const providedChain = parsed.data.chain;
     const label = parsed.data.label;
-    const network = (parsed.data.network ?? (providedChain === "SOLANA" ? "solana" : "ethereum")) as Network;
+    const network = (parsed.data.network ?? (providedChain === "SOLANA" ? "solana" : providedChain === "ZEC" ? "zcash" : providedChain === "NEAR" ? "near" : "ethereum")) as Network;
     const family = FAMILY_BY_NETWORK[network];
     const dbChain = dbChainForFamily(family);
 
