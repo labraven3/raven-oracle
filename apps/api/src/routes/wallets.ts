@@ -27,14 +27,15 @@ const FAMILY_BY_NETWORK: Record<Network, WalletAddressFamily> = {
 
 const walletSchema = z.object({
   address: z.string().trim().min(1).max(255),
-  chain: z.enum(["EVM", "SOLANA", "ZEC"]).optional(),
+  chain: z.enum(["EVM", "SOLANA", "ZEC", "NEAR"]).optional(),
   network: z.enum(NETWORKS).optional(),
   label: z.string().trim().min(1).max(100).optional(),
 });
 
-function dbChainForFamily(family: WalletAddressFamily): "EVM" | "SOLANA" | "ZEC" {
+function dbChainForFamily(family: WalletAddressFamily): "EVM" | "SOLANA" | "ZEC" | "NEAR" {
   if (family === "SOLANA") return "SOLANA";
   if (family === "ZEC") return "ZEC";
+  if (family === "NEAR") return "NEAR";
   return "EVM";
 }
 
