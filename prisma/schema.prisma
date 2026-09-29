@@ -31,6 +31,7 @@ enum WalletChain {
   EVM
   SOLANA
   ZEC
+  NEAR
 }
 enum WalletStatus {
   ACTIVE
